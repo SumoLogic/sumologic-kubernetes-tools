@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::vec::Vec;
 use std::collections::HashMap;
+use clap::{Arg, App, value_t};
 
 fn get_now() -> u64 {
   let start = SystemTime::now();
@@ -26,7 +27,7 @@ struct Statistics {
   metrics_list: HashMap<String, u64>,
 }
 
-async fn handle(req: Request<Body>, statistics: Arc<Mutex<Statistics>>) -> Result<Response<Body>, Infallible> {
+async fn handle(req: Request<Body>, statistics: Arc<Mutex<Statistics>>, port: u16) -> Result<Response<Body>, Infallible> {
     let uri = req.uri().path();
     
     match uri {
@@ -62,7 +63,7 @@ receiver_mock_logs_bytes_count {}",
       _ => {
         if uri.starts_with("/terraform") {
           // ToDo: Do it properly, like human
-          Ok(Response::new("{\"source\": {\"url\": \"http://receiver-mock.receiver-mock:3000/receiver\"}}".into()))
+          Ok(Response::new(format!("{{\"source\": {{\"url\": \"http://receiver-mock.receiver-mock:{}/receiver\"}}}}", port).into()))
         }
         else {
           let empty_header = HeaderValue::from_str("").unwrap();
@@ -104,16 +105,18 @@ receiver_mock_logs_bytes_count {}",
     }
 }
 
-async fn run_app(statistics: Arc<Mutex<Statistics>>) {
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-    println!("Receiver mock is waiting for enemy on 0.0.0.0:3000!");
+async fn run_app(statistics: Arc<Mutex<Statistics>>, port: u16) {
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    println!("Receiver mock is waiting for enemy on 0.0.0.0:{}!", port);
     let make_svc = make_service_fn(|_conn| {
       let statistics = statistics.clone();
       async move {
         let statistics = statistics.clone();
         let result = service_fn(move |req| handle(
           req,
-          statistics.clone()));
+          statistics.clone(),
+          port,
+        ));
         Ok::<_, Infallible>(result)
     }});
 
@@ -143,6 +146,21 @@ fn stats(statistics: Arc<Mutex<Statistics>>) {
 
 #[tokio::main]
 pub async fn main() {
+    let matches = App::new("Receiver mock")
+      .version("0.0")
+      .author("Dominik Rosiek <drosiek@sumologic.com>")
+      .about("Receiver mock can be used for testing performance or functionality of kubernetes collection without sending data to sumologic")
+      .arg(Arg::with_name("port")
+          .short("p")
+          .long("port")
+          .value_name("port")
+          .help("Port to listen")
+          .takes_value(true)
+          .required(false))
+      .get_matches();
+
+    let port: u16 = value_t!(matches, "port", u16).unwrap_or(3000);
+
     let statistics = Statistics {
       metrics: 0,
       logs: 0,
@@ -155,5 +173,5 @@ pub async fn main() {
     };
     let statistics = Arc::new(Mutex::new(statistics));
 
-    run_app(statistics).await;
+    run_app(statistics, port).await;
 }
