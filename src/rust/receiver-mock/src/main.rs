@@ -8,6 +8,7 @@ use std::sync::Mutex;
 use std::vec::Vec;
 use std::collections::HashMap;
 use clap::{Arg, App, value_t};
+use serde_json::json;
 
 fn get_now() -> u64 {
   let start = SystemTime::now();
@@ -31,15 +32,16 @@ async fn handle(req: Request<Body>, statistics: Arc<Mutex<Statistics>>, port: u1
     let uri = req.uri().path();
     
     match uri {
+      // List metrics in format: <name>: <count>
       "/metrics-list" => {
         let statistics = statistics.lock().unwrap();
         let mut string = "".to_string();
         for metric in (*statistics).metrics_list.iter() {
           string.push_str(&format!("{}: {}\n", &metric.0, &metric.1));
         }
-        // ToDo: Do it properly, like human in json
         Ok(Response::new(format!("{}", string).into()))
       }
+      // Metrics in prometheus format
       "/metrics" => {
         let statistics = statistics.lock().unwrap();
   
@@ -53,6 +55,7 @@ receiver_mock_logs_bytes_count {}",
           (*statistics).logs,
           (*statistics).logs_bytes).into()))
       },
+      // Reset metrics counter
       "/metrics-reset" => {
         let mut statistics = statistics.lock().unwrap();
         for (_, val) in (*statistics).metrics_list.iter_mut() {
@@ -61,14 +64,22 @@ receiver_mock_logs_bytes_count {}",
         Ok(Response::new("All counters reset successfully".into()))
       }
       _ => {
+        // Mock receiver
         if uri.starts_with("/terraform") {
-          // ToDo: Do it properly, like human
-          Ok(Response::new(format!("{{\"source\": {{\"url\": \"http://receiver-mock.receiver-mock:{}/receiver\"}}}}", port).into()))
+          Ok(Response::new(
+            json!({
+              "source": {
+                "url": format!("http://receiver-mock.receiver-mock:{}/receiver", port)
+              }
+            }).to_string().into()
+          ))
         }
+        // Treat every other url as receiver endpoint
         else {
           let empty_header = HeaderValue::from_str("").unwrap();
           let content_type = req.headers().get("content-type").unwrap_or(&empty_header).to_str().unwrap();
           match content_type {
+            // Metrics
             "application/vnd.sumologic.prometheus" => {
               let whole_body = hyper::body::to_bytes(req.into_body()).await.unwrap();
               let mut statistics = statistics.lock().unwrap();
@@ -84,6 +95,7 @@ receiver_mock_logs_bytes_count {}",
                 (*statistics).metrics += 1;
               }
             },
+            // Logs & events
             "application/x-www-form-urlencoded" => {
               let whole_body = hyper::body::to_bytes(req.into_body()).await.unwrap();
               let vector_body = whole_body.into_iter().collect::<Vec<u8>>();
