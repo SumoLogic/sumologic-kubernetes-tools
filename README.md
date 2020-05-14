@@ -53,6 +53,13 @@ You can set Jaeger Go client env variables (such as `JAEGER_AGENT_HOST` or `JAEG
 * `TOTAL_SPANS` (default=10000000) - total number of spans to generate
 * `SPANS_PER_MIN` (required) - rate of spans per minute (the tester will adjust the delay between iterations to reach such rate)
 
+## Receiver-mock
+
+Small tool for mocking sumologic receiver to avoid sending data outside of cluster.
+
+`$ kubectl run receiver-mock --generator=run-pod/v1 -it --rm --restart=Never --image sumologic/kubernetes-tools -- receiver-mock --help`
+
+[More information](src/rust/receiver-mock/README.md)
 
 ## Interactive mode
 
