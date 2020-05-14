@@ -167,7 +167,7 @@ pub async fn main() {
           .short("p")
           .long("port")
           .value_name("port")
-          .help("Port to listen")
+          .help("Port to listen on")
           .takes_value(true)
           .required(false))
       .arg(Arg::with_name("hostname")

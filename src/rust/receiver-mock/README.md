@@ -8,11 +8,21 @@ receiver-mock is an small contenerised application written in rust which can be 
 cargo run
 ```
 
-Receiver-mock is listening on port 3000. For now it cannot get any arguments
+### Arguments
+
+List of arguments taken by receiver-mock:
+  * -l, --hostname <hostname> - Hostname reported as the receiver. For kubernetes it will be `<service name>.<namespace>` (`localhost` by default)
+  * -p, --port <port> - Port to listen on (default is `3000`)
 
 ## Terraform mock
 
 It expose the `/terraform.*` url which can be used to set HTTP source for k8s collection to receiver-mock itself
+
+Example output:
+
+```json
+{"source":{"url":"http://localhost:3333/receiver"}}
+```
 
 ## Statistics
 
@@ -39,4 +49,4 @@ There are endpoints which provides statistics:
 
 # Disclaimer
 
-This tool is not intended to be used by the 3rd party. It can significantly change behavior and should be treated as experimental.
+This tool is not intended to be used by the 3rd party. It can significantly change behavior over development time and should be treated as experimental.
