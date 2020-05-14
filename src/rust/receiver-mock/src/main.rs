@@ -26,9 +26,10 @@ struct Statistics {
   p_logs_bytes: u64,
   ts: u64,
   metrics_list: HashMap<String, u64>,
+  url: String,
 }
 
-async fn handle(req: Request<Body>, statistics: Arc<Mutex<Statistics>>, port: u16) -> Result<Response<Body>, Infallible> {
+async fn handle(req: Request<Body>, statistics: Arc<Mutex<Statistics>>) -> Result<Response<Body>, Infallible> {
     let uri = req.uri().path();
     
     match uri {
@@ -66,10 +67,11 @@ receiver_mock_logs_bytes_count {}",
       _ => {
         // Mock receiver
         if uri.starts_with("/terraform") {
+          let statistics = statistics.lock().unwrap();
           Ok(Response::new(
             json!({
               "source": {
-                "url": format!("http://receiver-mock.receiver-mock:{}/receiver", port)
+                "url": *statistics.url,
               }
             }).to_string().into()
           ))
@@ -126,8 +128,7 @@ async fn run_app(statistics: Arc<Mutex<Statistics>>, port: u16) {
         let statistics = statistics.clone();
         let result = service_fn(move |req| handle(
           req,
-          statistics.clone(),
-          port,
+          statistics.clone()
         ));
         Ok::<_, Infallible>(result)
     }});
@@ -169,9 +170,17 @@ pub async fn main() {
           .help("Port to listen")
           .takes_value(true)
           .required(false))
+      .arg(Arg::with_name("hostname")
+          .short("l")
+          .long("hostname")
+          .value_name("hostname")
+          .help("Hostname reported as the receiver. For kubernetes it will be '<service name>.<namespace>'")
+          .takes_value(true)
+          .required(false))
       .get_matches();
 
-    let port: u16 = value_t!(matches, "port", u16).unwrap_or(3000);
+    let port = value_t!(matches, "port", u16).unwrap_or(3000);
+    let hostname = value_t!(matches, "hostname", String).unwrap_or("localhost".to_string());
 
     let statistics = Statistics {
       metrics: 0,
@@ -182,6 +191,7 @@ pub async fn main() {
       p_logs_bytes: 0,
       ts: get_now(),
       metrics_list: HashMap::new(),
+      url: format!("http://{}:{}/receiver", hostname, port),
     };
     let statistics = Arc::new(Mutex::new(statistics));
 
