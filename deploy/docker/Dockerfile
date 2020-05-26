@@ -25,13 +25,20 @@ RUN set -ex \
     libc6-compat \
     openssl \
     net-tools \
-    vim
+    vim \
+    wget
+
+ENV HELM_VERSION="v3.2.0"
+RUN wget -q https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz -O - | tar -xzO linux-amd64/helm > /usr/local/bin/helm \
+    && chmod +x /usr/local/bin/helm
 
 ADD ./src/ssh/motd /etc/motd
 ADD ./src/ssh/profile  /etc/profile
 
 ADD ./src/commands/check /usr/bin/check
 ADD ./src/commands/tools-usage /usr/bin/tools-usage
+ADD ./src/commands/template /usr/bin/template
+
 COPY --from=builder /build/k8s-api-test /usr/bin/
 COPY --from=builder /build/stress-tester /usr/bin/
 COPY --from=rust-builder /build/target/release/receiver-mock /usr/bin

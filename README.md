@@ -10,11 +10,25 @@ This toolset is designed for internal usage and it's in development state. We ar
 
 When Sumo Logic Kubernetes Collection is installed already:
 
-`$ kubectl run tools --generator=run-pod/v1 -it --rm --restart=Never -n sumologic --serviceaccount='collection-sumologic' --image sumologic/kubernetes-tools -- check`
+```bash
+$ kubectl run tools \
+ --generator=run-pod/v1 -it --rm \
+ --restart=Never \
+ -n sumologic \
+ --serviceaccount='collection-sumologic' \
+ --image sumologic/kubernetes-tools \
+ -- check
+```
 
 Alternatively, when collection is not installed, the same command can be run for default serviceaccount:
 
-`$ kubectl run tools --generator=run-pod/v1 -it --rm --restart=Never --image sumologic/kubernetes-tools -- check`
+```bash
+$ kubectl run tools \
+ --generator=run-pod/v1 -it --rm \
+ --restart=Never \
+ --image sumologic/kubernetes-tools \
+ -- check
+```
 
 Should provide an output such as:
 
@@ -39,7 +53,9 @@ pod "diag" deleted
 There's a simple tool that generates a desired number of spans per minute and sends them using Jaeger format
 
 ```
- kubectl run stress-tester --generator=run-pod/v1 -it --rm --restart=Never -n sumologic \
+ kubectl run stress-tester \
+  --generator=run-pod/v1 -it --rm \
+  --restart=Never -n sumologic \
   --image sumologic/kubernetes-tools \
   --serviceaccount='collection-sumologic' \
   --env JAEGER_AGENT_HOST=collection-sumologic-otelcol.sumologic \
@@ -57,12 +73,62 @@ You can set Jaeger Go client env variables (such as `JAEGER_AGENT_HOST` or `JAEG
 
 Small tool for mocking sumologic receiver to avoid sending data outside of cluster.
 
-`$ kubectl run receiver-mock --generator=run-pod/v1 -it --rm --restart=Never --image sumologic/kubernetes-tools -- receiver-mock --help`
+```bash
+$ kubectl run receiver-mock \
+ --generator=run-pod/v1 -it --rm \
+ --restart=Never \
+ --image sumologic/kubernetes-tools \
+ -- receiver-mock --help
+```
 
 [More information](src/rust/receiver-mock/README.md)
+
+## K8S Template generator
+
+Docker based:
+
+```bash
+docker run --rm kubernetes-tools \
+  template \
+  --namespace '<NAMESPACE>' \
+  --name-template 'collection' \
+  --set sumologic.accessId='<ACCESS_KEY>' \
+  --set sumologic.accessKey='<ACCESS_ID>' \
+  --set sumologic.collectorName='<COLLECTOR_NAME>' \
+  --set sumologic.clusterName='<CLUSTER_NAME>' \
+  | tee sumologic.yaml
+```
+
+Kubernetes based:
+
+```
+kubectl run tools \
+  --generator=run-pod/v1 -it --rm \
+  --restart=Never \
+  --image sumologic/kubernetes-tools -- \
+  template \
+  --namespace '<NAMESPACE>' \
+  --name-template 'collection' \
+  --set sumologic.accessId='<ACCESS_KEY>' \
+  --set sumologic.accessKey='<ACCESS_ID>' \
+  --set sumologic.collectorName='<COLLECTOR_NAME>' \
+  --set sumologic.clusterName='<CLUSTER_NAME>' \
+  | tee sumologic.yaml
+```
+
+As the result you will get `sumologic.yaml` which is ready to apply for kubernetes.
+
+**Due to prometheus CRDs, you should apply template twice,
+and wait after first applying for prometheus to create CRDs**
 
 ## Interactive mode
 
 The pod can be also run in interactive mode:
 
-`$ kubectl run tools --generator=run-pod/v1 -it --rm --restart=Never --image sumologic/kubernetes-tools -- /bin/bash -l`
+```bash
+$ kubectl run tools \
+  --generator=run-pod/v1 -it --rm \
+  --restart=Never \
+  --image sumologic/kubernetes-tools \
+  -- /bin/bash -l
+```
