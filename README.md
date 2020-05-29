@@ -1,4 +1,4 @@
-# Sumologic Kubernetes Tools
+# Sumo Logic Kubernetes Tools
 This repository provides set of tools which can be used for debugging and testing [sumologic kubernetes collection](https://github.com/SumoLogic/sumologic-kubernetes-collection/) solution.
 
 # Disclaimer
