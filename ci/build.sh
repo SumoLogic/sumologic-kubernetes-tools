@@ -60,6 +60,7 @@ elif [ -n "$DOCKER_PASSWORD" ] && [[ "$TRAVIS_BRANCH" == "master" || "$TRAVIS_BR
   dev_build_tag=$(git describe --tags --always)
   dev_build_tag=${dev_build_tag#v}
   push_docker_image "$dev_build_tag"
+  push_docker_image "$TRAVIS_BRANCH"
 
 else
   echo "Skip Docker pushing"
