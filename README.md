@@ -88,7 +88,7 @@ $ kubectl run receiver-mock \
 Docker based:
 
 ```bash
-docker run --rm kubernetes-tools \
+docker run --rm sumologic/kubernetes-tools \
   template \
   --namespace '<NAMESPACE>' \
   --name-template 'collection' \
