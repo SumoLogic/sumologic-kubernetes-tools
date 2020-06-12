@@ -61,7 +61,8 @@ There's a simple tool that generates a desired number of spans per minute and se
   --env JAEGER_AGENT_HOST=collection-sumologic-otelcol.sumologic \
   --env JAEGER_AGENT_PORT=6831 \
   --env TOTAL_SPANS=1000000 \
-  --env SPANS_PER_MIN=6000 --
+  --env SPANS_PER_MIN=6000 \
+  -- stress-tester
 ```
 
 You can set Jaeger Go client env variables (such as `JAEGER_AGENT_HOST` or `JAEGER_COLLECTOR`) and stress-tester specific ones:
