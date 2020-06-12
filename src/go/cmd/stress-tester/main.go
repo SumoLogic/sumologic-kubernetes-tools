@@ -29,12 +29,12 @@ type stressTestConfig struct {
 	spansPerMinute int
 	// What should be the size of the trace
 	spansPerTrace int
-	// How many of the spans should be created right away (the rest will be created after a delay)
+	// How many spans until the stress-test finishes
 	totalSpans int
 
-	// What delay for the spans created later
+	// How many of the spans should be created right away (the rest will be created after a delay)
 	spansCreatedImmediately int
-	// How many spans until the stress-test finishes
+	// What delay for the spans created later
 	lateTraceDelay int
 	// Each n-th trace will have the delay applied
 	lateTraceFrequency int
