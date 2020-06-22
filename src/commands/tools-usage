@@ -19,7 +19,8 @@ This image provides a set of tools for Kubernetes Collection. You can use follow
   --env JAEGER_AGENT_HOST=collection-sumologic-otelcol.sumologic \
   --env JAEGER_AGENT_PORT=6831 \
   --env TOTAL_SPANS=1000000 \
-  --env SPANS_PER_MIN=6000 --
+  --env SPANS_PER_MIN=6000 \
+  -- stress-tester
 
  * K8S template generator
 
