@@ -12,7 +12,7 @@ When Sumo Logic Kubernetes Collection is installed already:
 
 ```bash
 $ kubectl run tools \
- --generator=run-pod/v1 -it --rm \
+ -it --rm \
  --restart=Never \
  -n sumologic \
  --serviceaccount='collection-sumologic' \
@@ -24,7 +24,7 @@ Alternatively, when collection is not installed, the same command can be run for
 
 ```bash
 $ kubectl run tools \
- --generator=run-pod/v1 -it --rm \
+ -it --rm \
  --restart=Never \
  --image sumologic/kubernetes-tools \
  -- check
@@ -54,7 +54,7 @@ There's a simple tool that generates a desired number of spans per minute and se
 
 ```
  kubectl run stress-tester \
-  --generator=run-pod/v1 -it --rm \
+  -it --rm \
   --restart=Never -n sumologic \
   --image sumologic/kubernetes-tools \
   --serviceaccount='collection-sumologic' \
@@ -76,7 +76,7 @@ Small tool for mocking sumologic receiver to avoid sending data outside of clust
 
 ```bash
 $ kubectl run receiver-mock \
- --generator=run-pod/v1 -it --rm \
+ -it --rm \
  --restart=Never \
  --image sumologic/kubernetes-tools \
  -- receiver-mock --help
@@ -104,7 +104,7 @@ Kubernetes based:
 
 ```
 kubectl run tools \
-  --generator=run-pod/v1 -it --rm \
+  -it --rm \
   --restart=Never \
   --image sumologic/kubernetes-tools -- \
   template \
@@ -128,7 +128,7 @@ The pod can be also run in interactive mode:
 
 ```bash
 $ kubectl run tools \
-  --generator=run-pod/v1 -it --rm \
+  -it --rm \
   --restart=Never \
   --image sumologic/kubernetes-tools \
   -- /bin/bash -l
