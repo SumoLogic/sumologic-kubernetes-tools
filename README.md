@@ -88,39 +88,38 @@ $ kubectl run receiver-mock \
 
 ### Generating
 
+Before generating the configuration we recommend to prepare `values.yaml` file where you will store all your configuration.
+Alternatively you can replace the file with `--set property=value` arguments according to [helm documentation](https://helm.sh/docs/intro/using_helm/).
+
 #### Docker
 
 ```bash
-docker run --rm sumologic/kubernetes-tools \
+docker run \
+  -v $(pwd)/values.yaml:/values.yaml \
+  --rm sumologic/kubernetes-tools \
   template \
   --namespace '<NAMESPACE>' \
   --name-template 'collection' \
-  --set sumologic.accessId='<ACCESS_KEY>' \
-  --set sumologic.accessKey='<ACCESS_ID>' \
-  --set sumologic.collectorName='<COLLECTOR_NAME>' \
-  --set sumologic.clusterName='<CLUSTER_NAME>' \
+  -f values.yaml \
   | tee sumologic.yaml
 ```
-
 
 #### Kubectl
 
 Minimal supported version of kubectl is `1.14`
 
-```
-kubectl run tools \
-  -it --rm \
-  --quiet \
-  --restart=Never \
-  --image sumologic/kubernetes-tools -- \
+```bash
+kubectl create configmap sumologic-values --from-file=values.yaml
+curl https://raw.githubusercontent.com/SumoLogic/sumologic-kubernetes-tools/master/src/k8s/tools-pod.yaml -s | kubectl apply -f -
+kubectl exec sumologic-tools \
+  -- \
   template \
   --namespace '<NAMESPACE>' \
   --name-template 'collection' \
-  --set sumologic.accessId='<ACCESS_KEY>' \
-  --set sumologic.accessKey='<ACCESS_ID>' \
-  --set sumologic.collectorName='<COLLECTOR_NAME>' \
-  --set sumologic.clusterName='<CLUSTER_NAME>' \
+  -f /values.yaml \
   | tee sumologic.yaml
+kubectl delete pod sumologic-tools
+kubectl delete configmap sumologic-values
 ```
 
 ### Applying changes
