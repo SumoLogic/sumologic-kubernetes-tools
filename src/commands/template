@@ -5,4 +5,4 @@ helm repo add sumologic https://sumologic.github.io/sumologic-kubernetes-collect
 echo '# Update repository'
 helm repo update 1>/dev/null 2>&1
 echo '# Generating template'
-helm template sumologic/sumologic "$@"
+helm template sumologic/sumologic "$@" 2>&1 | grep -vE '^manifest_sorter.go'
