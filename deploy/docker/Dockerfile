@@ -28,7 +28,7 @@ RUN set -ex \
     vim \
     wget
 
-ENV HELM_VERSION="v3.2.0"
+ENV HELM_VERSION="v3.2.4"
 RUN wget -q https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz -O - | tar -xzO linux-amd64/helm > /usr/local/bin/helm \
     && chmod +x /usr/local/bin/helm
 
