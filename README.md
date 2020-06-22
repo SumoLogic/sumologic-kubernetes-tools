@@ -86,7 +86,9 @@ $ kubectl run receiver-mock \
 
 ## K8S Template generator
 
-Docker based:
+### Generating
+
+#### Docker
 
 ```bash
 docker run --rm sumologic/kubernetes-tools \
@@ -100,11 +102,15 @@ docker run --rm sumologic/kubernetes-tools \
   | tee sumologic.yaml
 ```
 
-Kubernetes based:
+
+#### Kubectl
+
+Minimal supported version of kubectl is `1.14`
 
 ```
 kubectl run tools \
   -it --rm \
+  --quiet \
   --restart=Never \
   --image sumologic/kubernetes-tools -- \
   template \
@@ -116,6 +122,8 @@ kubectl run tools \
   --set sumologic.clusterName='<CLUSTER_NAME>' \
   | tee sumologic.yaml
 ```
+
+### Applying changes
 
 As the result you will get `sumologic.yaml` which is ready to apply for kubernetes.
 
