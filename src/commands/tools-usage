@@ -5,15 +5,18 @@ This image provides a set of tools for Kubernetes Collection. You can use follow
 
  * K8S Check for verifying the environment for sumologic serviceaccount (collection must be installed first):
 
- kubectl run tools --generator=run-pod/v1 -it --rm --restart=Never -n sumologic --serviceaccount='collection-sumologic' --image sumologic/kubernetes-tools -- check
+ kubectl run tools -it --rm --restart=Never -n sumologic \
+  --serviceaccount='collection-sumologic' \
+  --image sumologic/kubernetes-tools \
+  -- check
 
  * K8S Check for verifying the environment (default serviceaccount):
 
- kubectl run tools --generator=run-pod/v1 -it --rm --restart=Never --image sumologic/kubernetes-tools -- check
+ kubectl run tools -it --rm --restart=Never --image sumologic/kubernetes-tools -- check
 
  * Trace stress-testing
 
- kubectl run stress-tester --generator=run-pod/v1 -it --rm --restart=Never -n sumologic \
+ kubectl run stress-tester -it --rm --restart=Never -n sumologic \
   --image sumologic/kubernetes-tools \
   --serviceaccount='collection-sumologic' \
   --env JAEGER_AGENT_HOST=collection-sumologic-otelcol.sumologic \
@@ -36,7 +39,7 @@ This image provides a set of tools for Kubernetes Collection. You can use follow
 
   or
 
-  kubectl run tools --generator=run-pod/v1 -it --rm --restart=Never --image sumologic/kubernetes-tools -- \
+  kubectl run tools -it --rm --restart=Never --image sumologic/kubernetes-tools -- \
     template \
     --namespace '<NAMESPACE>' \
     --name-template 'collection' \
@@ -49,7 +52,6 @@ This image provides a set of tools for Kubernetes Collection. You can use follow
  * Receiver mock:
 
  kubectl run receiver-mock \
-    --generator=run-pod/v1 \
     -it --rm --restart=Never \
     --image sumologic/kubernetes-tools \
     -- receiver-mock --help
@@ -57,7 +59,6 @@ This image provides a set of tools for Kubernetes Collection. You can use follow
  * Interactive mode:
 
  kubectl run tools \
-    --generator=run-pod/v1 \
     -it --rm --restart=Never \
     --image sumologic/kubernetes-tools \
     -- /bin/bash -l
