@@ -111,6 +111,7 @@ Minimal supported version of kubectl is `1.14`
 ```bash
 kubectl create configmap sumologic-values --from-file=values.yaml
 curl https://raw.githubusercontent.com/SumoLogic/sumologic-kubernetes-tools/master/src/k8s/tools-pod.yaml -s | kubectl apply -f -
+kubectl wait --for=condition=Ready pod/sumologic-tools
 kubectl exec sumologic-tools \
   -- \
   template \
