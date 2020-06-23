@@ -94,14 +94,11 @@ Alternatively you can replace the file with `--set property=value` arguments acc
 #### Docker
 
 ```bash
-docker run \
-  -v $(pwd)/values.yaml:/values.yaml \
-  --rm sumologic/kubernetes-tools \
+cat values.yaml | docker run \
+  --rm -i sumologic/kubernetes-tools \
   template \
-  --namespace '<NAMESPACE>' \
-  --name-template 'collection' \
-  -f values.yaml \
-  | tee sumologic.yaml
+    --namespace '<NAMESPACE>' \
+    --name-template 'collection'
 ```
 
 #### Kubectl
@@ -109,18 +106,15 @@ docker run \
 Minimal supported version of kubectl is `1.14`
 
 ```bash
-kubectl create configmap sumologic-values --from-file=values.yaml
-curl https://raw.githubusercontent.com/SumoLogic/sumologic-kubernetes-tools/master/src/k8s/tools-pod.yaml -s | kubectl apply -f -
-kubectl wait --for=condition=Ready pod/sumologic-tools
-kubectl exec sumologic-tools \
-  -- \
-  template \
-  --namespace '<NAMESPACE>' \
-  --name-template 'collection' \
-  -f /values.yaml \
-  | tee sumologic.yaml
-kubectl delete pod sumologic-tools
-kubectl delete configmap sumologic-values
+cat values.yaml | \
+  kubectl run tools \
+    -i --quiet --rm \
+    --restart=Never \
+    --image sumologic/kubernetes-tools -- \
+    template \
+      --namespace '<NAMESPACE>' \
+      --name-template 'collection' \
+      | tee sumologic.yaml
 ```
 
 ### Applying changes
