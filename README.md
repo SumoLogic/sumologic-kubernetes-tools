@@ -124,10 +124,23 @@ kubectl delete configmap sumologic-values
 
 ### Applying changes
 
-As the result you will get `sumologic.yaml` which is ready to apply for kubernetes.
+Due to [issues](https://github.com/helm/charts/tree/master/stable/prometheus-operator#helm-fails-to-create-crds) with prometheus operator and CustomResourceDefinitions you should apply them before applying the generated template.
 
-**Due to prometheus CRDs, you should apply template twice,
-and wait after first applying for prometheus to create CRDs**
+```
+kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.38/example/prometheus-operator-crd/monitoring.coreos.com_alertmanagers.yaml
+kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.38/example/prometheus-operator-crd/monitoring.coreos.com_podmonitors.yaml
+kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.38/example/prometheus-operator-crd/monitoring.coreos.com_prometheuses.yaml
+kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.38/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
+kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.38/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
+kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.38/example/prometheus-operator-crd/monitoring.coreos.com_thanosrulers.yaml
+```
+
+Wait for CRDs to be created. It should take around few seconds.
+
+Apply the generated template:
+```
+kubectl apply -f sumologic.yaml
+```
 
 ## Interactive mode
 
