@@ -54,7 +54,11 @@ function push_helm_chart() {
 
 if [ -n "$DOCKER_PASSWORD" ] && [ -n "$TRAVIS_TAG" ]; then
   push_docker_image "$VERSION"
-  push_docker_image "latest"
+
+  # if the tag is a GA and not a prerelease then retag the latest to it
+  if [[ "$TRAVIS_TAG" =~ v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+	  push_docker_image "latest"
+  fi
 
 elif [ -n "$DOCKER_PASSWORD" ] && [[ "$TRAVIS_BRANCH" == "master" || "$TRAVIS_BRANCH" =~ ^release-v[0-9]+\.[0-9]+$ ]] && [ "$TRAVIS_EVENT_TYPE" == "push" ]; then
   dev_build_tag=$(git describe --tags --always)
