@@ -2,6 +2,7 @@ use std::{convert::Infallible, net::SocketAddr};
 use hyper::{Body, Request, Response, Server};
 use hyper::service::{make_service_fn, service_fn};
 use hyper::header::HeaderValue;
+use hyper::server::conn::AddrStream;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -9,6 +10,7 @@ use std::vec::Vec;
 use std::collections::HashMap;
 use clap::{Arg, App, value_t};
 use serde_json::json;
+use std::net::IpAddr;
 
 fn get_now() -> u64 {
   let start = SystemTime::now();
@@ -26,11 +28,12 @@ struct Statistics {
   p_logs_bytes: u64,
   ts: u64,
   metrics_list: HashMap<String, u64>,
+  ip_list: HashMap<IpAddr, u64>,
   url: String,
   print_logs: bool,
 }
 
-async fn handle(req: Request<Body>, statistics: Arc<Mutex<Statistics>>) -> Result<Response<Body>, Infallible> {
+async fn handle(req: Request<Body>, address: IpAddr, statistics: Arc<Mutex<Statistics>>) -> Result<Response<Body>, Infallible> {
     let uri = req.uri().path();
     
     match uri {
@@ -39,6 +42,15 @@ async fn handle(req: Request<Body>, statistics: Arc<Mutex<Statistics>>) -> Resul
         let statistics = statistics.lock().unwrap();
         let mut string = "".to_string();
         for metric in (*statistics).metrics_list.iter() {
+          string.push_str(&format!("{}: {}\n", &metric.0, &metric.1));
+        }
+        Ok(Response::new(format!("{}", string).into()))
+      }
+      // List metrics in format: <ip_address>: <count>
+      "/metrics-ips" => {
+        let statistics = statistics.lock().unwrap();
+        let mut string = "".to_string();
+        for metric in (*statistics).ip_list.iter() {
           string.push_str(&format!("{}: {}\n", &metric.0, &metric.1));
         }
         Ok(Response::new(format!("{}", string).into()))
@@ -60,9 +72,8 @@ receiver_mock_logs_bytes_count {}",
       // Reset metrics counter
       "/metrics-reset" => {
         let mut statistics = statistics.lock().unwrap();
-        for (_, val) in (*statistics).metrics_list.iter_mut() {
-          *val = 0;
-        }
+        (*statistics).metrics_list = HashMap::new();
+        (*statistics).ip_list = HashMap::new();
         Ok(Response::new("All counters reset successfully".into()))
       }
       _ => {
@@ -85,7 +96,7 @@ receiver_mock_logs_bytes_count {}",
             // Metrics
             "application/vnd.sumologic.prometheus" => {
               let whole_body = hyper::body::to_bytes(req.into_body()).await.unwrap();
-              let mut statistics = statistics.lock().unwrap();
+              let mut stats = statistics.lock().unwrap();
               let vector_body = whole_body.into_iter().collect::<Vec<u8>>();
               let string_body = String::from_utf8(vector_body).unwrap();
               
@@ -93,9 +104,13 @@ receiver_mock_logs_bytes_count {}",
     
               for line in lines {
                 let metric_name = line.split("{").nth(0).unwrap().to_string();
-                let saved_metric = (*statistics).metrics_list.entry(metric_name).or_insert(0);
+                let saved_metric = (*stats).metrics_list.entry(metric_name).or_insert(0);
+
                 *saved_metric += 1;
-                (*statistics).metrics += 1;
+                (*stats).metrics += 1;
+
+                let ip_list = (*stats).ip_list.entry(address).or_insert(0);
+                *ip_list += 1;
               }
             },
             // Logs & events
@@ -133,12 +148,14 @@ receiver_mock_logs_bytes_count {}",
 async fn run_app(statistics: Arc<Mutex<Statistics>>, port: u16) {
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     println!("Receiver mock is waiting for enemy on 0.0.0.0:{}!", port);
-    let make_svc = make_service_fn(|_conn| {
+    let make_svc = make_service_fn(|conn: &AddrStream | {
       let statistics = statistics.clone();
+      let address = conn.remote_addr().ip();
       async move {
         let statistics = statistics.clone();
         let result = service_fn(move |req| handle(
           req,
+          address,
           statistics.clone()
         ));
         Ok::<_, Infallible>(result)
@@ -210,6 +227,7 @@ pub async fn main() {
       p_logs_bytes: 0,
       ts: get_now(),
       metrics_list: HashMap::new(),
+      ip_list: HashMap::new(),
       url: format!("http://{}:{}/receiver", hostname, port),
       print_logs: print_logs,
     };
