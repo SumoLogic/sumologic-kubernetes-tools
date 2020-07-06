@@ -58,16 +58,24 @@ async fn handle(req: Request<Body>, address: IpAddr, statistics: Arc<Mutex<Stati
       // Metrics in prometheus format
       "/metrics" => {
         let statistics = statistics.lock().unwrap();
+
+        let ip_stats = &statistics.ip_list;
+        let mut string = "# TYPE receiver_mock_metrics_ip_count counter\n".to_string();
+        for metric in ip_stats.iter() {
+          string.push_str(&format!("receiver_mock_metrics_ip_count{{ip_address=\"{}\"}} {}\n", &metric.0, &metric.1));
+        }
   
         Ok(Response::new(format!("# TYPE receiver_mock_metrics_count counter
 receiver_mock_metrics_count {}
 # TYPE receiver_mock_logs_count counter
 receiver_mock_logs_count {}
 # TYPE receiver_mock_logs_bytes_count counter
-receiver_mock_logs_bytes_count {}",
+receiver_mock_logs_bytes_count {}
+{}",
           (*statistics).metrics,
           (*statistics).logs,
-          (*statistics).logs_bytes).into()))
+          (*statistics).logs_bytes,
+          string).into()))
       },
       // Reset metrics counter
       "/metrics-reset" => {
