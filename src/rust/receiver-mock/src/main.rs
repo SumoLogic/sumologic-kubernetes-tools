@@ -27,6 +27,7 @@ struct Statistics {
   ts: u64,
   metrics_list: HashMap<String, u64>,
   url: String,
+  print_logs: bool,
 }
 
 async fn handle(req: Request<Body>, statistics: Arc<Mutex<Statistics>>) -> Result<Response<Body>, Infallible> {
@@ -106,7 +107,17 @@ receiver_mock_logs_bytes_count {}",
               (*statistics).logs_bytes += vector_body.len() as u64;
     
               let string_body = String::from_utf8(vector_body).unwrap();
-              (*statistics).logs += string_body.trim().split("\n").count() as u64;
+              let lines = string_body.trim().split("\n");
+
+              if (*statistics).print_logs {
+                for line in lines {
+                  println!("log => {}", line);
+                  (*statistics).logs += 1;
+                }
+              }
+              else {
+                (*statistics).logs += lines.count() as u64;
+              }
             },
             &_ => {
               println!("invalid header value");
@@ -177,10 +188,18 @@ pub async fn main() {
           .help("Hostname reported as the receiver. For kubernetes it will be '<service name>.<namespace>'")
           .takes_value(true)
           .required(false))
+        .arg(Arg::with_name("print_logs")
+            .short("r")
+            .long("print-logs")
+            .value_name("print_logs")
+            .help("Use to print received logs on stdout")
+            .takes_value(false)
+            .required(false))
       .get_matches();
 
     let port = value_t!(matches, "port", u16).unwrap_or(3000);
     let hostname = value_t!(matches, "hostname", String).unwrap_or("localhost".to_string());
+    let print_logs = matches.is_present("print_logs");
 
     let statistics = Statistics {
       metrics: 0,
@@ -192,6 +211,7 @@ pub async fn main() {
       ts: get_now(),
       metrics_list: HashMap::new(),
       url: format!("http://{}:{}/receiver", hostname, port),
+      print_logs: print_logs,
     };
     let statistics = Arc::new(Mutex::new(statistics));
 
