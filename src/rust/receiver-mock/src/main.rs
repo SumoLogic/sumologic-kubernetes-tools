@@ -28,7 +28,9 @@ struct Statistics {
   p_logs_bytes: u64,
   ts: u64,
   metrics_list: HashMap<String, u64>,
-  ip_list: HashMap<IpAddr, u64>,
+  metrics_ip_list: HashMap<IpAddr, u64>,
+  // logs_ip_list: .0 is logs counter, .1 is bytes counter
+  logs_ip_list: HashMap<IpAddr, (u64, u64)>,
   url: String,
   print_logs: bool,
 }
@@ -50,7 +52,7 @@ async fn handle(req: Request<Body>, address: IpAddr, statistics: Arc<Mutex<Stati
       "/metrics-ips" => {
         let statistics = statistics.lock().unwrap();
         let mut string = "".to_string();
-        for metric in (*statistics).ip_list.iter() {
+        for metric in (*statistics).metrics_ip_list.iter() {
           string.push_str(&format!("{}: {}\n", &metric.0, &metric.1));
         }
         Ok(Response::new(format!("{}", string).into()))
@@ -59,29 +61,43 @@ async fn handle(req: Request<Body>, address: IpAddr, statistics: Arc<Mutex<Stati
       "/metrics" => {
         let statistics = statistics.lock().unwrap();
 
-        let ip_stats = &statistics.ip_list;
-        let mut string = "# TYPE receiver_mock_metrics_ip_count counter\n".to_string();
+        let ip_stats = &statistics.metrics_ip_list;
+        let mut metrics_ip_string = "# TYPE receiver_mock_metrics_ip_count counter\n".to_string();
         for metric in ip_stats.iter() {
-          string.push_str(&format!("receiver_mock_metrics_ip_count{{ip_address=\"{}\"}} {}\n", &metric.0, &metric.1));
+          metrics_ip_string.push_str(&format!("receiver_mock_metrics_ip_count{{ip_address=\"{}\"}} {}\n", &metric.0, &metric.1));
+        }
+
+        let ip_stats = &statistics.logs_ip_list;
+        let mut logs_ip_count_string = "# TYPE receiver_mock_logs_ip_count counter\n".to_string();
+        let mut logs_ip_count_bytes_string = "# TYPE receiver_mock_logs_bytes_ip_count counter\n".to_string();
+        for metric in ip_stats.iter() {
+          logs_ip_count_string.push_str(&format!("receiver_mock_logs_ip_count{{ip_address=\"{}\"}} {}\n", &metric.0, &(metric.1).0));
+          logs_ip_count_bytes_string.push_str(&format!("receiver_mock_logs_bytes_ip_count{{ip_address=\"{}\"}} {}\n", &metric.0, &(metric.1).1));
         }
   
-        Ok(Response::new(format!("# TYPE receiver_mock_metrics_count counter
+        Ok(Response::new(format!(
+"# TYPE receiver_mock_metrics_count counter
 receiver_mock_metrics_count {}
 # TYPE receiver_mock_logs_count counter
 receiver_mock_logs_count {}
 # TYPE receiver_mock_logs_bytes_count counter
 receiver_mock_logs_bytes_count {}
+{}
+{}
 {}",
           (*statistics).metrics,
           (*statistics).logs,
           (*statistics).logs_bytes,
-          string).into()))
+          metrics_ip_string,
+          logs_ip_count_string,
+          logs_ip_count_bytes_string
+        ).into()))
       },
       // Reset metrics counter
       "/metrics-reset" => {
         let mut statistics = statistics.lock().unwrap();
         (*statistics).metrics_list = HashMap::new();
-        (*statistics).ip_list = HashMap::new();
+        (*statistics).metrics_ip_list = HashMap::new();
         Ok(Response::new("All counters reset successfully".into()))
       }
       _ => {
@@ -117,30 +133,43 @@ receiver_mock_logs_bytes_count {}
                 *saved_metric += 1;
                 (*stats).metrics += 1;
 
-                let ip_list = (*stats).ip_list.entry(address).or_insert(0);
-                *ip_list += 1;
+                let metrics_ip_list = (*stats).metrics_ip_list.entry(address).or_insert(0);
+                *metrics_ip_list += 1;
               }
             },
             // Logs & events
             "application/x-www-form-urlencoded" => {
               let whole_body = hyper::body::to_bytes(req.into_body()).await.unwrap();
               let vector_body = whole_body.into_iter().collect::<Vec<u8>>();
-    
-              let mut statistics = statistics.lock().unwrap();
-              (*statistics).logs_bytes += vector_body.len() as u64;
+              let vector_length = vector_body.len() as u64;
+              let mut stats = statistics.lock().unwrap();
     
               let string_body = String::from_utf8(vector_body).unwrap();
               let lines = string_body.trim().split("\n");
 
-              if (*statistics).print_logs {
+              if (*stats).print_logs {
+                let mut counter = 0;
                 for line in lines {
                   println!("log => {}", line);
-                  (*statistics).logs += 1;
+                  counter += 1;
                 }
+                (*stats).logs += counter;
+                (*stats).logs_bytes += vector_length;
+
+                let logs_ip_list = (*stats).logs_ip_list.entry(address).or_insert((0, 0));
+                (*logs_ip_list).0 += counter;
+                (*logs_ip_list).1 += vector_length;
               }
               else {
-                (*statistics).logs += lines.count() as u64;
+                let lines_count = lines.count() as u64;
+                (*stats).logs_bytes += vector_length;
+                (*stats).logs += lines_count;
+
+                let logs_ip_list = (*stats).logs_ip_list.entry(address).or_insert((0, 0));
+                (*logs_ip_list).0 += lines_count;
+                (*logs_ip_list).1 += vector_length;
               }
+
             },
             &_ => {
               println!("invalid header value");
@@ -235,7 +264,8 @@ pub async fn main() {
       p_logs_bytes: 0,
       ts: get_now(),
       metrics_list: HashMap::new(),
-      ip_list: HashMap::new(),
+      metrics_ip_list: HashMap::new(),
+      logs_ip_list: HashMap::new(),
       url: format!("http://{}:{}/receiver", hostname, port),
       print_logs: print_logs,
     };
