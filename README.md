@@ -98,7 +98,8 @@ cat values.yaml | docker run \
   --rm -i sumologic/kubernetes-tools \
   template \
     --namespace '<NAMESPACE>' \
-    --name-template 'collection'
+    --name-template 'collection' \
+      | tee sumologic.yaml
 ```
 
 #### Kubectl
