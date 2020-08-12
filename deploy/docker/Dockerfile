@@ -14,8 +14,6 @@ RUN find / -name libgcc_s.so.1
 
 FROM alpine:3.9
 RUN set -ex \
-    && echo "http://dl-cdn.alpinelinux.org/alpine/edge/main" >> /etc/apk/repositories \
-    && echo "http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories \
     && apk update \
     && apk upgrade \
     && apk add --no-cache \
@@ -39,6 +37,10 @@ ADD ./src/commands/check /usr/bin/check
 ADD ./src/commands/fix-log-symlinks /usr/bin/fix-log-symlinks
 ADD ./src/commands/tools-usage /usr/bin/tools-usage
 ADD ./src/commands/template /usr/bin/template
+ADD ./src/commands/get-override /usr/bin/get-override
+
+RUN curl -LJ https://github.com/mikefarah/yq/releases/download/3.2.1/yq_linux_amd64 -o /usr/bin/yq
+RUN chmod +x /usr/bin/yq
 
 COPY --from=builder /build/k8s-api-test /usr/bin/
 COPY --from=builder /build/stress-tester /usr/bin/
