@@ -117,19 +117,52 @@ receiver_mock_logs_bytes_count {}
           let empty_header = HeaderValue::from_str("").unwrap();
           let content_type = req.headers().get("content-type").unwrap_or(&empty_header).to_str().unwrap();
           match content_type {
-            // Metrics
+            // Metrics in prometheus format
             "application/vnd.sumologic.prometheus" => {
               let whole_body = hyper::body::to_bytes(req.into_body()).await.unwrap();
               let mut stats = statistics.lock().unwrap();
               let vector_body = whole_body.into_iter().collect::<Vec<u8>>();
               let string_body = String::from_utf8(vector_body).unwrap();
-              
+
               let lines = string_body.trim().split("\n");
-    
+
               for line in lines {
                 let metric_name = line.split("{").nth(0).unwrap().to_string();
                 let saved_metric = (*stats).metrics_list.entry(metric_name).or_insert(0);
 
+                *saved_metric += 1;
+                (*stats).metrics += 1;
+
+                let metrics_ip_list = (*stats).metrics_ip_list.entry(address).or_insert(0);
+                *metrics_ip_list += 1;
+              }
+            },
+            // Metrics in carbon2 format
+            "application/vnd.sumologic.carbon2" => {
+              let whole_body = hyper::body::to_bytes(req.into_body()).await.unwrap();
+              let mut stats = statistics.lock().unwrap();
+              let vector_body = whole_body.into_iter().collect::<Vec<u8>>();
+              let string_body = String::from_utf8(vector_body).unwrap();
+
+              let lines = string_body.trim().split("\n");
+
+              for line in lines {
+                let mut split = line.split("  ");
+                let intrinsic_metrics = split.nth(0).unwrap();
+                let mut metric_name = "".to_string();
+                for metric in intrinsic_metrics.split(" ") {
+                  let name = metric.split("=").nth(0).unwrap().to_string();
+                  if name == "metric" {
+                    metric_name = name
+                  }
+                }
+
+                if metric_name == "" {
+                  eprintln!("Couldn't find the metric name in carbon2 payload: {}", line);
+                  continue;
+                }
+
+                let saved_metric = (*stats).metrics_list.entry(metric_name).or_insert(0);
                 *saved_metric += 1;
                 (*stats).metrics += 1;
 
