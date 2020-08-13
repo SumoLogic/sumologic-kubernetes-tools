@@ -1,16 +1,18 @@
 use std::{convert::Infallible, net::SocketAddr};
-use hyper::{Body, Request, Response, Server};
-use hyper::service::{make_service_fn, service_fn};
-use hyper::header::HeaderValue;
-use hyper::server::conn::AddrStream;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::collections::HashMap;
+use std::io::prelude::*;
+use std::net::IpAddr;
 use std::sync::Arc;
 use std::sync::Mutex;
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::vec::Vec;
-use std::collections::HashMap;
+use hyper::{Body, Request, Response, Server};
+use hyper::header::HeaderValue;
+use hyper::server::conn::AddrStream;
+use hyper::service::{make_service_fn, service_fn};
 use clap::{Arg, App, value_t};
 use serde_json::json;
-use std::net::IpAddr;
+use flate2::read::GzDecoder;
 
 fn get_now() -> u64 {
   let start = SystemTime::now();
@@ -114,18 +116,33 @@ receiver_mock_logs_bytes_count {}
         }
         // Treat every other url as receiver endpoint
         else {
+          let (parts, body) = req.into_parts();
+          let headers = parts.headers;
+
+          let whole_body = hyper::body::to_bytes(body).await.unwrap();
+          let vector_body = whole_body.into_iter().collect::<Vec<u8>>();
+          let vector_length = vector_body.len() as u64;
+          let mut string_body = String::new();
+
           let empty_header = HeaderValue::from_str("").unwrap();
-          let content_type = req.headers().get("content-type").unwrap_or(&empty_header).to_str().unwrap();
+          let content_encoding = headers.get("content-encoding").unwrap_or(&empty_header).to_str().unwrap();
+          if content_encoding == "gzip" {
+            println!("gzip content");
+            let mut d = GzDecoder::new( &vector_body[..] );
+            d.read_to_string(&mut string_body).unwrap();
+          } else {
+            println!("regular content");
+            string_body = String::from_utf8(vector_body).unwrap();
+          }
+
+          let lines = string_body.trim().split("\n");
+
+          let content_type = headers.get("content-type").unwrap_or(&empty_header).to_str().unwrap();
           match content_type {
-            // Metrics
+            // Metrics in prometheus format
             "application/vnd.sumologic.prometheus" => {
-              let whole_body = hyper::body::to_bytes(req.into_body()).await.unwrap();
               let mut stats = statistics.lock().unwrap();
-              let vector_body = whole_body.into_iter().collect::<Vec<u8>>();
-              let string_body = String::from_utf8(vector_body).unwrap();
-              
-              let lines = string_body.trim().split("\n");
-    
+
               for line in lines {
                 let metric_name = line.split("{").nth(0).unwrap().to_string();
                 let saved_metric = (*stats).metrics_list.entry(metric_name).or_insert(0);
@@ -137,15 +154,31 @@ receiver_mock_logs_bytes_count {}
                 *metrics_ip_list += 1;
               }
             },
+            // Metrics in carbon2 format
+            "application/vnd.sumologic.carbon2" => {
+              let mut stats = statistics.lock().unwrap();
+
+              for line in lines {
+                let mut split = line.split("  ");
+                let intrinsic_metrics = split.nth(0).unwrap();
+                for metric in intrinsic_metrics.split(" ") {
+                  let metric_name = metric.split("=").nth(0).unwrap().to_string();
+                  if metric_name == "metric" {
+                    let saved_metric = (*stats).metrics_list.entry(metric_name).or_insert(0);
+                    *saved_metric += 1;
+                    (*stats).metrics += 1;
+
+                    break;
+                  }
+                }
+
+                let metrics_ip_list = (*stats).metrics_ip_list.entry(address).or_insert(0);
+                *metrics_ip_list += 1;
+              }
+            },
             // Logs & events
             "application/x-www-form-urlencoded" => {
-              let whole_body = hyper::body::to_bytes(req.into_body()).await.unwrap();
-              let vector_body = whole_body.into_iter().collect::<Vec<u8>>();
-              let vector_length = vector_body.len() as u64;
               let mut stats = statistics.lock().unwrap();
-    
-              let string_body = String::from_utf8(vector_body).unwrap();
-              let lines = string_body.trim().split("\n");
 
               if (*stats).print_logs {
                 let mut counter = 0;
