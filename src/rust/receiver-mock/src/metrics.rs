@@ -1,10 +1,12 @@
 use std::net::IpAddr;
 use std::sync::{Arc, Mutex};
 
+use crate::statistics::Statistics;
+
 pub fn handle_carbon2(
     lines: std::str::Lines,
     address: IpAddr,
-    stats: &Arc<Mutex<crate::statistics::Statistics>>,
+    stats: &Arc<Mutex<Statistics>>,
 ) {
     let mut stats = stats.lock().unwrap();
 
@@ -30,7 +32,7 @@ pub fn handle_carbon2(
 pub fn handle_prometheus(
     lines: std::str::Lines,
     address: IpAddr,
-    stats: &Arc<Mutex<crate::statistics::Statistics>>,
+    stats: &Arc<Mutex<Statistics>>,
 ) {
     let mut stats = stats.lock().unwrap();
 

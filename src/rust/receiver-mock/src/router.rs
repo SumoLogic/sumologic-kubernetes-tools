@@ -10,10 +10,13 @@ use hyper::header::HeaderValue;
 use hyper::{Body, Request, Response};
 use serde_json::json;
 
+use crate::statistics;
+use crate::statistics::Statistics;
+
 pub async fn handle(
     req: Request<Body>,
     address: IpAddr,
-    stats: Arc<Mutex<crate::statistics::Statistics>>,
+    stats: Arc<Mutex<Statistics>>,
 ) -> Result<Response<Body>, Infallible> {
     let uri = req.uri().path();
 
@@ -183,7 +186,7 @@ receiver_mock_logs_bytes_count {}
                         println!("invalid header value");
                     }
                 }
-                crate::statistics::print(&stats);
+                statistics::print(&stats);
                 Ok(Response::new("".into()))
             }
         }

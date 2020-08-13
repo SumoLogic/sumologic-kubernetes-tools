@@ -10,6 +10,7 @@ use clap::{Arg, App, value_t};
 mod metrics;
 mod router;
 mod statistics;
+use statistics::Statistics;
 mod time;
 
 #[tokio::main]
@@ -45,7 +46,7 @@ pub async fn main() {
     let hostname = value_t!(matches, "hostname", String).unwrap_or("localhost".to_string());
     let print_logs = matches.is_present("print_logs");
 
-    let stats = statistics::Statistics {
+    let stats = Statistics {
       metrics: 0,
       logs: 0,
       logs_bytes: 0,
@@ -64,7 +65,7 @@ pub async fn main() {
     run_app(statistics, port).await;
 }
 
-async fn run_app(stats: Arc<Mutex<statistics::Statistics>>, port: u16) {
+async fn run_app(stats: Arc<Mutex<Statistics>>, port: u16) {
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     println!("Receiver mock is waiting for enemy on 0.0.0.0:{}!", port);
     let make_svc = make_service_fn(|conn: &AddrStream | {
