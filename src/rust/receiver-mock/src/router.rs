@@ -12,6 +12,7 @@ use serde_json::json;
 
 use crate::statistics;
 use crate::statistics::Statistics;
+use crate::metrics;
 
 pub async fn handle(
     req: Request<Body>,
@@ -130,11 +131,9 @@ receiver_mock_logs_bytes_count {}
                     .to_str()
                     .unwrap();
                 if content_encoding == "gzip" {
-                    println!("gzip content");
                     let mut d = GzDecoder::new(&vector_body[..]);
                     d.read_to_string(&mut string_body).unwrap();
                 } else {
-                    println!("regular content");
                     string_body = String::from_utf8(vector_body).unwrap();
                 }
 
@@ -146,13 +145,17 @@ receiver_mock_logs_bytes_count {}
                     .to_str()
                     .unwrap();
                 match content_type {
-                    // Metrics in prometheus format
-                    "application/vnd.sumologic.prometheus" => {
-                        crate::metrics::handle_prometheus(lines, address, &stats);
-                    }
                     // Metrics in carbon2 format
                     "application/vnd.sumologic.carbon2" => {
-                        crate::metrics::handle_carbon2(lines, address, &stats);
+                        metrics::handle_carbon2(lines, address, &stats);
+                    }
+                    // Metrics in graphite format
+                    "application/vnd.sumologic.graphite" => {
+                        metrics::handle_graphite(lines, address, &stats);
+                    }
+                    // Metrics in prometheus format
+                    "application/vnd.sumologic.prometheus" => {
+                        metrics::handle_prometheus(lines, address, &stats);
                     }
                     // Logs & events
                     "application/x-www-form-urlencoded" => {
