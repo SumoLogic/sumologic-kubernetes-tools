@@ -10,17 +10,22 @@ use hyper::header::HeaderValue;
 use hyper::{Body, Request, Response};
 use serde_json::json;
 
+use crate::metrics;
 use crate::statistics;
 use crate::statistics::Statistics;
-use crate::metrics;
 
 pub async fn handle(
     req: Request<Body>,
     address: IpAddr,
     stats: Arc<Mutex<Statistics>>,
+    print_headers: bool,
 ) -> Result<Response<Body>, Infallible> {
-    let uri = req.uri().path();
+    let (parts, body) = req.into_parts();
+    if print_headers {
+        print_request_headers(&parts);
+    }
 
+    let uri = parts.uri.path();
     match uri {
         // List metrics in format: <name>: <count>
         "/metrics-list" => {
@@ -116,9 +121,7 @@ receiver_mock_logs_bytes_count {}
             }
             // Treat every other url as receiver endpoint
             else {
-                let (parts, body) = req.into_parts();
-                let headers = parts.headers;
-
+                let headers = &parts.headers;
                 let whole_body = hyper::body::to_bytes(body).await.unwrap();
                 let vector_body = whole_body.into_iter().collect::<Vec<u8>>();
                 let vector_length = vector_body.len() as u64;
@@ -194,4 +197,18 @@ receiver_mock_logs_bytes_count {}
             }
         }
     }
+}
+
+pub fn print_request_headers(parts: &http::request::Parts) {
+    let method = parts.method.as_str();
+    let uri = parts.uri.path();
+    let headers = &parts.headers;
+
+    println!("--> {} {} {:?}", method, uri, parts.version);
+    for header in headers {
+        let key = header.0;
+        let value = header.1;
+        println!("--> {}: {}", key, value.to_str().unwrap());
+    }
+    println!();
 }
