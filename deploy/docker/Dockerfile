@@ -36,6 +36,7 @@ ADD ./src/ssh/motd /etc/motd
 ADD ./src/ssh/profile  /etc/profile
 
 ADD ./src/commands/check /usr/bin/check
+ADD ./src/commands/fix-log-symlinks /usr/bin/fix-log-symlinks
 ADD ./src/commands/tools-usage /usr/bin/tools-usage
 ADD ./src/commands/template /usr/bin/template
 
