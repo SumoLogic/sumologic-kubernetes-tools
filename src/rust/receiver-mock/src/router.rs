@@ -11,6 +11,7 @@ use hyper::{Body, Request, Response};
 use serde_json::json;
 
 use crate::metrics;
+use crate::print;
 use crate::statistics;
 use crate::statistics::Statistics;
 
@@ -18,14 +19,12 @@ pub async fn handle(
     req: Request<Body>,
     address: IpAddr,
     stats: Arc<Mutex<Statistics>>,
+    print_opts: print::Options,
 ) -> Result<Response<Body>, Infallible> {
     let (parts, body) = req.into_parts();
 
-    {
-        let stats = stats.lock().unwrap();
-        if stats.print_headers {
-            print_request_headers(&parts);
-        }
+    if print_opts.print_headers {
+        print_request_headers(&parts);
     }
 
     let uri = parts.uri.path();
@@ -153,26 +152,25 @@ receiver_mock_logs_bytes_count {}
                 match content_type {
                     // Metrics in carbon2 format
                     "application/vnd.sumologic.carbon2" => {
-                        metrics::handle_carbon2(lines, address, &stats);
+                        metrics::handle_carbon2(lines, address, &stats, print_opts);
                     }
                     // Metrics in graphite format
                     "application/vnd.sumologic.graphite" => {
-                        metrics::handle_graphite(lines, address, &stats);
+                        metrics::handle_graphite(lines, address, &stats, print_opts);
                     }
                     // Metrics in prometheus format
                     "application/vnd.sumologic.prometheus" => {
-                        metrics::handle_prometheus(lines, address, &stats);
+                        metrics::handle_prometheus(lines, address, &stats, print_opts);
                     }
                     // Logs & events
                     "application/x-www-form-urlencoded" => {
-                        let mut stats = stats.lock().unwrap();
-
-                        if (*stats).print_logs {
+                        if print_opts.print_logs {
                             let mut counter = 0;
                             for line in lines {
                                 println!("log => {}", line);
                                 counter += 1;
                             }
+                            let mut stats = stats.lock().unwrap();
                             (*stats).logs += counter;
                             (*stats).logs_bytes += vector_length;
 
@@ -182,6 +180,7 @@ receiver_mock_logs_bytes_count {}
                             (*logs_ip_list).1 += vector_length;
                         } else {
                             let lines_count = lines.count() as u64;
+                            let mut stats = stats.lock().unwrap();
                             (*stats).logs_bytes += vector_length;
                             (*stats).logs += lines_count;
 
