@@ -90,9 +90,7 @@ async fn run_app(stats: Arc<Mutex<Statistics>>, port: u16) {
         let address = conn.remote_addr().ip();
         async move {
             let statistics = statistics.clone();
-            let result = service_fn(move |req| {
-                router::handle(req, address, statistics.clone())
-            });
+            let result = service_fn(move |req| router::handle(req, address, statistics.clone()));
             Ok::<_, Infallible>(result)
         }
     });
