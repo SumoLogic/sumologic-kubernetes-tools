@@ -46,12 +46,20 @@ pub async fn main() {
           .help("Use to print received requests' headers")
           .takes_value(false)
           .required(false))
+      .arg(Arg::with_name("print_metrics")
+          .short("m")
+          .long("print-metrics")
+          .value_name("print_metrics")
+          .help("Use to print received metrics (with dimensions) on stdout")
+          .takes_value(false)
+          .required(false))
       .get_matches();
 
     let port = value_t!(matches, "port", u16).unwrap_or(3000);
     let hostname = value_t!(matches, "hostname", String).unwrap_or("localhost".to_string());
     let print_logs = matches.is_present("print_logs");
     let print_headers = matches.is_present("print_headers");
+    let print_metrics = matches.is_present("print_metrics");
 
     let stats = Statistics {
         metrics: 0,
@@ -67,6 +75,7 @@ pub async fn main() {
         url: format!("http://{}:{}/receiver", hostname, port),
         print_logs: print_logs,
         print_headers: print_headers,
+        print_metrics: print_metrics,
     };
     let statistics = Arc::new(Mutex::new(stats));
 

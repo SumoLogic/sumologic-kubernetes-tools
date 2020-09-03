@@ -19,6 +19,7 @@ pub struct Statistics {
     pub url: String,
     pub print_logs: bool,
     pub print_headers: bool,
+    pub print_metrics: bool,
 }
 
 pub fn print(stats: &Arc<Mutex<Statistics>>) {

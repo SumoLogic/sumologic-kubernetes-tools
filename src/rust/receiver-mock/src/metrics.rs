@@ -9,6 +9,9 @@ pub fn handle_carbon2(lines: std::str::Lines, address: IpAddr, stats: &Arc<Mutex
     let mut stats = stats.lock().unwrap();
 
     for line in lines {
+        if (*stats).print_metrics {
+            println!("metric => {}", line);
+        }
         let mut split = line.split("  ");
         let intrinsic_metrics = split.nth(0).unwrap();
         for metric in intrinsic_metrics.split(" ") {
@@ -33,6 +36,9 @@ pub fn handle_graphite(lines: std::str::Lines, address: IpAddr, stats: &Arc<Mute
     let mut stats = stats.lock().unwrap();
 
     for line in lines {
+        if (*stats).print_metrics {
+            println!("metric => {}", line);
+        }
         let split = line.split(' ').collect::<Vec<_>>();
         if split.len() != 3 {
             println!("Incorrect graphite metric line: {}", line);
@@ -55,6 +61,9 @@ pub fn handle_prometheus(lines: std::str::Lines, address: IpAddr, stats: &Arc<Mu
     let mut stats = stats.lock().unwrap();
 
     for line in lines {
+        if (*stats).print_metrics {
+            println!("metric => {}", line);
+        }
         let metric_name = line.split("{").nth(0).unwrap().to_string();
         let saved_metric = (*stats).metrics_list.entry(metric_name).or_insert(0);
         *saved_metric += 1;
