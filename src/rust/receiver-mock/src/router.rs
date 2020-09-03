@@ -18,11 +18,14 @@ pub async fn handle(
     req: Request<Body>,
     address: IpAddr,
     stats: Arc<Mutex<Statistics>>,
-    print_headers: bool,
 ) -> Result<Response<Body>, Infallible> {
     let (parts, body) = req.into_parts();
-    if print_headers {
-        print_request_headers(&parts);
+
+    {
+        let stats = stats.lock().unwrap();
+        if stats.print_headers {
+            print_request_headers(&parts);
+        }
     }
 
     let uri = parts.uri.path();

@@ -51,6 +51,7 @@ pub async fn main() {
     let port = value_t!(matches, "port", u16).unwrap_or(3000);
     let hostname = value_t!(matches, "hostname", String).unwrap_or("localhost".to_string());
     let print_logs = matches.is_present("print_logs");
+    let print_headers = matches.is_present("print_headers");
 
     let stats = Statistics {
         metrics: 0,
@@ -65,14 +66,14 @@ pub async fn main() {
         logs_ip_list: HashMap::new(),
         url: format!("http://{}:{}/receiver", hostname, port),
         print_logs: print_logs,
+        print_headers: print_headers,
     };
     let statistics = Arc::new(Mutex::new(stats));
 
-    let print_headers = matches.is_present("print_headers");
-    run_app(statistics, port, print_headers).await;
+    run_app(statistics, port).await;
 }
 
-async fn run_app(stats: Arc<Mutex<Statistics>>, port: u16, print_headers: bool) {
+async fn run_app(stats: Arc<Mutex<Statistics>>, port: u16) {
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     println!("Receiver mock is waiting for enemy on 0.0.0.0:{}!", port);
     let make_svc = make_service_fn(|conn: &AddrStream| {
@@ -81,7 +82,7 @@ async fn run_app(stats: Arc<Mutex<Statistics>>, port: u16, print_headers: bool) 
         async move {
             let statistics = statistics.clone();
             let result = service_fn(move |req| {
-                router::handle(req, address, statistics.clone(), print_headers)
+                router::handle(req, address, statistics.clone())
             });
             Ok::<_, Infallible>(result)
         }
