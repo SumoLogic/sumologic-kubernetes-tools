@@ -18,6 +18,7 @@ pub struct Statistics {
     pub logs_ip_list: HashMap<IpAddr, (u64, u64)>,
     pub url: String,
     pub print_logs: bool,
+    pub print_headers: bool,
 }
 
 pub fn print(stats: &Arc<Mutex<Statistics>>) {
