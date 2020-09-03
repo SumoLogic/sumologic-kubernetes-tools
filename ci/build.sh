@@ -35,23 +35,6 @@ function push_docker_image() {
   docker push $DOCKER_TAG:$version
 }
 
-function push_helm_chart() {
-  local version="$1"
-
-  echo "Pushing new Helm Chart release $version"
-  set -x
-  git checkout -- .
-  sudo helm init --client-only
-  sudo helm package deploy/helm/sumologic --dependency-update --version=$version --app-version=$version
-  git fetch origin-repo
-  git checkout gh-pages
-  sudo helm repo index ./ --url https://sumologic.github.io/sumologic-kubernetes-collection/
-  git add -A
-  git commit -m "Push new Helm Chart release $version"
-  git push --quiet origin-repo gh-pages
-  set +x
-}
-
 if [ -n "$DOCKER_PASSWORD" ] && [ -n "$TRAVIS_TAG" ]; then
   push_docker_image "$VERSION"
 
