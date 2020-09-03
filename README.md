@@ -138,18 +138,18 @@ Apply the generated template:
 kubectl apply -f sumologic.yaml
 ```
 
-## Get override configuration
+## Template dependency configuration
 
 There could be scenarios when you want to get the configuration of the subcharts (prometheus-operator, fluent-bit, etc.).
 
-Command `get-override` takes part of the upstream `values.yaml` file basing on the given key:
+Command `template-dependency` takes part of the upstream `values.yaml` file basing on the given key:
 
 ```
- kubectl run get-override \
+ kubectl run template-dependency \
   -it --rm \
   --restart=Never -n sumologic \
   --image sumologic/kubernetes-tools \
-  -- get-override prometheus-operator
+  -- template-dependency prometheus-operator
 ```
 
 This command will return our configuration of `prometheus-operator` ready to apply for the `prometheus-operator` helm chart.

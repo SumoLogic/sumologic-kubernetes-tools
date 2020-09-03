@@ -37,7 +37,7 @@ ADD ./src/commands/check /usr/bin/check
 ADD ./src/commands/fix-log-symlinks /usr/bin/fix-log-symlinks
 ADD ./src/commands/tools-usage /usr/bin/tools-usage
 ADD ./src/commands/template /usr/bin/template
-ADD ./src/commands/get-override /usr/bin/get-override
+ADD ./src/commands/template-dependency /usr/bin/template-dependency
 
 RUN curl -LJ https://github.com/mikefarah/yq/releases/download/3.2.1/yq_linux_amd64 -o /usr/bin/yq
 RUN chmod +x /usr/bin/yq
