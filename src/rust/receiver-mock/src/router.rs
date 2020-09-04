@@ -11,7 +11,7 @@ use hyper::{Body, Request, Response};
 use serde_json::json;
 
 use crate::metrics;
-use crate::print;
+use crate::options;
 use crate::statistics;
 use crate::statistics::Statistics;
 
@@ -19,11 +19,11 @@ pub async fn handle(
     req: Request<Body>,
     address: IpAddr,
     stats: Arc<Mutex<Statistics>>,
-    print_opts: print::Options,
+    opts: options::Options,
 ) -> Result<Response<Body>, Infallible> {
     let (parts, body) = req.into_parts();
 
-    if print_opts.print_headers {
+    if opts.print_opts.print_headers {
         print_request_headers(&parts);
     }
 
@@ -152,19 +152,19 @@ receiver_mock_logs_bytes_count {}
                 match content_type {
                     // Metrics in carbon2 format
                     "application/vnd.sumologic.carbon2" => {
-                        metrics::handle_carbon2(lines, address, &stats, print_opts);
+                        metrics::handle_carbon2(lines, address, &stats, opts.print_opts);
                     }
                     // Metrics in graphite format
                     "application/vnd.sumologic.graphite" => {
-                        metrics::handle_graphite(lines, address, &stats, print_opts);
+                        metrics::handle_graphite(lines, address, &stats, opts.print_opts);
                     }
                     // Metrics in prometheus format
                     "application/vnd.sumologic.prometheus" => {
-                        metrics::handle_prometheus(lines, address, &stats, print_opts);
+                        metrics::handle_prometheus(lines, address, &stats, opts.print_opts);
                     }
                     // Logs & events
                     "application/x-www-form-urlencoded" => {
-                        if print_opts.print_logs {
+                        if opts.print_opts.print_logs {
                             let mut counter = 0;
                             for line in lines {
                                 println!("log => {}", line);

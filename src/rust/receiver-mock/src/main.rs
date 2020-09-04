@@ -8,7 +8,8 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::Server;
 
 mod metrics;
-mod print;
+mod options;
+use options::Options;
 mod router;
 mod statistics;
 use statistics::Statistics;
@@ -59,10 +60,12 @@ pub async fn main() {
     let port = value_t!(matches, "port", u16).unwrap_or(3000);
     let hostname = value_t!(matches, "hostname", String).unwrap_or("localhost".to_string());
 
-    let print_opts = print::Options {
-        print_logs: matches.is_present("print_logs"),
-        print_headers: matches.is_present("print_headers"),
-        print_metrics: matches.is_present("print_metrics"),
+    let opts = Options {
+        print_opts: options::Print {
+            print_logs: matches.is_present("print_logs"),
+            print_headers: matches.is_present("print_headers"),
+            print_metrics: matches.is_present("print_metrics"),
+        },
     };
 
     let stats = Statistics {
@@ -80,10 +83,10 @@ pub async fn main() {
     };
     let statistics = Arc::new(Mutex::new(stats));
 
-    run_app(statistics, port, print_opts).await;
+    run_app(statistics, port, opts).await;
 }
 
-async fn run_app(stats: Arc<Mutex<Statistics>>, port: u16, print_opts: print::Options) {
+async fn run_app(stats: Arc<Mutex<Statistics>>, port: u16, opts: Options) {
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     println!("Receiver mock is waiting for enemy on 0.0.0.0:{}!", port);
     let make_svc = make_service_fn(|conn: &AddrStream| {
@@ -92,7 +95,7 @@ async fn run_app(stats: Arc<Mutex<Statistics>>, port: u16, print_opts: print::Op
 
         async move {
             let result =
-                service_fn(move |req| router::handle(req, address, statistics.clone(), print_opts));
+                service_fn(move |req| router::handle(req, address, statistics.clone(), opts));
             Ok::<_, Infallible>(result)
         }
     });

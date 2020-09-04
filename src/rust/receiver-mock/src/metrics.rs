@@ -1,7 +1,7 @@
 use std::net::IpAddr;
 use std::sync::{Arc, Mutex};
 
-use crate::print;
+use crate::options;
 use crate::statistics::Statistics;
 
 // Handle metrics in Carbon2.0 format
@@ -10,7 +10,7 @@ pub fn handle_carbon2(
     lines: std::str::Lines,
     address: IpAddr,
     stats: &Arc<Mutex<Statistics>>,
-    print_opts: print::Options,
+    print_opts: options::Print,
 ) {
     let mut stats = stats.lock().unwrap();
 
@@ -42,7 +42,7 @@ pub fn handle_graphite(
     lines: std::str::Lines,
     address: IpAddr,
     stats: &Arc<Mutex<Statistics>>,
-    print_opts: print::Options,
+    print_opts: options::Print,
 ) {
     let mut stats = stats.lock().unwrap();
 
@@ -72,7 +72,7 @@ pub fn handle_prometheus(
     lines: std::str::Lines,
     address: IpAddr,
     stats: &Arc<Mutex<Statistics>>,
-    print_opts: print::Options,
+    print_opts: options::Print,
 ) {
     let mut stats = stats.lock().unwrap();
 
