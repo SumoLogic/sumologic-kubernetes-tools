@@ -8,6 +8,8 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::Server;
 
 mod metrics;
+mod options;
+use options::Options;
 mod router;
 mod statistics;
 use statistics::Statistics;
@@ -57,9 +59,14 @@ pub async fn main() {
 
     let port = value_t!(matches, "port", u16).unwrap_or(3000);
     let hostname = value_t!(matches, "hostname", String).unwrap_or("localhost".to_string());
-    let print_logs = matches.is_present("print_logs");
-    let print_headers = matches.is_present("print_headers");
-    let print_metrics = matches.is_present("print_metrics");
+
+    let opts = Options {
+        print: options::Print {
+            logs: matches.is_present("print_logs"),
+            headers: matches.is_present("print_headers"),
+            metrics: matches.is_present("print_metrics"),
+        },
+    };
 
     let stats = Statistics {
         metrics: 0,
@@ -73,24 +80,22 @@ pub async fn main() {
         metrics_ip_list: HashMap::new(),
         logs_ip_list: HashMap::new(),
         url: format!("http://{}:{}/receiver", hostname, port),
-        print_logs: print_logs,
-        print_headers: print_headers,
-        print_metrics: print_metrics,
     };
     let statistics = Arc::new(Mutex::new(stats));
 
-    run_app(statistics, port).await;
+    run_app(statistics, port, opts).await;
 }
 
-async fn run_app(stats: Arc<Mutex<Statistics>>, port: u16) {
+async fn run_app(stats: Arc<Mutex<Statistics>>, port: u16, opts: Options) {
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
     println!("Receiver mock is waiting for enemy on 0.0.0.0:{}!", port);
     let make_svc = make_service_fn(|conn: &AddrStream| {
         let statistics = stats.clone();
         let address = conn.remote_addr().ip();
+
         async move {
-            let statistics = statistics.clone();
-            let result = service_fn(move |req| router::handle(req, address, statistics.clone()));
+            let result =
+                service_fn(move |req| router::handle(req, address, statistics.clone(), opts));
             Ok::<_, Infallible>(result)
         }
     });
