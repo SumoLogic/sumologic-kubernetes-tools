@@ -23,7 +23,7 @@ pub async fn handle(
 ) -> Result<Response<Body>, Infallible> {
     let (parts, body) = req.into_parts();
 
-    if opts.print_opts.print_headers {
+    if opts.print.headers {
         print_request_headers(&parts);
     }
 
@@ -152,19 +152,19 @@ receiver_mock_logs_bytes_count {}
                 match content_type {
                     // Metrics in carbon2 format
                     "application/vnd.sumologic.carbon2" => {
-                        metrics::handle_carbon2(lines, address, &stats, opts.print_opts);
+                        metrics::handle_carbon2(lines, address, &stats, opts.print);
                     }
                     // Metrics in graphite format
                     "application/vnd.sumologic.graphite" => {
-                        metrics::handle_graphite(lines, address, &stats, opts.print_opts);
+                        metrics::handle_graphite(lines, address, &stats, opts.print);
                     }
                     // Metrics in prometheus format
                     "application/vnd.sumologic.prometheus" => {
-                        metrics::handle_prometheus(lines, address, &stats, opts.print_opts);
+                        metrics::handle_prometheus(lines, address, &stats, opts.print);
                     }
                     // Logs & events
                     "application/x-www-form-urlencoded" => {
-                        if opts.print_opts.print_logs {
+                        if opts.print.logs {
                             let mut counter = 0;
                             for line in lines {
                                 println!("log => {}", line);

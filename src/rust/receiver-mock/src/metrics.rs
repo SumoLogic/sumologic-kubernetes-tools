@@ -15,7 +15,7 @@ pub fn handle_carbon2(
     let mut stats = stats.lock().unwrap();
 
     for line in lines {
-        if print_opts.print_metrics {
+        if print_opts.metrics {
             println!("metric => {}", line);
         }
         let mut split = line.split("  ");
@@ -47,7 +47,7 @@ pub fn handle_graphite(
     let mut stats = stats.lock().unwrap();
 
     for line in lines {
-        if print_opts.print_metrics {
+        if print_opts.metrics {
             println!("metric => {}", line);
         }
         let split = line.split(' ').collect::<Vec<_>>();
@@ -77,7 +77,7 @@ pub fn handle_prometheus(
     let mut stats = stats.lock().unwrap();
 
     for line in lines {
-        if print_opts.print_metrics {
+        if print_opts.metrics {
             println!("metric => {}", line);
         }
         let metric_name = line.split("{").nth(0).unwrap().to_string();

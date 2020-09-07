@@ -1,11 +1,11 @@
 #[derive(Clone,Copy)]
 pub struct Options {
-    pub print_opts: Print,
+    pub print: Print,
 }
 
 #[derive(Clone,Copy)]
 pub struct Print {
-    pub print_logs: bool,
-    pub print_headers: bool,
-    pub print_metrics: bool,
+    pub logs: bool,
+    pub headers: bool,
+    pub metrics: bool,
 }

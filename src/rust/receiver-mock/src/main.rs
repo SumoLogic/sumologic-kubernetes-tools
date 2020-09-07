@@ -61,10 +61,10 @@ pub async fn main() {
     let hostname = value_t!(matches, "hostname", String).unwrap_or("localhost".to_string());
 
     let opts = Options {
-        print_opts: options::Print {
-            print_logs: matches.is_present("print_logs"),
-            print_headers: matches.is_present("print_headers"),
-            print_metrics: matches.is_present("print_metrics"),
+        print: options::Print {
+            logs: matches.is_present("print_logs"),
+            headers: matches.is_present("print_headers"),
+            metrics: matches.is_present("print_metrics"),
         },
     };
 
