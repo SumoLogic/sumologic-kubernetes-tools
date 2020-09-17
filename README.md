@@ -138,6 +138,25 @@ Apply the generated template:
 kubectl apply -f sumologic.yaml
 ```
 
+## Template dependency configuration
+
+There could be scenarios when you want to get the configuration of the subcharts (prometheus-operator, fluent-bit, etc.).
+
+Command `template-dependency` takes part of the upstream `values.yaml` file basing on the given key:
+
+```
+ kubectl run template-dependency \
+  -it --rm \
+  --restart=Never -n sumologic \
+  --image sumologic/kubernetes-tools \
+  -- template-dependency prometheus-operator
+```
+
+This command will return our configuration of `prometheus-operator` ready to apply for the `prometheus-operator` helm chart.
+
+You can add additional parameters (like `--version=1.0.0`) at the end of the command.
+List of supported arguments is compatible with `helm show values`.
+
 ## Interactive mode
 
 The pod can be also run in interactive mode:
