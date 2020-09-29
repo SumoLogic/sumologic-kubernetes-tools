@@ -1,12 +1,18 @@
 # Sumo Logic Kubernetes Tools
+
 This repository provides set of tools which can be used for debugging and testing [sumologic kubernetes collection](https://github.com/SumoLogic/sumologic-kubernetes-collection/) solution.
 
-# Disclaimer
+## Disclaimer
+
 This toolset is designed for internal usage and it's in development state. We are not giving guarantee of consistency and stability of the application. Inappropriate usage can lead to breaking cluster configuration and/or deployments.
 
-# Running
+## Requirements
 
-## K8S Check
+- [`kubectl`](https://kubernetes.io/docs/tasks/tools/install-kubectl/) >= `1.14`
+
+## Applications
+
+### K8S Check
 
 When Sumo Logic Kubernetes Collection is installed already:
 
@@ -48,7 +54,7 @@ Running K8S API test
 pod "diag" deleted
 ```
 
-## Trace stress-tester
+### Trace stress-tester
 
 There's a simple tool that generates a desired number of spans per minute and sends them using Jaeger format
 
@@ -70,7 +76,7 @@ You can set Jaeger Go client env variables (such as `JAEGER_AGENT_HOST` or `JAEG
 * `TOTAL_SPANS` (default=10000000) - total number of spans to generate
 * `SPANS_PER_MIN` (required) - rate of spans per minute (the tester will adjust the delay between iterations to reach such rate)
 
-## Receiver-mock
+### Receiver-mock
 
 Small tool for mocking sumologic receiver to avoid sending data outside of cluster.
 
@@ -84,14 +90,14 @@ $ kubectl run receiver-mock \
 
 [More information](src/rust/receiver-mock/README.md)
 
-## K8S Template generator
+### K8S Template generator
 
-### Generating
+#### Generating
 
 Before generating the configuration we recommend to prepare `values.yaml` file where you will store all your configuration.
 Alternatively you can replace the file with `--set property=value` arguments according to [helm documentation](https://helm.sh/docs/intro/using_helm/).
 
-#### Docker
+##### Docker
 
 ```bash
 cat values.yaml | docker run \
@@ -102,7 +108,7 @@ cat values.yaml | docker run \
       | tee sumologic.yaml
 ```
 
-#### Kubectl
+##### Kubectl
 
 Minimal supported version of kubectl is `1.14`
 
@@ -118,7 +124,7 @@ cat values.yaml | \
       | tee sumologic.yaml
 ```
 
-### Applying changes
+#### Applying changes
 
 Due to [issues](https://github.com/helm/charts/tree/master/stable/prometheus-operator#helm-fails-to-create-crds) with prometheus operator and CustomResourceDefinitions you should apply them before applying the generated template.
 
@@ -138,7 +144,7 @@ Apply the generated template:
 kubectl apply -f sumologic.yaml
 ```
 
-## Template dependency configuration
+### Template dependency configuration
 
 There could be scenarios when you want to get the configuration of the subcharts (prometheus-operator, fluent-bit, etc.).
 
@@ -146,7 +152,7 @@ Command `template-dependency` takes part of the upstream `values.yaml` file basi
 
 ```
  kubectl run template-dependency \
-  -it --rm \
+  -it --quiet --rm \
   --restart=Never -n sumologic \
   --image sumologic/kubernetes-tools \
   -- template-dependency prometheus-operator
@@ -155,9 +161,10 @@ Command `template-dependency` takes part of the upstream `values.yaml` file basi
 This command will return our configuration of `prometheus-operator` ready to apply for the `prometheus-operator` helm chart.
 
 You can add additional parameters (like `--version=1.0.0`) at the end of the command.
-List of supported arguments is compatible with `helm show values`.
+List of supported arguments is compatible with
+[`helm show values`](https://helm.sh/docs/helm/helm_show_values/).
 
-## Interactive mode
+### Interactive mode
 
 The pod can be also run in interactive mode:
 
