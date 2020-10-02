@@ -1,18 +1,39 @@
+use std::collections::HashMap;
 use std::net::IpAddr;
-use std::sync::{Arc, Mutex};
 
 use crate::options;
-use crate::statistics::Statistics;
+
+pub struct MetricsHandleResult {
+    pub metrics: u64,
+    pub metrics_list: HashMap<String, u64>,
+    pub metrics_ip_list: HashMap<IpAddr, u64>,
+}
+
+impl MetricsHandleResult {
+    fn handle_metric(&mut self, metric_name: String) {
+        let saved_metric = self.metrics_list.entry(metric_name).or_insert(0);
+        *saved_metric += 1;
+        self.metrics += 1;
+    }
+
+    fn handle_ip(&mut self, ip_address: IpAddr) {
+        let metrics_ip_list = self.metrics_ip_list.entry(ip_address).or_insert(0);
+        *metrics_ip_list += 1;
+    }
+}
 
 // Handle metrics in Carbon2.0 format
 // Reference: https://help.sumologic.com/Metrics/Introduction-to-Metrics/Metric-Formats#carbon-2-0
 pub fn handle_carbon2(
     lines: std::str::Lines,
     address: IpAddr,
-    stats: &Arc<Mutex<Statistics>>,
     print_opts: options::Print,
-) {
-    let mut stats = stats.lock().unwrap();
+) -> MetricsHandleResult {
+    let mut result = MetricsHandleResult {
+        metrics: 0,
+        metrics_list: HashMap::new(),
+        metrics_ip_list: HashMap::new(),
+    };
 
     for line in lines {
         if print_opts.metrics {
@@ -23,17 +44,15 @@ pub fn handle_carbon2(
         for metric in intrinsic_metrics.split(" ") {
             let metric_name = metric.split("=").nth(0).unwrap().to_string();
             if metric_name == "metric" {
-                let saved_metric = (*stats).metrics_list.entry(metric_name).or_insert(0);
-                *saved_metric += 1;
-                (*stats).metrics += 1;
-
+                result.handle_metric(metric_name);
                 break;
             }
         }
 
-        let metrics_ip_list = (*stats).metrics_ip_list.entry(address).or_insert(0);
-        *metrics_ip_list += 1;
+        result.handle_ip(address);
     }
+
+    result
 }
 
 // Handle metrics in Graphite format
@@ -41,10 +60,13 @@ pub fn handle_carbon2(
 pub fn handle_graphite(
     lines: std::str::Lines,
     address: IpAddr,
-    stats: &Arc<Mutex<Statistics>>,
     print_opts: options::Print,
-) {
-    let mut stats = stats.lock().unwrap();
+) -> MetricsHandleResult {
+    let mut result = MetricsHandleResult {
+        metrics: 0,
+        metrics_list: HashMap::new(),
+        metrics_ip_list: HashMap::new(),
+    };
 
     for line in lines {
         if print_opts.metrics {
@@ -57,13 +79,11 @@ pub fn handle_graphite(
         }
 
         let metric_name = split[0].split('.').last().unwrap().to_string();
-        let saved_metric = (*stats).metrics_list.entry(metric_name).or_insert(0);
-        *saved_metric += 1;
-        (*stats).metrics += 1;
-
-        let metrics_ip_list = (*stats).metrics_ip_list.entry(address).or_insert(0);
-        *metrics_ip_list += 1;
+        result.handle_metric(metric_name);
+        result.handle_ip(address);
     }
+
+    result
 }
 
 // Handle metrics in Prometheus format
@@ -71,21 +91,27 @@ pub fn handle_graphite(
 pub fn handle_prometheus(
     lines: std::str::Lines,
     address: IpAddr,
-    stats: &Arc<Mutex<Statistics>>,
     print_opts: options::Print,
-) {
-    let mut stats = stats.lock().unwrap();
+) -> MetricsHandleResult {
+    let mut result = MetricsHandleResult {
+        metrics: 0,
+        metrics_list: HashMap::new(),
+        metrics_ip_list: HashMap::new(),
+    };
 
     for line in lines {
+        // Ignore comments
+        if line.starts_with("#") {
+            continue
+        }
+
         if print_opts.metrics {
             println!("metric => {}", line);
         }
         let metric_name = line.split("{").nth(0).unwrap().to_string();
-        let saved_metric = (*stats).metrics_list.entry(metric_name).or_insert(0);
-        *saved_metric += 1;
-        (*stats).metrics += 1;
-
-        let metrics_ip_list = (*stats).metrics_ip_list.entry(address).or_insert(0);
-        *metrics_ip_list += 1;
+        result.handle_metric(metric_name);
+        result.handle_ip(address);
     }
+
+    result
 }
