@@ -2,8 +2,17 @@ FROM golang:1.15.2 as go-builder
 RUN mkdir /build
 ADD ./src/go /build/
 WORKDIR /build
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o k8s-api-test cmd/k8s-api-test/main.go
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o stress-tester cmd/stress-tester/main.go
+# Following flags are passed to ld (external linker):
+# * -w to not include debug info
+# * -extldflags "-static" to build static binaries
+RUN CGO_ENABLED=0 GOOS=linux \
+    go build -a \
+        -ldflags '-w -extldflags "-static"' \
+        -o k8s-api-test cmd/k8s-api-test/main.go
+RUN CGO_ENABLED=0 GOOS=linux \
+    go build -a \
+        -ldflags '-w -extldflags "-static"' \
+        -o stress-tester cmd/stress-tester/main.go
 
 FROM rust:alpine3.11 as rust-builder
 COPY ./src/rust/receiver-mock /build
