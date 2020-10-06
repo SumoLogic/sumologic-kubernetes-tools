@@ -1,9 +1,18 @@
-FROM golang:1.14.1 as builder
+FROM golang:1.15.2 as go-builder
 RUN mkdir /build
 ADD ./src/go /build/
 WORKDIR /build
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o k8s-api-test cmd/k8s-api-test/main.go
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o stress-tester cmd/stress-tester/main.go
+# Following flags are passed to ld (external linker):
+# * -w to decrease binary size by not including debug info
+# * -extldflags "-static" to build static binaries
+RUN CGO_ENABLED=0 GOOS=linux \
+    go build -a \
+        -ldflags '-w -extldflags "-static"' \
+        -o k8s-api-test cmd/k8s-api-test/main.go
+RUN CGO_ENABLED=0 GOOS=linux \
+    go build -a \
+        -ldflags '-w -extldflags "-static"' \
+        -o stress-tester cmd/stress-tester/main.go
 
 FROM rust:alpine3.11 as rust-builder
 COPY ./src/rust/receiver-mock /build
@@ -42,8 +51,8 @@ ADD ./src/commands/template-dependency /usr/bin/template-dependency
 RUN curl -LJ https://github.com/mikefarah/yq/releases/download/3.2.1/yq_linux_amd64 -o /usr/bin/yq
 RUN chmod +x /usr/bin/yq
 
-COPY --from=builder /build/k8s-api-test /usr/bin/
-COPY --from=builder /build/stress-tester /usr/bin/
+COPY --from=go-builder /build/k8s-api-test /usr/bin/
+COPY --from=go-builder /build/stress-tester /usr/bin/
 COPY --from=rust-builder /build/target/release/receiver-mock /usr/bin
 COPY --from=rust-builder /usr/lib/libgcc_s.so.1 /usr/lib
 
