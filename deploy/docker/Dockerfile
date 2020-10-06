@@ -3,7 +3,7 @@ RUN mkdir /build
 ADD ./src/go /build/
 WORKDIR /build
 # Following flags are passed to ld (external linker):
-# * -w to not include debug info
+# * -w to decrease binary size by not including debug info
 # * -extldflags "-static" to build static binaries
 RUN CGO_ENABLED=0 GOOS=linux \
     go build -a \
