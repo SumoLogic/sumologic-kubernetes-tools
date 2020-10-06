@@ -7,6 +7,8 @@ jobs:
     - stage: test receiver-mock
       language: rust
       rust: stable
+      cache: cargo
+      # ref: https://docs.travis-ci.com/user/languages/rust/#dependency-management
       before_script:
         - cd src/rust/receiver-mock/
       script:
