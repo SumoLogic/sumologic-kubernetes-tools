@@ -1,4 +1,4 @@
-FROM golang:1.14.1 as builder
+FROM golang:1.15.2 as go-builder
 RUN mkdir /build
 ADD ./src/go /build/
 WORKDIR /build
@@ -42,8 +42,8 @@ ADD ./src/commands/template-dependency /usr/bin/template-dependency
 RUN curl -LJ https://github.com/mikefarah/yq/releases/download/3.2.1/yq_linux_amd64 -o /usr/bin/yq
 RUN chmod +x /usr/bin/yq
 
-COPY --from=builder /build/k8s-api-test /usr/bin/
-COPY --from=builder /build/stress-tester /usr/bin/
+COPY --from=go-builder /build/k8s-api-test /usr/bin/
+COPY --from=go-builder /build/stress-tester /usr/bin/
 COPY --from=rust-builder /build/target/release/receiver-mock /usr/bin
 COPY --from=rust-builder /usr/lib/libgcc_s.so.1 /usr/lib
 
