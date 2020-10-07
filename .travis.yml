@@ -24,7 +24,7 @@ jobs:
         - bash ci/build.sh
       branches:
         only:
-        - master
-        - /^release-v\d+\.\d+$/
-        - /^v\d+\.\d+\.\d+$/
-        - /^v\d+\.\d+\.\d+-(alpha|beta|rc)\.\d+$/
+          - master
+          - /^release-v\d+\.\d+$/
+          - /^v\d+\.\d+\.\d+$/
+          - /^v\d+\.\d+\.\d+-(alpha|beta|rc)\.\d+$/
