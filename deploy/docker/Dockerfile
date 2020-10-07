@@ -14,12 +14,11 @@ RUN CGO_ENABLED=0 GOOS=linux \
         -ldflags '-w -extldflags "-static"' \
         -o stress-tester cmd/stress-tester/main.go
 
-FROM rust:alpine3.11 as rust-builder
+FROM rust:alpine3.12 as rust-builder
 COPY ./src/rust/receiver-mock /build
 WORKDIR /build
 RUN apk update && apk upgrade && apk add g++
-RUN RUSTFLAGS="-C target-feature=-crt-static" cargo build --release
-RUN find / -name libgcc_s.so.1
+RUN cargo build --release
 
 FROM alpine:3.9
 RUN set -ex \
@@ -54,6 +53,5 @@ RUN chmod +x /usr/bin/yq
 COPY --from=go-builder /build/k8s-api-test /usr/bin/
 COPY --from=go-builder /build/stress-tester /usr/bin/
 COPY --from=rust-builder /build/target/release/receiver-mock /usr/bin
-COPY --from=rust-builder /usr/lib/libgcc_s.so.1 /usr/lib
 
 CMD ["/usr/bin/tools-usage"]
