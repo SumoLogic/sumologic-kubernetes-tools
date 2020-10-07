@@ -1,9 +1,20 @@
 #!/usr/bin/env bash
 
+function print_help() {
+  echo "K8S template generator"
+}
+
+readonly arg=${1}
+
+if [[ "${arg}" == "--help" ]]; then
+  print_help
+  exit 0
+fi
+
 # Take data from stdin if available and put into tmpfile
 tmpfile="$(mktemp /tmp/values.yaml.XXXXXX)"
 extra_params=''
-if [ ! -t 0 ]; then 
+if [ ! -t 0 ]; then
   cat <&0 > "${tmpfile}"
   extra_params="-f${tmpfile}"
 fi

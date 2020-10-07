@@ -59,9 +59,8 @@ function print_help() {
 readonly arg=${1}
 readonly loop_sleep=${2:-$DEFAULT_LOOP_SLEEP}
 
-echo "Ensure kubernetes has not deleted log symlinks"
-
 if [[ ${arg} == ${LOOP_ARG} ]]; then
+  echo "Ensure kubernetes has not deleted log symlinks"
   while true; do
     fix_log_symlinks
     sleep ${loop_sleep}
@@ -70,5 +69,6 @@ elif [[ ${arg} == ${HELP_ARG} ]]; then
   print_help
   exit 0
 else
+  echo "Ensure kubernetes has not deleted log symlinks"
   fix_log_symlinks
 fi

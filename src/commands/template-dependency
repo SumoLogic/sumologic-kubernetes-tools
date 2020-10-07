@@ -1,5 +1,16 @@
 #!/usr/bin/env bash
 
+function print_help() {
+  echo "Generate kubernetes yaml file values with a designated key's override"
+}
+
+readonly arg=${1}
+
+if [[ "${arg}" == "--help" ]]; then
+  print_help
+  exit 0
+fi
+
 key="${1}"
 shift
 
