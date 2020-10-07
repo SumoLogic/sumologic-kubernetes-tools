@@ -22,6 +22,17 @@ function check_env() {
   fi
 }
 
+function print_help() {
+  echo "K8S check for verifying the environment"
+}
+
+readonly arg=${1}
+
+if [[ "${arg}" == "--help" ]]; then
+  print_help
+  exit 0
+fi
+
 check_file /var/run/secrets/kubernetes.io/serviceaccount/token
 check_file /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
 check_file /var/run/secrets/kubernetes.io/serviceaccount/namespace true
