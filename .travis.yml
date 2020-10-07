@@ -22,9 +22,10 @@ jobs:
       services: docker
       script:
         - bash ci/build.sh
-      branches:
-        only:
-          - master
-          - /^release-v\d+\.\d+$/
-          - /^v\d+\.\d+\.\d+$/
-          - /^v\d+\.\d+\.\d+-(alpha|beta|rc)\.\d+$/
+
+branches:
+  only:
+    - master
+    - /^release-v\d+\.\d+$/
+    - /^v\d+\.\d+\.\d+$/
+    - /^v\d+\.\d+\.\d+-(alpha|beta|rc)\.\d+$/
