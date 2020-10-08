@@ -13,6 +13,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -222,7 +223,19 @@ func handleErr(message string, err error) {
 	}
 }
 
+var help bool
+
+func init() {
+	flag.BoolVar(&help, "help", false, "show help")
+}
+
 func main() {
+	flag.Parse()
+	if help {
+		fmt.Println("Trace stress-testing")
+		os.Exit(0)
+	}
+
 	jagerCfg, err := jaegercfg.FromEnv()
 	handleErr("Could not parse Jaeger env", err)
 

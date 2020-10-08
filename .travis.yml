@@ -1,28 +1,41 @@
 os: linux
+# Somehow focal (20.04) is available for amd64 but when
+# ran on travis it falls back to xenial (16.04).
 dist: bionic
+arch: amd64
 language: shell
 
 jobs:
   include:
-    - stage: test receiver-mock
+    - stage: shellcheck build.sh
+      install:
+        - sudo apt update
+        - sudo apt install shellcheck
+      script:
+        # SC2154 - Don't warn about undeclared variables that we take from travis environment.
+        - shellcheck --norc --enable all --exclude SC2154 ci/build.sh
+
+    - stage: test
       language: rust
       rust: stable
-      cache: cargo
       # ref: https://docs.travis-ci.com/user/languages/rust/#dependency-management
+      cache: cargo
       before_script:
         - cd src/rust/receiver-mock/
       script:
         - cargo test
 
-    - stage: build sumologic-kubernetes-tools docker image
+    - stage: build
       language: ruby
+      # TODO: upgrade this?
       dist: trusty
       services: docker
       script:
         - bash ci/build.sh
-      branches:
-        only:
-        - master
-        - /^release-v\d+\.\d+$/
-        - /^v\d+\.\d+\.\d+$/
-        - /^v\d+\.\d+\.\d+-(alpha|beta|rc)\.\d+$/
+
+branches:
+  only:
+    - master
+    - /^release-v\d+\.\d+$/
+    - /^v\d+\.\d+\.\d+$/
+    - /^v\d+\.\d+\.\d+-(alpha|beta|rc)\.\d+$/

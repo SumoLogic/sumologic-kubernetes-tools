@@ -1,50 +1,64 @@
-FROM golang:1.14.1 as builder
+FROM golang:1.15.2 as go-builder
 RUN mkdir /build
 ADD ./src/go /build/
 WORKDIR /build
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o k8s-api-test cmd/k8s-api-test/main.go
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o stress-tester cmd/stress-tester/main.go
+# Following flags are passed to ld (external linker):
+# * -w to decrease binary size by not including debug info
+# * -extldflags "-static" to build static binaries
+RUN CGO_ENABLED=0 GOOS=linux \
+    go build -a \
+        -ldflags '-w -extldflags "-static"' \
+        -o k8s-api-test cmd/k8s-api-test/main.go
+RUN CGO_ENABLED=0 GOOS=linux \
+    go build -a \
+        -ldflags '-w -extldflags "-static"' \
+        -o stress-tester cmd/stress-tester/main.go
 
-FROM rust:alpine3.11 as rust-builder
+FROM rust:alpine3.12 as rust-builder
 COPY ./src/rust/receiver-mock /build
 WORKDIR /build
 RUN apk update && apk upgrade && apk add g++
-RUN RUSTFLAGS="-C target-feature=-crt-static" cargo build --release
-RUN find / -name libgcc_s.so.1
+RUN cargo build --release
 
-FROM alpine:3.9
+FROM alpine:3.12
+ENV HELM_VERSION="3.2.4"
+ENV YQ_VERSION="3.2.1"
 RUN set -ex \
     && apk update \
     && apk upgrade \
     && apk add --no-cache \
-    bash \
-    busybox-extras \
-    curl \
-    libc6-compat \
-    openssl \
-    net-tools \
-    vim \
-    wget
+        bash \
+        busybox-extras \
+        curl \
+        libc6-compat \
+        openssl \
+        net-tools \
+        vim \
+    && curl https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz | tar -xzO linux-amd64/helm > /usr/local/bin/helm \
+    && chmod +x /usr/local/bin/helm \
+    && curl -LJ https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 -o /usr/bin/yq \
+    && chmod +x /usr/bin/yq
 
-ENV HELM_VERSION="v3.2.4"
-RUN wget -q https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz -O - | tar -xzO linux-amd64/helm > /usr/local/bin/helm \
-    && chmod +x /usr/local/bin/helm
+COPY \
+    ./src/ssh/motd \
+    ./src/ssh/profile \
+    /etc/
 
-ADD ./src/ssh/motd /etc/motd
-ADD ./src/ssh/profile  /etc/profile
+COPY \
+    ./src/commands/check \
+    ./src/commands/fix-log-symlinks \
+    ./src/commands/tools-usage \
+    ./src/commands/template \
+    ./src/commands/template-dependency \
+    /usr/bin/
 
-ADD ./src/commands/check /usr/bin/check
-ADD ./src/commands/fix-log-symlinks /usr/bin/fix-log-symlinks
-ADD ./src/commands/tools-usage /usr/bin/tools-usage
-ADD ./src/commands/template /usr/bin/template
-ADD ./src/commands/template-dependency /usr/bin/template-dependency
+COPY --from=go-builder \
+    /build/k8s-api-test \
+    /build/stress-tester \
+    /usr/bin/
 
-RUN curl -LJ https://github.com/mikefarah/yq/releases/download/3.2.1/yq_linux_amd64 -o /usr/bin/yq
-RUN chmod +x /usr/bin/yq
-
-COPY --from=builder /build/k8s-api-test /usr/bin/
-COPY --from=builder /build/stress-tester /usr/bin/
-COPY --from=rust-builder /build/target/release/receiver-mock /usr/bin
-COPY --from=rust-builder /usr/lib/libgcc_s.so.1 /usr/lib
+COPY --from=rust-builder \
+    /build/target/release/receiver-mock \
+    /usr/bin/
 
 CMD ["/usr/bin/tools-usage"]
