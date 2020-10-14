@@ -250,6 +250,7 @@ fn print_request_headers(
 }
 
 // TODO: extract stdout as parameter to make testing easier.
+// ref: https://github.com/SumoLogic/sumologic-kubernetes-tools/issues/58
 pub fn start_print_stats_timer(
     t: &timer::Timer,
     interval: Duration,
@@ -268,6 +269,7 @@ pub fn start_print_stats_timer(
 
         // TODO: make this print metrics per minute (as DPM) and logs
         // per second, regardless of used interval
+        // ref: https://github.com/SumoLogic/sumologic-kubernetes-tools/issues/57
         println!(
             "{} Metrics: {:10.} Logs: {:10.}; {:6.6} MB/s",
             now,

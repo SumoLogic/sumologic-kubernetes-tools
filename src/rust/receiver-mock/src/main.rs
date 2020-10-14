@@ -78,6 +78,7 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
 
     let t = timer::Timer::new();
     // TODO: configure interval?
+    // ref: https://github.com/SumoLogic/sumologic-kubernetes-tools/issues/59
     router::start_print_stats_timer(&t, Duration::seconds(60), app_state.clone()).ignore();
 
     let app_metadata = web::Data::new(router::AppMetadata {

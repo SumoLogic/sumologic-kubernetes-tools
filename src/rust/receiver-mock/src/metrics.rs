@@ -87,7 +87,6 @@ pub fn handle_graphite(
             continue;
         }
 
-        // TODO: do we want to substitute dots with '_'s for graphite?
         let metric_name = split_metric[1];
         let metric_field = split_metric[2];
         result.handle_metric(format!("{}_{}", metric_name, metric_field));
