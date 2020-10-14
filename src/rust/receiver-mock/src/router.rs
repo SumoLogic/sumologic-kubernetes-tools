@@ -266,10 +266,11 @@ pub fn start_print_stats_timer(
         let logs = app_state.logs.lock().unwrap();
         let logs_bytes = app_state.logs_bytes.lock().unwrap();
 
+        // TODO: make this print metrics per minute (as DPM) and logs
+        // per second, regardless of used interval
         println!(
             "{} Metrics: {:10.} Logs: {:10.}; {:6.6} MB/s",
-            // TODO: ts or now?
-            ts,
+            now,
             *metrics - p_metrics,
             *logs - p_logs,
             ((*logs_bytes - p_logs_bytes) as f64) / ((now - ts) as f64) / (1e6 as f64)
