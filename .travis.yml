@@ -15,6 +15,16 @@ jobs:
         # SC2154 - Don't warn about undeclared variables that we take from travis environment.
         - shellcheck --norc --enable all --exclude SC2154 ci/build.sh
 
+    - stage: test
+      language: rust
+      rust: stable
+      # ref: https://docs.travis-ci.com/user/languages/rust/#dependency-management
+      cache: cargo
+      before_script:
+        - cd src/rust/receiver-mock/
+      script:
+        - cargo test
+
     - stage: build
       language: ruby
       # TODO: upgrade this?

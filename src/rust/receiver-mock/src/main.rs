@@ -1,22 +1,18 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
-use std::{convert::Infallible, net::SocketAddr};
+use std::sync::Mutex;
 
+use actix_web::web;
 use clap::{value_t, App, Arg};
-use hyper::server::conn::AddrStream;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::Server;
+use chrono::Duration;
 
 mod metrics;
 mod options;
 use options::Options;
 mod router;
-mod statistics;
-use statistics::Statistics;
 mod time;
 
-#[tokio::main]
-pub async fn main() {
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
     let matches = App::new("Receiver mock")
       .version("0.0")
       .author("Dominik Rosiek <drosiek@sumologic.com>")
@@ -59,7 +55,6 @@ pub async fn main() {
 
     let port = value_t!(matches, "port", u16).unwrap_or(3000);
     let hostname = value_t!(matches, "hostname", String).unwrap_or("localhost".to_string());
-
     let opts = Options {
         print: options::Print {
             logs: matches.is_present("print_logs"),
@@ -68,41 +63,56 @@ pub async fn main() {
         },
     };
 
-    let stats = Statistics {
-        metrics: 0,
-        logs: 0,
-        logs_bytes: 0,
-        p_metrics: 0,
-        p_logs: 0,
-        p_logs_bytes: 0,
-        ts: time::get_now(),
-        metrics_list: HashMap::new(),
-        metrics_ip_list: HashMap::new(),
-        logs_ip_list: HashMap::new(),
-        url: format!("http://{}:{}/receiver", hostname, port),
-    };
-    let statistics = Arc::new(Mutex::new(stats));
-
-    run_app(statistics, port, opts).await;
+    run_app(hostname, port, opts).await
 }
 
-async fn run_app(stats: Arc<Mutex<Statistics>>, port: u16, opts: Options) {
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    println!("Receiver mock is waiting for enemy on 0.0.0.0:{}!", port);
-    let make_svc = make_service_fn(|conn: &AddrStream| {
-        let statistics = stats.clone();
-        let address = conn.remote_addr().ip();
-
-        async move {
-            let result =
-                service_fn(move |req| router::handle(req, address, statistics.clone(), opts));
-            Ok::<_, Infallible>(result)
-        }
+async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<()> {
+    let app_state = web::Data::new(router::AppState {
+        metrics: Mutex::new(0),
+        logs: Mutex::new(0),
+        logs_bytes: Mutex::new(0),
+        metrics_list: Mutex::new(HashMap::new()),
+        metrics_ip_list: Mutex::new(HashMap::new()),
+        logs_ip_list: Mutex::new(HashMap::new()),
     });
 
-    let server = Server::bind(&addr).serve(make_svc);
+    let t = timer::Timer::new();
+    // TODO: configure interval?
+    // ref: https://github.com/SumoLogic/sumologic-kubernetes-tools/issues/59
+    router::start_print_stats_timer(&t, Duration::seconds(60), app_state.clone()).ignore();
 
-    if let Err(e) = server.await {
-        eprintln!("server error: {}", e);
+    let app_metadata = web::Data::new(router::AppMetadata {
+        url: format!("http://{}:{}/receiver", hostname, port),
+    });
+
+    println!("Receiver mock is waiting for enemy on 0.0.0.0:{}!", port);
+    let result = actix_web::HttpServer::new(move || {
+        actix_web::App::new()
+            .app_data(app_state.clone()) // Mutable shared state
+            .data(opts.clone())
+            .route("/metrics-reset", web::post().to(router::handler_metrics_reset))
+            .route("/metrics-list", web::get().to(router::handler_metrics_list))
+            .route("/metrics-ips", web::get().to(router::handler_metrics_ips))
+            .route("/metrics", web::get().to(router::handler_metrics))
+            .service(
+                web::scope("/terraform")
+                    .app_data(app_metadata.clone())
+                    .default_service(web::get().to(router::handler_terraform))
+            )
+            // Treat every other url as receiver endpoint
+            .default_service(web::get().to(router::handler_receiver))
+                // Set metrics payload limit to 100MB
+                .app_data(web::PayloadConfig::default().limit(100 * 2<<20))
+    })
+    .bind(format!("0.0.0.0:{}", port))?
+    .run()
+    .await;
+
+    match result {
+        Ok(result) => Ok(result),
+        Err(e) => {
+            eprintln!("server error: {}", e);
+            Err(e)
+        }
     }
 }
