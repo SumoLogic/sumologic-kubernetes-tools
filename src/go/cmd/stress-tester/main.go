@@ -187,7 +187,7 @@ func runStressTest(testCfg stressTestConfig, jagerCfg *jaegercfg.Configuration) 
 			trace.finishAll()
 		}
 
-		if len(tracesToFinishLater) >= lateTraceDelayFinishQueueSize || i == tracesCount-1 {
+		if l := len(tracesToFinishLater); l > 0 && (l >= lateTraceDelayFinishQueueSize || i == tracesCount-1) {
 			tracesToFinishLater[0].finishAll()
 			tracesToFinishLater = tracesToFinishLater[1:]
 			lateTracesSent += 1
