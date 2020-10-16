@@ -882,6 +882,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc6f3ad7b9d11a0c00842ff8de1b60ee58661048eb8049ed33c73594f359d7e6"
 
 [[package]]
+name = "json_str"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f00783c490dd203c46fb31c88fe4f26bbd4192bd63d78b335f350b8868733367"
+
+[[package]]
 name = "kernel32-sys"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1227,12 +1233,15 @@ name = "receiver-mock"
 version = "0.1.0"
 dependencies = [
  "actix-http",
+ "actix-rt",
  "actix-service",
  "actix-web",
  "bytes",
  "chrono",
  "clap",
  "futures",
+ "futures-util",
+ "json_str",
  "serde",
  "serde_derive",
  "timer",
