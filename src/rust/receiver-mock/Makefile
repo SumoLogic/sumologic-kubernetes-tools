@@ -1,5 +1,5 @@
 RUSTFMT_FLAGS = --config-path .rustfmt.toml --edition 2018
-RUST_SOURCE_FILES = $(shell find . -name "*.rs")
+RUST_SOURCE_FILES = $(shell find . -name "*.rs" -not -path "./target/*")
 
 .PHONY: rustfmt
 rustfmt:

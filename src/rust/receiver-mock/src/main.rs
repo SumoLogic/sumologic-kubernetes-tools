@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Mutex;
 
+use actix_service::Service;
 use actix_web::web;
-use clap::{value_t, App, Arg};
+
 use chrono::Duration;
+use clap::{value_t, App, Arg};
 
 mod metrics;
 mod options;
@@ -88,6 +90,16 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
     println!("Receiver mock is waiting for enemy on 0.0.0.0:{}!", port);
     let result = actix_web::HttpServer::new(move || {
         actix_web::App::new()
+            // Middleware printing headers for all handlers.
+            // For a more robust middleware implementation (in its own type)
+            // one can take a look at https://actix.rs/docs/middleware/
+            .wrap_fn(move |req, srv| {
+                if opts.print.headers {
+                    let headers = req.headers();
+                    router::print_request_headers(req.method(), req.version(), req.uri(), headers);
+                }
+                srv.call(req)
+            })
             .app_data(app_state.clone()) // Mutable shared state
             .data(opts.clone())
             .route("/metrics-reset", web::post().to(router::handler_metrics_reset))
@@ -97,7 +109,7 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
             .service(
                 web::scope("/terraform")
                     .app_data(app_metadata.clone())
-                    .default_service(web::get().to(router::handler_terraform))
+                    .default_service(web::get().to(router::handler_terraform)),
             )
             // Treat every other url as receiver endpoint
             .default_service(web::get().to(router::handler_receiver))
