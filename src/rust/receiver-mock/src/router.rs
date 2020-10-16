@@ -164,9 +164,6 @@ pub async fn handler_receiver(
     let lines = string_body.trim().lines();
 
     let headers = req.headers();
-    if opts.print.headers {
-        print_request_headers(req.method(), req.version(), req.uri(), headers);
-    }
     let empty_header = http::HeaderValue::from_str("").unwrap();
     let content_type = headers
         .get("content-type")
@@ -233,7 +230,7 @@ pub async fn handler_receiver(
     HttpResponse::Ok()
 }
 
-fn print_request_headers(
+pub fn print_request_headers(
     method: &http::Method,
     version: http::Version,
     uri: &http::Uri,
