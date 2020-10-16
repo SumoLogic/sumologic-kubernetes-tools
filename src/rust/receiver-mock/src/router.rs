@@ -137,12 +137,19 @@ receiver_mock_logs_bytes_count {}\n",
 
 pub async fn handler_terraform(app_metadata: web::Data<AppMetadata>) -> impl Responder {
     #[derive(Serialize)]
+    struct Source {
+        url: String,
+    }
+
+    #[derive(Serialize)]
     struct TerraformResponse {
-        source: String,
+        source: Source,
     }
 
     web::Json(TerraformResponse {
-        source: app_metadata.url.clone(),
+        source: Source {
+            url: app_metadata.url.clone(),
+        },
     })
 }
 
@@ -280,4 +287,70 @@ pub fn start_print_stats_timer(
         p_logs = *logs;
         p_logs_bytes = *logs_bytes;
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use actix_rt;
+    use actix_web::{test, web, App};
+    use futures_util::stream::TryStreamExt;
+
+    #[actix_rt::test]
+    async fn test_handler_terraform() {
+        let app_metadata = web::Data::new(AppMetadata {
+            url: String::from("http://hostname:3000/terraform"),
+        });
+        let mut app = test::init_service(
+            App::new().service(
+                web::scope("/terraform")
+                    .app_data(app_metadata)
+                    .default_service(web::get().to(handler_terraform)),
+            ),
+        )
+        .await;
+
+        {
+            let req = test::TestRequest::get().uri("/terraform").to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+            assert_eq!(
+                bytes.unwrap(),
+                json_str!({
+                    source: {
+                      url: "http://hostname:3000/terraform"
+                    }
+                })
+            );
+        }
+        {
+            let req = test::TestRequest::get()
+                .uri("/terraform/api/v1/collectors/0/sources/0")
+                .to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+            assert_eq!(
+                bytes.unwrap(),
+                json_str!({
+                    source: {
+                      url: "http://hostname:3000/terraform"
+                    }
+                })
+            );
+        }
+        {
+            let req = test::TestRequest::get()
+                .uri("/different_route")
+                .to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 404);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+            assert_eq!(bytes.unwrap(), "");
+        }
+    }
 }

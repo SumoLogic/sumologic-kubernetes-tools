@@ -1,3 +1,7 @@
+#[allow(unused_imports)]
+#[macro_use]
+extern crate json_str;
+
 use std::collections::HashMap;
 use std::sync::Mutex;
 
