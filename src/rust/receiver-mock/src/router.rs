@@ -54,6 +54,7 @@ pub struct AppMetadata {
 
 // Reset metrics counter
 pub async fn handler_metrics_reset(app_state: web::Data<AppState>) -> impl Responder {
+    *app_state.metrics.lock().unwrap() = 0;
     app_state.metrics_list.lock().unwrap().clear();
     app_state.metrics_ip_list.lock().unwrap().clear();
 
@@ -351,6 +352,113 @@ mod tests {
 
             let bytes = test::load_stream(resp.take_body().into_stream()).await;
             assert_eq!(bytes.unwrap(), "");
+        }
+    }
+
+    #[actix_rt::test]
+    async fn test_handler_metrics_reset() {
+        let mut metrics_list = HashMap::new();
+        metrics_list.insert(String::from("mem_active"), 1000);
+        metrics_list.insert(String::from("mem_free"), 2000);
+        let app_state = web::Data::new(AppState {
+            metrics: Mutex::new(3000),
+            logs: Mutex::new(0),
+            logs_bytes: Mutex::new(0),
+            metrics_list: Mutex::new(metrics_list),
+            metrics_ip_list: Mutex::new(HashMap::new()),
+            logs_ip_list: Mutex::new(HashMap::new()),
+        });
+
+        let mut app = test::init_service(
+            App::new()
+                .app_data(app_state.clone()) // Mutable shared state
+                .route("/metrics-reset", web::post().to(handler_metrics_reset))
+                .route("/metrics", web::get().to(handler_metrics))
+        )
+        .await;
+
+        {
+            let req = test::TestRequest::get().uri("/metrics").to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+            assert_eq!(
+                bytes.unwrap(),
+                r#"# TYPE receiver_mock_metrics_count counter
+receiver_mock_metrics_count 3000
+# TYPE receiver_mock_logs_count counter
+receiver_mock_logs_count 0
+# TYPE receiver_mock_logs_bytes_count counter
+receiver_mock_logs_bytes_count 0
+"#
+            );
+        }
+        {
+            let req = test::TestRequest::post().uri("/metrics-reset").to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+            assert_eq!(
+                bytes.unwrap(),
+                "All counters reset successfully",
+            );
+        }
+        {
+            let req = test::TestRequest::get().uri("/metrics").to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+            assert_eq!(
+                bytes.unwrap(),
+                r#"# TYPE receiver_mock_metrics_count counter
+receiver_mock_metrics_count 0
+# TYPE receiver_mock_logs_count counter
+receiver_mock_logs_count 0
+# TYPE receiver_mock_logs_bytes_count counter
+receiver_mock_logs_bytes_count 0
+"#
+            );
+        }
+    }
+
+    #[actix_rt::test]
+    async fn test_handler_metrics_list() {
+        let mut metrics_list = HashMap::new();
+        metrics_list.insert(String::from("mem_free"), 2000);
+        let app_state = web::Data::new(AppState {
+            metrics: Mutex::new(2000),
+            logs: Mutex::new(0),
+            logs_bytes: Mutex::new(0),
+            metrics_list: Mutex::new(metrics_list),
+            metrics_ip_list: Mutex::new(HashMap::new()),
+            logs_ip_list: Mutex::new(HashMap::new()),
+        });
+
+        let mut app = test::init_service(
+            App::new()
+                .app_data(app_state.clone()) // Mutable shared state
+                .route("/metrics-list", web::get().to(handler_metrics_list))
+                .route("/metrics", web::get().to(handler_metrics))
+        )
+        .await;
+
+        {
+            let req = test::TestRequest::get().uri("/metrics-list").to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            // Testing multiple metric names being returned properly would be nice
+            // but since we're using a hashmap we'd need to sort the lines from the byte
+            // buffer that we receive and ain't that easy (but definitely doable).
+            assert_eq!(
+                bytes.unwrap(),
+                "mem_free: 2000\n"
+            );
         }
     }
 }
