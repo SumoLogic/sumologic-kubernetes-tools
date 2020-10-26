@@ -1,0 +1,22 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: sumologic-pvc-cleaner
+spec:
+  schedule: "*/15 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          name: sumologic-pvc-cleaner
+        spec:
+          containers:
+          - name: sumologic-pvc-cleaner
+            image: sumologic/kubernetes-tools:2.2.0
+            command:
+             - "pvc-cleaner"
+             - "my-namespace"
+             - "app=collection-sumologic-fluentd-logs"
+             - "collection-sumologic-fluentd-logs"
+            imagePullPolicy: IfNotPresent
+          restartPolicy: Never
