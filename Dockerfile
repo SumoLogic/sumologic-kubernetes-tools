@@ -30,6 +30,7 @@ RUN set -ex \
     && apk add --no-cache \
         bash \
         busybox-extras \
+        coreutils \
         curl \
         libc6-compat \
         openssl \
@@ -50,6 +51,7 @@ COPY \
 
 COPY \
     ./src/commands/check \
+    ./src/commands/pvc-cleaner \
     ./src/commands/fix-log-symlinks \
     ./src/commands/tools-usage \
     ./src/commands/template \

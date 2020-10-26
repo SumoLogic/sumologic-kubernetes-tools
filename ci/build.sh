@@ -48,7 +48,7 @@ function build_docker_image() {
 }
 
 function test_docker_image() {
-  local apps="stress-tester k8s-api-test receiver-mock check fix-log-symlinks tools-usage template template-dependency template-prometheus-mixin"
+  local apps="stress-tester k8s-api-test receiver-mock check pvc-cleaner fix-log-symlinks tools-usage template template-dependency template-prometheus-mixin"
 
   echo
   echo "Running docker image tests..."
