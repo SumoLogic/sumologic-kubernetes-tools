@@ -5,6 +5,12 @@ VERSION="${VERSION#v}"
 : "${DOCKER_IMAGE:=sumologic/kubernetes-tools}"
 : "${DOCKER_USERNAME:=sumodocker}"
 
+readonly DOCKER_PASSWORD=${DOCKER_PASSWORD:-}
+readonly GITHUB_TOKEN=${GITHUB_TOKEN:-}
+readonly TRAVIS_BRANCH=${TRAVIS_BRANCH:-}
+readonly TRAVIS_EVENT_TYPE=${TRAVIS_EVENT_TYPE:-}
+readonly TRAVIS_PULL_REQUEST_BRANCH=${TRAVIS_PULL_REQUEST_BRANCH:-}
+
 err_report() {
     echo "Script error on line $1"
     exit 1
