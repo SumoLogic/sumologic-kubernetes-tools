@@ -11,6 +11,8 @@ if [[ "${arg}" == "--help" ]]; then
   exit 0
 fi
 
+readonly REPO_PATH="${REPO_PATH:-sumologic/sumologic}"
+
 # Take data from stdin if available and put into tmpfile
 tmpfile="$(mktemp /tmp/values.yaml.XXXXXX)"
 extra_params=''
@@ -24,5 +26,5 @@ helm repo add sumologic https://sumologic.github.io/sumologic-kubernetes-collect
 echo '# Update repository'
 helm repo update 1>/dev/null 2>&1
 echo '# Generating template'
-helm template sumologic/sumologic ${extra_params} "$@" 2>&1 | grep -vE '^manifest_sorter.go'
+helm template "${REPO_PATH}" ${extra_params} "$@" 2>&1 | grep -vE '^manifest_sorter.go'
 rm "${tmpfile}"

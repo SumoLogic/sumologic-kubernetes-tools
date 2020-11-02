@@ -11,6 +11,8 @@ if [[ "${arg}" == "--help" ]]; then
   exit 0
 fi
 
+readonly REPO_PATH="${REPO_PATH:-sumologic/sumologic}"
+
 key="${1}"
 shift
 
@@ -19,4 +21,4 @@ helm repo add sumologic https://sumologic.github.io/sumologic-kubernetes-collect
 echo '# Update repository'
 helm repo update 1>/dev/null 2>&1
 echo "# Generating override for ${key}"
-helm show values $@ sumologic/sumologic | yq r - "${key}"
+helm show values "$@" "${REPO_PATH}" | yq r - "${key}"
