@@ -164,6 +164,22 @@ You can add additional parameters (like `--version=1.0.0`) at the end of the com
 List of supported arguments is compatible with
 [`helm show values`](https://helm.sh/docs/helm/helm_show_values/).
 
+### Kube prometheus mixin configuration
+
+`template-prometheus-mixin` is a command which generates `remoteWrite` mixin configuration for the kube prometheus.
+
+```
+ kubectl run template-dependency \
+  -it --quiet --rm \
+  --restart=Never -n sumologic \
+  --image sumologic/kubernetes-tools \
+  -- template-prometheus-mixin > kube-prometheus-sumo-logic-mixin.libsonnet
+```
+
+You can add additional parameters (like `--version=1.0.0`) at the end of the command.
+List of supported arguments is compatible with
+[`helm show values`](https://helm.sh/docs/helm/helm_show_values/).
+
 ### Interactive mode
 
 The pod can be also run in interactive mode:
