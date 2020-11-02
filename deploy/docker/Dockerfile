@@ -34,6 +34,7 @@ RUN set -ex \
         openssl \
         net-tools \
         vim \
+        jq \
     && curl https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz | tar -xzO linux-amd64/helm > /usr/local/bin/helm \
     && chmod +x /usr/local/bin/helm \
     && curl -LJ https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 -o /usr/bin/yq \
@@ -51,6 +52,10 @@ COPY \
     ./src/commands/template \
     ./src/commands/template-dependency \
     /usr/bin/
+
+COPY ./src/commands/template-prometheus-mixin \
+    /usr/local/template-prometheus-mixin
+RUN ln -s /usr/local/template-prometheus-mixin/template-prometheus-mixin /usr/bin
 
 COPY --from=go-builder \
     /build/k8s-api-test \

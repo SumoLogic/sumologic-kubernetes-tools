@@ -1,0 +1,29 @@
+#!/bin/bash
+
+function print_help() {
+  echo "Generator of kube prometheus mixin files"
+}
+
+readonly arg=${1}
+
+if [[ "${arg}" == "--help" ]]; then
+  print_help
+  exit 0
+fi
+
+readonly FILEPATH="$(readlink -f "$0" || "${0}")"
+readonly ROOT_DIR="$(dirname "${FILEPATH}")"
+cd "${ROOT_DIR}" || exit 1
+
+prometheus_remote_write=$(template-dependency prometheus-operator.prometheus.prometheusSpec.remoteWrite "$@" | yq r - -j | jq '.' | sed 's/^/    /')
+# Escaping so sed will work
+prometheus_remote_write="${prometheus_remote_write//\\/\\\\}"
+prometheus_remote_write="${prometheus_remote_write//\//\\/}"
+prometheus_remote_write="${prometheus_remote_write//&/\\&}"
+prometheus_remote_write="${prometheus_remote_write//$'\n'/\\n}"
+
+# shellcheck disable=SC2016
+sed "s#\[\/\*REMOTE_WRITE\*\/\]#${prometheus_remote_write}#" jsonnet-mixin.tmpl \
+  | sed 's#"http://$(CHART).$(NAMESPACE).svc.cluster.local:9888\/#$._config.sumologicCollectorSvc + "#g' \
+  | sed 's/+:     /+: /' \
+  | sed -r 's/"(\w*)":/\1:/g'
