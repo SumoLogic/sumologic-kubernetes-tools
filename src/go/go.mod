@@ -11,4 +11,8 @@ require (
 	go.uber.org/atomic v1.7.0 // indirect
 	k8s.io/apimachinery v0.17.12
 	k8s.io/client-go v0.17.12
+	github.com/aws/aws-sdk-go v1.34.5
 )
+
+replace k8s.io/client-go => k8s.io/client-go v0.0.0-20190620085101-78d2af792bab
+

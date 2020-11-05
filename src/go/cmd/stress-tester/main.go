@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 	"github.com/uber/jaeger-client-go"
 	jaegercfg "github.com/uber/jaeger-client-go/config"
 )
@@ -122,6 +123,8 @@ func buildSpan(tracer opentracing.Tracer, parentSpan *opentracing.Span, countNum
 		opentracing.ChildOf((*parentSpan).Context()),
 	)
 
+	ext.Error.Set(*parentSpan, true)
+	ext.Error.Set(childSpan, true)
 	childSpan.SetBaggageItem("baggageKey", "baggageValue")
 	childSpan.SetTag("tagKey", "tagValue")
 	childSpan.SetTag("countNumber", countNumber)
