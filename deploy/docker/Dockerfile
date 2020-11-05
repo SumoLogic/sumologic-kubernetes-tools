@@ -23,6 +23,7 @@ RUN cargo build --release
 FROM alpine:3.12
 ENV HELM_VERSION="3.2.4"
 ENV YQ_VERSION="3.2.1"
+ENV KUBECTL_VERSION="v1.18.10"
 RUN set -ex \
     && apk update \
     && apk upgrade \
@@ -38,7 +39,9 @@ RUN set -ex \
     && curl https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz | tar -xzO linux-amd64/helm > /usr/local/bin/helm \
     && chmod +x /usr/local/bin/helm \
     && curl -LJ https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 -o /usr/bin/yq \
-    && chmod +x /usr/bin/yq
+    && chmod +x /usr/bin/yq \
+    && curl -LJ https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl -o /usr/bin/kubectl \
+    && chmod +x /usr/bin/kubectl
 
 COPY \
     ./src/ssh/motd \
