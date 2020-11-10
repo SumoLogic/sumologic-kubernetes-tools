@@ -154,6 +154,19 @@ pub async fn handler_terraform(app_metadata: web::Data<AppMetadata>) -> impl Res
     })
 }
 
+pub async fn handler_terraform_fields_quota() -> impl Responder {
+    #[derive(Serialize)]
+    struct TerraformFieldsQuotaResponse {
+        quota: u64,
+        remaining: u64,
+    }
+
+    web::Json(TerraformFieldsQuotaResponse {
+        quota: 200,
+        remaining: 100,
+    })
+}
+
 pub async fn handler_receiver(
     req: HttpRequest,
     body: bytes::Bytes,
@@ -400,10 +413,7 @@ receiver_mock_logs_bytes_count 0
             assert_eq!(resp.status(), 200);
 
             let bytes = test::load_stream(resp.take_body().into_stream()).await;
-            assert_eq!(
-                bytes.unwrap(),
-                "All counters reset successfully",
-            );
+            assert_eq!(bytes.unwrap(), "All counters reset successfully");
         }
         {
             let req = test::TestRequest::get().uri("/metrics").to_request();
@@ -455,10 +465,50 @@ receiver_mock_logs_bytes_count 0
             // Testing multiple metric names being returned properly would be nice
             // but since we're using a hashmap we'd need to sort the lines from the byte
             // buffer that we receive and ain't that easy (but definitely doable).
-            assert_eq!(
-                bytes.unwrap(),
-                "mem_free: 2000\n"
-            );
+            assert_eq!(bytes.unwrap(), "mem_free: 2000\n");
+        }
+    }
+
+    #[actix_rt::test]
+    async fn test_handler_terraform_fields_quota() {
+        let app_metadata = web::Data::new(AppMetadata {
+            url: String::from("http://hostname:3000/receiver"),
+        });
+
+        let app_state = web::Data::new(AppState {
+            metrics: Mutex::new(0),
+            logs: Mutex::new(0),
+            logs_bytes: Mutex::new(0),
+            metrics_list: Mutex::new(HashMap::new()),
+            metrics_ip_list: Mutex::new(HashMap::new()),
+            logs_ip_list: Mutex::new(HashMap::new()),
+        });
+
+        let mut app = test::init_service(
+            App::new()
+                .app_data(app_state.clone()) // Mutable shared state
+                .service(
+                    web::scope("/terraform")
+                        .app_data(app_metadata.clone())
+                        .route(
+                            "/api/v1/fields/quota",
+                            web::get().to(handler_terraform_fields_quota),
+                        )
+                        .default_service(web::get().to(handler_terraform)),
+                ),
+        )
+        .await;
+
+        {
+            let req = test::TestRequest::get()
+                .uri("/terraform/api/v1/fields/quota")
+                .to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            assert_eq!(bytes.unwrap(), r#"{"quota":200,"remaining":100}"#);
         }
     }
 }

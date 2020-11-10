@@ -113,12 +113,16 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
             .service(
                 web::scope("/terraform")
                     .app_data(app_metadata.clone())
+                    .route(
+                        "/api/v1/fields/quota",
+                        web::get().to(router::handler_terraform_fields_quota),
+                    )
                     .default_service(web::get().to(router::handler_terraform)),
             )
             // Treat every other url as receiver endpoint
             .default_service(web::get().to(router::handler_receiver))
-                // Set metrics payload limit to 100MB
-                .app_data(web::PayloadConfig::default().limit(100 * 2<<20))
+            // Set metrics payload limit to 100MB
+            .app_data(web::PayloadConfig::default().limit(100 * 2 << 20))
     })
     .bind(format!("0.0.0.0:{}", port))?
     .run()
