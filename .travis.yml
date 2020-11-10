@@ -32,9 +32,9 @@ jobs:
       script:
         - bash ci/build.sh
 
-branches:
-  only:
-    - master
-    - /^release-v\d+\.\d+$/
-    - /^v\d+\.\d+\.\d+$/
-    - /^v\d+\.\d+\.\d+-(alpha|beta|rc)\.\d+$/
+stages:
+  - name: shellcheck build.sh
+    if: type = pull_request
+  - name: test
+    if: type = pull_request
+  - name: build
