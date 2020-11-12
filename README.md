@@ -191,3 +191,4 @@ $ kubectl run tools \
   --image sumologic/kubernetes-tools \
   -- /bin/bash -l
 ```
+asd
