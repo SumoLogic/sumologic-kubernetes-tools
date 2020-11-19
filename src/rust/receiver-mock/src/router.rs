@@ -6,7 +6,7 @@ use actix_http::http;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use bytes;
 use chrono::Duration;
-use serde_derive::Serialize;
+use serde_derive::{Deserialize, Serialize};
 
 use crate::metrics;
 use crate::options;
@@ -165,6 +165,82 @@ pub async fn handler_terraform_fields_quota() -> impl Responder {
         quota: 200,
         remaining: 100,
     })
+}
+
+pub async fn handler_terraform_fields() -> impl Responder {
+    #![allow(non_snake_case)]
+
+    #[derive(Serialize)]
+    struct TerraformFieldObject {
+        fieldName: String,
+        fieldId: String,
+        dataType: String,
+        state: String,
+    }
+
+    #[derive(Serialize)]
+    struct TerraformFieldsResponse {
+        data: Vec<TerraformFieldObject>,
+    }
+
+    web::Json(TerraformFieldsResponse {
+        data: vec![
+            TerraformFieldObject {
+                fieldName: String::from("host"),
+                fieldId: String::from("0000000006549B31"),
+                dataType: String::from("String"),
+                state: String::from("Enabled"),
+            },
+            TerraformFieldObject {
+                fieldName: String::from("container"),
+                fieldId: String::from("0000000006549B2F"),
+                dataType: String::from("String"),
+                state: String::from("Enabled"),
+            },
+        ],
+    })
+}
+
+#[derive(Deserialize)]
+pub struct TerraformFieldParams {
+    field: String,
+}
+
+pub async fn handler_terraform_field(params: web::Path<TerraformFieldParams>) -> impl Responder {
+    #![allow(non_snake_case)]
+
+    #[derive(Serialize)]
+    struct TerraformFieldResponse {
+        fieldName: String,
+        fieldId: String,
+        dataType: String,
+        state: String,
+    }
+
+    match &params.field[..] {
+        "0000000006549B31" => web::Json(TerraformFieldResponse {
+            fieldName: String::from("host"),
+            fieldId: String::from("0000000006549B31"),
+            dataType: String::from("String"),
+            state: String::from("Enabled"),
+        }),
+
+        "0000000006549B2F" => web::Json(TerraformFieldResponse {
+            fieldName: String::from("container"),
+            fieldId: String::from("0000000006549B2F"),
+            dataType: String::from("String"),
+            state: String::from("Enabled"),
+        }),
+
+        // Probably deserves a rewrite to return a type with the same schema
+        // as the real terraform API returns.
+        _ => web::Json(TerraformFieldResponse {
+            fieldName: String::from(""),
+            fieldId: String::from(""),
+            dataType: String::from(""),
+            state: String::from(""),
+        }),
+    }
 }
 
 pub async fn handler_receiver(
@@ -386,7 +462,7 @@ mod tests {
             App::new()
                 .app_data(app_state.clone()) // Mutable shared state
                 .route("/metrics-reset", web::post().to(handler_metrics_reset))
-                .route("/metrics", web::get().to(handler_metrics))
+                .route("/metrics", web::get().to(handler_metrics)),
         )
         .await;
 
@@ -451,7 +527,7 @@ receiver_mock_logs_bytes_count 0
             App::new()
                 .app_data(app_state.clone()) // Mutable shared state
                 .route("/metrics-list", web::get().to(handler_metrics_list))
-                .route("/metrics", web::get().to(handler_metrics))
+                .route("/metrics", web::get().to(handler_metrics)),
         )
         .await;
 
@@ -509,6 +585,157 @@ receiver_mock_logs_bytes_count 0
             let bytes = test::load_stream(resp.take_body().into_stream()).await;
 
             assert_eq!(bytes.unwrap(), r#"{"quota":200,"remaining":100}"#);
+        }
+    }
+
+    #[actix_rt::test]
+    async fn test_handler_terraform_fields() {
+        let app_metadata = web::Data::new(AppMetadata {
+            url: String::from("http://hostname:3000/receiver"),
+        });
+
+        let app_state = web::Data::new(AppState {
+            metrics: Mutex::new(0),
+            logs: Mutex::new(0),
+            logs_bytes: Mutex::new(0),
+            metrics_list: Mutex::new(HashMap::new()),
+            metrics_ip_list: Mutex::new(HashMap::new()),
+            logs_ip_list: Mutex::new(HashMap::new()),
+        });
+
+        let mut app = test::init_service(
+            App::new()
+                .app_data(app_state.clone()) // Mutable shared state
+                .service(
+                    web::scope("/terraform")
+                        .app_data(app_metadata.clone())
+                        .route("/api/v1/fields", web::get().to(handler_terraform_fields))
+                        .default_service(web::get().to(handler_terraform)),
+                ),
+        )
+        .await;
+
+        {
+            let req = test::TestRequest::get()
+                .uri("/terraform/api/v1/fields")
+                .to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            assert_eq!(
+                bytes.unwrap(),
+                json_str!({
+                        "data": [
+                          {
+                            "fieldName": "host",
+                            "fieldId": "0000000006549B31",
+                            "dataType": "String",
+                            "state": "Enabled"
+                          },
+                          {
+                            "fieldName": "container",
+                            "fieldId": "0000000006549B2F",
+                            "dataType": "String",
+                            "state": "Enabled"
+                          }
+                        ]
+                      }
+                )
+            );
+        }
+    }
+
+    #[actix_rt::test]
+    async fn test_handler_terraform_field_by_id() {
+        let app_metadata = web::Data::new(AppMetadata {
+            url: String::from("http://hostname:3000/receiver"),
+        });
+
+        let app_state = web::Data::new(AppState {
+            metrics: Mutex::new(0),
+            logs: Mutex::new(0),
+            logs_bytes: Mutex::new(0),
+            metrics_list: Mutex::new(HashMap::new()),
+            metrics_ip_list: Mutex::new(HashMap::new()),
+            logs_ip_list: Mutex::new(HashMap::new()),
+        });
+
+        let mut app = test::init_service(
+            App::new()
+                .app_data(app_state.clone()) // Mutable shared state
+                .service(
+                    web::scope("/terraform")
+                        .app_data(app_metadata.clone())
+                        .route(
+                            "/api/v1/fields/{field}",
+                            web::get().to(handler_terraform_field),
+                        )
+                        .default_service(web::get().to(handler_terraform)),
+                ),
+        )
+        .await;
+
+        {
+            let req = test::TestRequest::get()
+                .uri("/terraform/api/v1/fields/0000000006549B31")
+                .to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            assert_eq!(
+                bytes.unwrap(),
+                json_str!({
+                  "fieldName": "host",
+                  "fieldId": "0000000006549B31",
+                  "dataType": "String",
+                  "state": "Enabled"
+                })
+            );
+        }
+
+        {
+            let req = test::TestRequest::get()
+                .uri("/terraform/api/v1/fields/0000000006549B2F")
+                .to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            assert_eq!(
+                bytes.unwrap(),
+                json_str!({
+                  "fieldName": "container",
+                  "fieldId": "0000000006549B2F",
+                  "dataType": "String",
+                  "state": "Enabled"
+                })
+            );
+        }
+
+        {
+            let req = test::TestRequest::get()
+                .uri("/terraform/api/v1/fields/0000000006541111")
+                .to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            // Might need changing to 404 and a proper error response
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            assert_eq!(
+                bytes.unwrap(),
+                json_str!({
+                  "fieldName": "",
+                  "fieldId": "",
+                  "dataType": "",
+                  "state": ""
+                })
+            );
         }
     }
 }

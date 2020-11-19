@@ -117,6 +117,14 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
                         "/api/v1/fields/quota",
                         web::get().to(router::handler_terraform_fields_quota),
                     )
+                    .route(
+                        "/api/v1/fields/{field}",
+                        web::get().to(router::handler_terraform_field),
+                    )
+                    .route(
+                        "/api/v1/fields",
+                        web::get().to(router::handler_terraform_fields),
+                    )
                     .default_service(web::get().to(router::handler_terraform)),
             )
             // Treat every other url as receiver endpoint
