@@ -3,10 +3,12 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Mutex;
 
 use actix_http::http;
-use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
 use bytes;
 use chrono::Duration;
-use serde_derive::Serialize;
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
+use serde_derive::{Deserialize, Serialize};
 
 use crate::metrics;
 use crate::options;
@@ -50,6 +52,10 @@ impl AppState {
 
 pub struct AppMetadata {
     pub url: String,
+}
+
+pub struct TerraformState {
+    pub fields: Mutex<HashMap<String, String>>,
 }
 
 // Reset metrics counter
@@ -165,6 +171,154 @@ pub async fn handler_terraform_fields_quota() -> impl Responder {
         quota: 200,
         remaining: 100,
     })
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TerraformFieldObject {
+    field_name: String,
+    field_id: String,
+    data_type: String,
+    state: String,
+}
+
+pub async fn handler_terraform_fields(
+    terraform_state: web::Data<TerraformState>,
+) -> impl Responder {
+
+    #[derive(Serialize)]
+    struct TerraformFieldsResponse {
+        data: Vec<TerraformFieldObject>,
+    }
+
+    let fields = terraform_state.fields.lock().unwrap();
+    let res = fields.iter().map(|(id, name)| TerraformFieldObject {
+        field_name: name.clone(),
+        field_id: id.clone(),
+        data_type: String::from("String"),
+        state: String::from("Enabled"),
+    });
+
+    web::Json(TerraformFieldsResponse {
+        data: res.collect(),
+    })
+}
+
+#[derive(Deserialize)]
+pub struct TerraformFieldParams {
+    field: String,
+}
+
+pub async fn handler_terraform_field(
+    params: web::Path<TerraformFieldParams>,
+    terraform_state: web::Data<TerraformState>,
+) -> impl Responder {
+    #[derive(Debug, Serialize)]
+    struct TerraformFieldResponseErrorMetaField {
+        id: String,
+    }
+
+    #[derive(Debug, Serialize)]
+    struct TerraformFieldResponseErrorField {
+        code: String,
+        message: String,
+        meta: TerraformFieldResponseErrorMetaField,
+    }
+
+    #[derive(Debug, Serialize)]
+    struct TerraformFieldNotFoundError {
+        id: String,
+        errors: Vec<TerraformFieldResponseErrorField>,
+    }
+
+    let fields = terraform_state.fields.lock().unwrap();
+    let id = params.field.clone();
+    let res = fields.get(&id);
+
+    match res {
+        Some(name) => HttpResponse::build(StatusCode::OK).json(TerraformFieldObject {
+            field_name: name.clone(),
+            field_id: id,
+            data_type: String::from("String"),
+            state: String::from("Enabled"),
+        }),
+
+        None => HttpResponse::build(StatusCode::NOT_FOUND).json(TerraformFieldNotFoundError {
+            id: String::from("QL6LR-5P7KI-RAR20"),
+            errors: vec![TerraformFieldResponseErrorField {
+                code: String::from("field:doesnt_exist"),
+                message: String::from("Field with the given id doesn't exist"),
+                meta: TerraformFieldResponseErrorMetaField { id: id },
+            }],
+        }),
+    }
+}
+
+#[derive(Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TerraformFieldCreateRequest {
+    field_name: String,
+}
+
+// This handler needs to keep the information about created fields because
+// sumologic terraform provider looks up those fields after creation and if it
+// cannot find it (via a GET request to /api/v1/fields) then it fails.
+//
+// ref: https://github.com/SumoLogic/terraform-provider-sumologic/blob/3275ce043e08873a8b1b843d4a5d473619044b4e/sumologic%2Fresource_sumologic_field.go#L95-L109
+// ref: https://github.com/SumoLogic/terraform-provider-sumologic/blob/3275ce043e08873a8b1b843d4a5d473619044b4e/sumologic%2Fresource_sumologic_field.go#L60
+//
+pub async fn handler_terraform_fields_create(
+    req: web::Json<TerraformFieldCreateRequest>,
+    terraform_state: web::Data<TerraformState>,
+) -> impl Responder {
+    let mut fields = terraform_state.fields.lock().unwrap();
+    let id: String = thread_rng().sample_iter(Alphanumeric).take(16).collect();
+    let requested_name = req.field_name.clone();
+    let exists = fields.iter().find_map(|(id, name)| {
+        if name == &requested_name {
+            Some(id)
+        } else {
+            None
+        }
+    });
+
+    match exists {
+        // Field with given ID already existed
+        Some(_) => HttpResponse::from(json_str!({
+            id: "E40YU-CU3Q7-RQDMO",
+            errors: [
+                {
+                    code: "field:already_exists",
+                    message: "Field with the given name already exists"
+                }
+            ]
+        })),
+
+        // New field can be inserted
+        None => {
+            let res = fields.insert(id.clone(), requested_name.clone());
+            match res {
+                None => HttpResponse::build(StatusCode::OK).json(TerraformFieldObject {
+                    field_name: requested_name.clone(),
+                    field_id: id,
+                    data_type: String::from("String"),
+                    state: String::from("Enabled"),
+                }),
+
+                // This theoretically shouldn't happen but just in case handle this
+                Some(_) => HttpResponse::from(json_str!({
+                    id: "E40YU-CU3Q7-RQDMO",
+                    errors: [
+                        {
+                            code: "field:already_exists",
+                            message: "Field with the given name already exists"
+                        }
+                    ]
+
+                })),
+            }
+        }
+    }
 }
 
 pub async fn handler_receiver(
@@ -386,7 +540,7 @@ mod tests {
             App::new()
                 .app_data(app_state.clone()) // Mutable shared state
                 .route("/metrics-reset", web::post().to(handler_metrics_reset))
-                .route("/metrics", web::get().to(handler_metrics))
+                .route("/metrics", web::get().to(handler_metrics)),
         )
         .await;
 
@@ -451,7 +605,7 @@ receiver_mock_logs_bytes_count 0
             App::new()
                 .app_data(app_state.clone()) // Mutable shared state
                 .route("/metrics-list", web::get().to(handler_metrics_list))
-                .route("/metrics", web::get().to(handler_metrics))
+                .route("/metrics", web::get().to(handler_metrics)),
         )
         .await;
 
@@ -509,6 +663,148 @@ receiver_mock_logs_bytes_count 0
             let bytes = test::load_stream(resp.take_body().into_stream()).await;
 
             assert_eq!(bytes.unwrap(), r#"{"quota":200,"remaining":100}"#);
+        }
+    }
+
+    #[actix_rt::test]
+    async fn test_handler_terraform_fields() {
+        let app_metadata = web::Data::new(AppMetadata {
+            url: String::from("http://hostname:3000/receiver"),
+        });
+
+        let app_state = web::Data::new(AppState {
+            metrics: Mutex::new(0),
+            logs: Mutex::new(0),
+            logs_bytes: Mutex::new(0),
+            metrics_list: Mutex::new(HashMap::new()),
+            metrics_ip_list: Mutex::new(HashMap::new()),
+            logs_ip_list: Mutex::new(HashMap::new()),
+        });
+
+        let terraform_state = web::Data::new(TerraformState {
+            fields: Mutex::new(HashMap::new()),
+        });
+
+        let mut app = test::init_service(
+            App::new()
+                .app_data(app_state.clone()) // Mutable shared state
+                .service(
+                    web::scope("/terraform")
+                        .app_data(app_metadata.clone())
+                        .app_data(terraform_state.clone())
+                        .route(
+                            "/api/v1/fields/{field}",
+                            web::get().to(handler_terraform_field),
+                        )
+                        .route(
+                            "/api/v1/fields",
+                            web::post().to(handler_terraform_fields_create),
+                        )
+                        .route("/api/v1/fields", web::get().to(handler_terraform_fields))
+                        .default_service(web::get().to(handler_terraform)),
+                ),
+        )
+        .await;
+
+        {
+            let req = test::TestRequest::get()
+                .uri("/terraform/api/v1/fields")
+                .to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            assert_eq!(
+                bytes.unwrap(),
+                json_str!({
+                    data: []
+                })
+            );
+        }
+
+        {
+            let req = test::TestRequest::get()
+                .uri("/terraform/api/v1/fields/dummyID123")
+                .to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 404);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            assert_eq!(
+                bytes.unwrap(),
+                json_str!({
+                    id: "QL6LR-5P7KI-RAR20",
+                    errors: [
+                        {
+                            code: "field:doesnt_exist",
+                            message: "Field with the given id doesn't exist",
+                            meta: {
+                                id: "dummyID123"
+                            }
+                        }
+                    ]
+                })
+            );
+        }
+
+        {
+            let req = test::TestRequest::get()
+                .uri("/terraform/api/v1/fields")
+                .to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            assert_eq!(
+                bytes.unwrap(),
+                json_str!({
+                    data: []
+                })
+            );
+        }
+
+        {
+            let req = test::TestRequest::post()
+                .uri("/terraform/api/v1/fields")
+                .set_json(&TerraformFieldCreateRequest {
+                    field_name: String::from("dummyID123"),
+                })
+                .to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            // Probably add more checks about the returned body: generated random
+            // IDs are a bit problematic here.
+            assert_ne!(
+                bytes.unwrap(),
+                json_str!({
+                    data: []
+                })
+            );
+        }
+
+        {
+            let req = test::TestRequest::get()
+                .uri("/terraform/api/v1/fields")
+                .to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            // Probably add more checks about the returned body: generated random
+            // IDs are a bit problematic here.
+            assert_ne!(
+                bytes.unwrap(),
+                json_str!({
+                    data: []
+                })
+            );
         }
     }
 }

@@ -91,6 +91,10 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
         url: format!("http://{}:{}/receiver", hostname, port),
     });
 
+    let terraform_state = web::Data::new(router::TerraformState {
+        fields: Mutex::new(HashMap::new()),
+    });
+
     println!("Receiver mock is waiting for enemy on 0.0.0.0:{}!", port);
     let result = actix_web::HttpServer::new(move || {
         actix_web::App::new()
@@ -113,9 +117,22 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
             .service(
                 web::scope("/terraform")
                     .app_data(app_metadata.clone())
+                    .app_data(terraform_state.clone())
                     .route(
                         "/api/v1/fields/quota",
                         web::get().to(router::handler_terraform_fields_quota),
+                    )
+                    .route(
+                        "/api/v1/fields/{field}",
+                        web::get().to(router::handler_terraform_field),
+                    )
+                    .route(
+                        "/api/v1/fields",
+                        web::get().to(router::handler_terraform_fields),
+                    )
+                    .route(
+                        "/api/v1/fields",
+                        web::post().to(router::handler_terraform_fields_create),
                     )
                     .default_service(web::get().to(router::handler_terraform)),
             )
