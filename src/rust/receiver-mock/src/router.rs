@@ -260,6 +260,13 @@ pub struct TerraformFieldCreateRequest {
     field_name: String,
 }
 
+// This handler needs to keep the information about created fields because
+// sumologic terraform provider looks up those fields after creation and if it
+// cannot find it (via a GET request to /api/v1/fields) then it fails.
+//
+// ref: https://github.com/SumoLogic/terraform-provider-sumologic/blob/3275ce043e08873a8b1b843d4a5d473619044b4e/sumologic%2Fresource_sumologic_field.go#L95-L109
+// ref: https://github.com/SumoLogic/terraform-provider-sumologic/blob/3275ce043e08873a8b1b843d4a5d473619044b4e/sumologic%2Fresource_sumologic_field.go#L60
+//
 pub async fn handler_terraform_fields_create(
     req: web::Json<TerraformFieldCreateRequest>,
     terraform_state: web::Data<TerraformState>,
