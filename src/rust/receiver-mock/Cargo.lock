@@ -1239,7 +1239,6 @@ dependencies = [
  "bytes",
  "chrono",
  "clap",
- "derive_more",
  "futures",
  "futures-util",
  "json_str",
