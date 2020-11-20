@@ -271,15 +271,6 @@ pub async fn handler_terraform_fields_create(
     req: web::Json<TerraformFieldCreateRequest>,
     terraform_state: web::Data<TerraformState>,
 ) -> impl Responder {
-    #[derive(Serialize)]
-    #[serde(rename_all = "camelCase")]
-    struct TerraformFieldCreateResponse {
-        field_name: String,
-        field_id: String,
-        data_type: String,
-        state: String,
-    }
-
     let mut fields = terraform_state.fields.lock().unwrap();
     let id: String = thread_rng().sample_iter(Alphanumeric).take(16).collect();
     let requested_name = req.field_name.clone();
@@ -307,7 +298,7 @@ pub async fn handler_terraform_fields_create(
         None => {
             let res = fields.insert(id.clone(), requested_name.clone());
             match res {
-                None => HttpResponse::build(StatusCode::OK).json(TerraformFieldCreateResponse {
+                None => HttpResponse::build(StatusCode::OK).json(TerraformFieldObject {
                     field_name: requested_name.clone(),
                     field_id: id,
                     data_type: String::from("String"),
