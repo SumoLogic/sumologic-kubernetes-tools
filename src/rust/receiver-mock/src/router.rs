@@ -173,17 +173,18 @@ pub async fn handler_terraform_fields_quota() -> impl Responder {
     })
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TerraformFieldObject {
+    field_name: String,
+    field_id: String,
+    data_type: String,
+    state: String,
+}
+
 pub async fn handler_terraform_fields(
     terraform_state: web::Data<TerraformState>,
 ) -> impl Responder {
-    #[derive(Serialize)]
-    #[serde(rename_all = "camelCase")]
-    struct TerraformFieldObject {
-        field_name: String,
-        field_id: String,
-        data_type: String,
-        state: String,
-    }
 
     #[derive(Serialize)]
     struct TerraformFieldsResponse {
@@ -212,15 +213,6 @@ pub async fn handler_terraform_field(
     params: web::Path<TerraformFieldParams>,
     terraform_state: web::Data<TerraformState>,
 ) -> impl Responder {
-    #[derive(Serialize)]
-    #[serde(rename_all = "camelCase")]
-    struct TerraformFieldResponse {
-        field_name: String,
-        field_id: String,
-        data_type: String,
-        state: String,
-    }
-
     #[derive(Debug, Serialize)]
     struct TerraformFieldResponseErrorMetaField {
         id: String,
@@ -244,7 +236,7 @@ pub async fn handler_terraform_field(
     let res = fields.get(&id);
 
     match res {
-        Some(name) => HttpResponse::build(StatusCode::OK).json(TerraformFieldResponse {
+        Some(name) => HttpResponse::build(StatusCode::OK).json(TerraformFieldObject {
             field_name: name.clone(),
             field_id: id,
             data_type: String::from("String"),
