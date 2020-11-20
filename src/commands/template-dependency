@@ -12,12 +12,13 @@ if [[ "${arg}" == "--help" ]]; then
 fi
 
 readonly REPO_PATH="${REPO_PATH:-sumologic/sumologic}"
+readonly REPO_URL="${REPO_URL:-https://sumologic.github.io/sumologic-kubernetes-collection}"
 
 key="${1}"
 shift
 
 echo '# Add sumologic repository'
-helm repo add sumologic https://sumologic.github.io/sumologic-kubernetes-collection 1>/dev/null 2>&1
+helm repo add sumologic "${REPO_URL}" 1>/dev/null 2>&1
 echo '# Update repository'
 helm repo update 1>/dev/null 2>&1
 echo "# Generating override for ${key}"
