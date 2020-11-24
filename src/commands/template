@@ -17,7 +17,7 @@ readonly REPO_URL="${REPO_URL:-https://sumologic.github.io/sumologic-kubernetes-
 # Take data from stdin if available and put into tmpfile
 tmpfile="$(mktemp /tmp/values.yaml.XXXXXX)"
 extra_params=''
-if [ ! -t 0 ]; then
+if [ ! read -t 0 ]; then
   cat <&0 > "${tmpfile}"
   extra_params="-f${tmpfile}"
 fi
