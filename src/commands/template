@@ -4,6 +4,10 @@ function print_help() {
   echo "K8S template generator"
 }
 
+function echoerr() {
+  echo "${1}" >&2
+}
+
 readonly arg=${1}
 
 if [[ "${arg}" == "--help" ]]; then
@@ -17,15 +21,15 @@ readonly REPO_URL="${REPO_URL:-https://sumologic.github.io/sumologic-kubernetes-
 # Take data from stdin if available and put into tmpfile
 tmpfile="$(mktemp /tmp/values.yaml.XXXXXX)"
 extra_params=''
-if [ ! -t 0 ]; then
+if [ ! read -t 0 ]; then
   cat <&0 > "${tmpfile}"
   extra_params="-f${tmpfile}"
 fi
 
-echo '# Add sumologic repository'
+echoerr '# Add sumologic repository'
 helm repo add sumologic "${REPO_URL}" 1>/dev/null 2>&1
-echo '# Update repository'
+echoerr '# Update repository'
 helm repo update 1>/dev/null 2>&1
-echo '# Generating template'
+echoerr '# Generating template'
 helm template "${REPO_PATH}" ${extra_params} "$@" 2>&1 | grep -vE '^manifest_sorter.go'
 rm "${tmpfile}"
