@@ -22,10 +22,10 @@ if [ ! read -t 0 ]; then
   extra_params="-f${tmpfile}"
 fi
 
-echo '# Add sumologic repository'
+echo '# Add sumologic repository' >&2
 helm repo add sumologic "${REPO_URL}" 1>/dev/null 2>&1
-echo '# Update repository'
+echo '# Update repository' >&2
 helm repo update 1>/dev/null 2>&1
-echo '# Generating template'
+echo '# Generating template' >&2
 helm template "${REPO_PATH}" ${extra_params} "$@" 2>&1 | grep -vE '^manifest_sorter.go'
 rm "${tmpfile}"
