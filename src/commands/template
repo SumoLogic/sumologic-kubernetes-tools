@@ -4,8 +4,8 @@ function print_help() {
   echo "K8S template generator"
 }
 
-function echo_stderr() {
-  echo ${1} >&2
+function echoerr() {
+  echo "${1}" >&2
 }
 
 readonly arg=${1}
@@ -26,10 +26,10 @@ if [ ! read -t 0 ]; then
   extra_params="-f${tmpfile}"
 fi
 
-echo_stderr '# Add sumologic repository'
+echoerr '# Add sumologic repository'
 helm repo add sumologic "${REPO_URL}" 1>/dev/null 2>&1
-echo_stderr '# Update repository'
+echoerr '# Update repository'
 helm repo update 1>/dev/null 2>&1
-echo_stderr '# Generating template'
+echoerr '# Generating template'
 helm template "${REPO_PATH}" ${extra_params} "$@" 2>&1 | grep -vE '^manifest_sorter.go'
 rm "${tmpfile}"
