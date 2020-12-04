@@ -56,7 +56,7 @@ pod "diag" deleted
 
 ### Trace stress-tester
 
-There's a simple tool that generates a desired number of spans per minute and sends them using Jaeger format
+There's a simple tool that generates a desired number of spans per minute and sends them using OTLP over gRPC 
 
 ```
  kubectl run stress-tester \
@@ -64,16 +64,17 @@ There's a simple tool that generates a desired number of spans per minute and se
   --restart=Never -n sumologic \
   --image sumologic/kubernetes-tools \
   --serviceaccount='collection-sumologic' \
-  --env JAEGER_AGENT_HOST=collection-sumologic-otelcol.sumologic \
-  --env JAEGER_AGENT_PORT=6831 \
+  --env OTLP_ENDPOINT=collection-sumologic-otelcol.sumologic:55680 \
   --env TOTAL_SPANS=1000000 \
   --env SPANS_PER_MIN=6000 \
   -- stress-tester
 ```
 
-You can set Jaeger Go client env variables (such as `JAEGER_AGENT_HOST` or `JAEGER_COLLECTOR`) and stress-tester specific ones:
+Following env variables can be set:
 
+* `OTLP_ENDPOINT` (default=localhost:55680) - address where traces are to be sent
 * `TOTAL_SPANS` (default=10000000) - total number of spans to generate
+* `SPANS_PER_TRACE` (default=100) - number of spans in each trace
 * `SPANS_PER_MIN` (required) - rate of spans per minute (the tester will adjust the delay between iterations to reach such rate)
 
 ### Receiver-mock
