@@ -14,7 +14,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -36,7 +35,7 @@ import (
 type stressTestConfig struct {
 	// Endpoint address
 	address string
-	// Sumo token
+	// Auth token
 	token string
 	// How many spans per minute are targeted
 	spansPerMinute int
@@ -44,26 +43,16 @@ type stressTestConfig struct {
 	spansPerTrace int
 	// How many spans until the stress-test finishes
 	totalSpans int
-
-	// How many of the spans should be created right away (the rest will be created after a delay)
-	spansCreatedImmediately int
-	// What delay for the spans created later
-	lateTraceDelay int
-	// Each n-th trace will have the delay applied
-	lateTraceFrequency int
 }
 
 const (
 	DefaultAddress             = "localhost:55680"
-	TokenKey                   = "Sumo-Token"
+	TokenKey                   = "Auth-Token"
 	EnvAddress                 = "OTLP_ENDPOINT"
-	EnvToken                   = "SUMO_TOKEN"
+	EnvToken                   = "AUTH_TOKEN"
 	EnvSpansPerMin             = "SPANS_PER_MIN"
 	EnvSpansPerTrace           = "SPANS_PER_TRACE"
 	EnvTotalSpans              = "TOTAL_SPANS"
-	EnvLateTraceDelayS         = "LATE_TRACE_DELAY_S"
-	EnvLateTraceFrequency      = "LATE_TRACE_FREQ"
-	EnvSpansCreatedImmediately = "LATE_TRACE_SPANS_CREATED_IMM"
 )
 
 func (cfg *stressTestConfig) printConfig() {
@@ -72,9 +61,6 @@ func (cfg *stressTestConfig) printConfig() {
 	log.Printf("%s = %d\n", EnvSpansPerMin, cfg.spansPerMinute)
 	log.Printf("%s = %d\n", EnvSpansPerTrace, cfg.spansPerTrace)
 	log.Printf("%s = %d\n", EnvTotalSpans, cfg.totalSpans)
-	log.Printf("%s = %d\n", EnvSpansCreatedImmediately, cfg.spansCreatedImmediately)
-	log.Printf("%s = %d\n", EnvLateTraceDelayS, cfg.lateTraceDelay)
-	log.Printf("%s = %d\n", EnvLateTraceFrequency, cfg.lateTraceFrequency)
 }
 
 func createStressTestConfig() stressTestConfig {
@@ -91,21 +77,6 @@ func createStressTestConfig() stressTestConfig {
 		totalSpans = 10000000
 	}
 
-	lateTraceDelay, err := strconv.Atoi(os.Getenv(EnvLateTraceDelayS))
-	if err != nil {
-		lateTraceDelay = 8
-	}
-
-	lateTraceFrequency, err := strconv.Atoi(os.Getenv(EnvLateTraceFrequency))
-	if err != nil {
-		lateTraceFrequency = 20
-	}
-
-	spansCreatedImmediately, err := strconv.Atoi(os.Getenv(EnvSpansCreatedImmediately))
-	if err != nil {
-		spansCreatedImmediately = 50
-	}
-
 	address := os.Getenv(EnvAddress)
 	if address == "" {
 		address = DefaultAddress
@@ -118,34 +89,11 @@ func createStressTestConfig() stressTestConfig {
 		token:                   token,
 		spansPerMinute:          spm,
 		spansPerTrace:           spansPerTrace,
-		spansCreatedImmediately: spansCreatedImmediately,
 		totalSpans:              totalSpans,
-		lateTraceDelay:          lateTraceDelay,
-		lateTraceFrequency:      lateTraceFrequency,
 	}
 }
 
-type traceToFinishLater struct {
-	rootSpan      trace.Span
-	toFinishSpans []trace.Span
-}
-
-func (ttfl *traceToFinishLater) finishAll() {
-	for _, s := range ttfl.toFinishSpans {
-		s.End()
-	}
-	ttfl.rootSpan.End()
-}
-
-func (ttfl *traceToFinishLater) setMagicTag() {
-	for _, s := range ttfl.toFinishSpans {
-		s.SetAttributes(label.String("magicTag", "late"))
-		fakeErr := errors.New("some error")
-		s.RecordError(fakeErr)
-	}
-}
-
-func buildSpan(tracer trace.Tracer, parentCtx context.Context, countNumber int, magicValue int, magicTag *string) (context.Context, trace.Span) {
+func buildSpan(tracer trace.Tracer, parentCtx context.Context, countNumber int, magicValue int) (context.Context, trace.Span) {
 	ctx, childSpan := tracer.Start(
 		parentCtx,
 		fmt.Sprintf("ancestor-%d", countNumber+1),
@@ -155,76 +103,48 @@ func buildSpan(tracer trace.Tracer, parentCtx context.Context, countNumber int, 
 			label.Int("magicValue", magicValue)),
 	)
 
-	if magicTag != nil {
-		childSpan.SetAttributes(label.String("magicTag", *magicTag))
-	}
-
 	return ctx, childSpan
 }
 
-func buildTrace(tracer trace.Tracer, testConfig stressTestConfig, traceNumber int, isLate bool) traceToFinishLater {
+func buildTrace(tracer trace.Tracer, testConfig stressTestConfig, traceNumber int) {
 	ctx, parentSpan := tracer.Start(
 		context.Background(),
 		"parent",
 		trace.WithNewRoot(),
-		trace.WithAttributes(label.Bool("late", isLate)))
+		trace.WithAttributes(label.String("foo", "bar")))
 
-	toFinishSpans := make([]trace.Span, 0)
 	currentParent := parentSpan
 	currentCtx := ctx
 
 	for i := 0; i < testConfig.spansPerTrace-1; i++ {
-		if i < testConfig.spansCreatedImmediately {
-			currentParent.End()
-		} else {
-			toFinishSpans = append(toFinishSpans, currentParent)
-		}
+		currentParent.End()
 
-		var magicTag *string
-		if traceNumber%11 == 0 {
-			val := "true"
-			magicTag = &val
-		}
-		newCtx, childSpan := buildSpan(tracer, currentCtx, i, traceNumber%100, magicTag)
-		childSpan.SetAttributes(label.Bool("late", isLate))
+		newCtx, childSpan := buildSpan(tracer, currentCtx, i, traceNumber%100)
 		currentParent = childSpan
 		currentCtx = newCtx
 	}
-
-	return traceToFinishLater{
-		rootSpan:      parentSpan,
-		toFinishSpans: toFinishSpans,
-	}
+	currentParent.End()
 }
 
-func runStressTest(testCfg stressTestConfig, tracer trace.Tracer) {
-	totalCount := 0
-	lateTracesSent := 0
+func runIteration(bsp *sdktrace.BatchSpanProcessor, testCfg stressTestConfig, i int) int {
+	tracer := otel.Tracer("stress-test-tracer")
+	buildTrace(tracer, testCfg, i)
+	bsp.ForceFlush()
 
-	lateTraceDelayInSpans := testCfg.lateTraceDelay * testCfg.spansPerMinute / 60
-	lateTraceDelayInTraces := lateTraceDelayInSpans / testCfg.spansPerTrace
-	lateTraceDelayFinishQueueSize := lateTraceDelayInTraces / testCfg.lateTraceFrequency
+	return testCfg.spansPerTrace
+}
+
+func runStressTest(testCfg stressTestConfig) {
+	bsp, shutdown := initTracing(testCfg)
+	defer shutdown()
+
+	totalCount := 0
 
 	tracesCount := testCfg.totalSpans / testCfg.spansPerTrace
 	start := time.Now()
-	tracesToFinishLater := make([]traceToFinishLater, 0)
 	for i := 0; i < tracesCount; i++ {
-		isLate := i%testCfg.lateTraceFrequency == 0
-		trace := buildTrace(tracer, testCfg, i, isLate)
-		if isLate {
-			trace.setMagicTag()
-			tracesToFinishLater = append(tracesToFinishLater, trace)
-		} else {
-			trace.finishAll()
-		}
+		totalCount += runIteration(bsp, testCfg, i)
 
-		if l := len(tracesToFinishLater); l > 0 && (l >= lateTraceDelayFinishQueueSize || i == tracesCount-1) {
-			tracesToFinishLater[0].finishAll()
-			tracesToFinishLater = tracesToFinishLater[1:]
-			lateTracesSent += 1
-		}
-
-		totalCount += testCfg.spansPerTrace
 		duration := time.Now().Sub(start)
 
 		desiredDurationMicros := int64(float64(totalCount*60*1000*1000) / float64(testCfg.spansPerMinute))
@@ -237,14 +157,8 @@ func runStressTest(testCfg stressTestConfig, tracer trace.Tracer) {
 			// Calculate again to take sleep into account
 			duration := time.Now().Sub(start)
 			rpm := (60 * 1000 * 1000 * float64(totalCount)) / float64(duration.Microseconds())
-			log.Printf("[Late traces queue: %d, Late traces sent: %d] ", len(tracesToFinishLater), lateTracesSent)
 			log.Printf("Created %d spans in %.3f seconds, or %.1f spans/minute\n", totalCount, float64(duration.Milliseconds())/1000.0, rpm)
 		}
-	}
-
-	log.Println("Finishing late spans...")
-	for _, tt := range tracesToFinishLater {
-		tt.finishAll()
 	}
 }
 
@@ -260,21 +174,13 @@ func init() {
 	flag.BoolVar(&help, "help", false, "show help")
 }
 
-func initTracing(testCfg stressTestConfig) func() {
+func initTracing(testCfg stressTestConfig) (*sdktrace.BatchSpanProcessor, func()) {
 	ctx := context.Background()
 
 	headers := map[string]string{}
 	if testCfg.token != "" {
 		headers[TokenKey] = testCfg.token
 	}
-
-	exp, err := otlp.NewExporter(otlp.WithInsecure(),
-		otlp.WithHeaders(headers),
-		otlp.WithAddress(testCfg.address),
-		otlp.WithGRPCDialOption(grpc.WithBlock()), // useful for testing
-	)
-
-	handleErr("Could not create exporter", err)
 
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
@@ -283,6 +189,14 @@ func initTracing(testCfg stressTestConfig) func() {
 		),
 	)
 	handleErr("Could not create resource", err)
+
+	exp, err := otlp.NewExporter(otlp.WithInsecure(),
+		otlp.WithHeaders(headers),
+		otlp.WithAddress(testCfg.address),
+		otlp.WithGRPCDialOption(grpc.WithBlock()), // useful for testing
+	)
+
+	handleErr("Could not create exporter", err)
 
 	// No sampling
 	bsp := sdktrace.NewBatchSpanProcessor(exp)
@@ -297,7 +211,7 @@ func initTracing(testCfg stressTestConfig) func() {
 	otel.SetTextMapPropagator(propagation.TraceContext{})
 	otel.SetTracerProvider(tracerProvider)
 
-	return func() {
+	return bsp, func() {
 		handleErr("Failed to shutdown provider", tracerProvider.Shutdown(ctx))
 		handleErr("Failed to stop exporter", exp.Shutdown(ctx))
 	}
@@ -313,10 +227,5 @@ func main() {
 	testCfg := createStressTestConfig()
 	testCfg.printConfig()
 
-	shutdown := initTracing(testCfg)
-	defer shutdown()
-
-	tracer := otel.Tracer("stress-test-tracer")
-
-	runStressTest(testCfg, tracer)
+	runStressTest(testCfg)
 }
