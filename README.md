@@ -1,4 +1,4 @@
-# Sumo Logic Kubernetes Tools
+# Sumo Logic Kubernetes Tools [![GitHub tag](https://img.shields.io/github/release/SumoLogic/sumologic-kubernetes-tools.svg)](https://gitHub.com/SumoLogic/sumologic-kubernetes-tools/releases/latest)
 
 This repository provides set of tools which can be used for debugging and testing [sumologic kubernetes collection](https://github.com/SumoLogic/sumologic-kubernetes-collection/) solution.
 
