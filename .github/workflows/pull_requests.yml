@@ -1,0 +1,36 @@
+name: PRs checks
+
+on:
+  pull_request:
+    branches:
+      - main
+      - 'release-v[0-9]+.[0-9]+'
+
+jobs:
+  markdownlint:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-ruby@v1
+      - name: Install markdownlint
+        run: gem install mdl
+      - name: Check markdown files with markdownlint
+        run: make markdownlint
+
+  test-receiver-mock:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Test receiver-mock
+        working-directory: src/rust/receiver-mock/
+        run: make test
+
+  build-image:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Build kubernetes-tools image
+        run: make build-image
