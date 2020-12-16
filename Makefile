@@ -33,6 +33,15 @@ build-image:
 		--tag $(IMAGE_NAME):$(BUILD_TAG) \
 		.
 
+build-release-image:
+	DOCKER_BUILDKIT=1 docker build \
+		--tag $(IMAGE_NAME):$(BUILD_TAG) \
+		.
+
+tag-release-image-with-latest:
+	docker tag $(IMAGE_NAME):$(BUILD_TAG) $(REPO_URL):latest
+	docker push $(REPO_URL):latest
+
 test-image:
 	./scripts/test-image.sh "$(IMAGE_NAME):$(BUILD_TAG)"
 
