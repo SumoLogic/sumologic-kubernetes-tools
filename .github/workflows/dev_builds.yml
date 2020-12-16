@@ -30,4 +30,4 @@ jobs:
       - name: Push kubernetes-tools image
         run: make push-image BUILD_TAG=${{ steps.extract_tag.outputs.tag }}
       - name: Push kubernetes-tools image build cache
-        run: make push-image-cache
+        run: make push-image-cache BUILD_TAG=${{ steps.extract_tag.outputs.tag }}
