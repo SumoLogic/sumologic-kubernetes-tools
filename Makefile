@@ -33,6 +33,9 @@ build-image:
 		--tag $(IMAGE_NAME):$(BUILD_TAG) \
 		.
 
+test-image:
+	./scripts/test-image.sh "$(IMAGE_NAME):$(BUILD_TAG)"
+
 push-image-cache:
 	docker tag $(IMAGE_NAME):$(BUILD_GO_CACHE_TAG) $(REPO_URL):$(BUILD_GO_CACHE_TAG)
 	docker push $(REPO_URL):$(BUILD_GO_CACHE_TAG)
