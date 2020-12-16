@@ -1,4 +1,4 @@
-FROM golang:1.15.2 as go-builder
+FROM golang:1.15.6 as go-builder
 RUN mkdir /build
 ADD ./src/go /build/
 WORKDIR /build
@@ -6,11 +6,11 @@ WORKDIR /build
 # * -w to decrease binary size by not including debug info
 # * -extldflags "-static" to build static binaries
 RUN CGO_ENABLED=0 GOOS=linux \
-    go build -a \
+    go build \
         -ldflags '-w -extldflags "-static"' \
         -o k8s-api-test cmd/k8s-api-test/main.go
 RUN CGO_ENABLED=0 GOOS=linux \
-    go build -a \
+    go build \
         -ldflags '-w -extldflags "-static"' \
         -o stress-tester cmd/stress-tester/main.go
 

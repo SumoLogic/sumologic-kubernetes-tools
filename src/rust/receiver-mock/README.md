@@ -11,8 +11,10 @@ cargo run
 ### Arguments
 
 List of arguments taken by receiver-mock:
-  * -l, --hostname <hostname> - Hostname reported as the receiver. For kubernetes it will be `<service name>.<namespace>` (`localhost` by default)
-  * -p, --port <port> - Port to listen on (default is `3000`)
+
+- `-l, --hostname <hostname>`- Hostname reported as the receiver.
+  For kubernetes it will be `<service name>.<namespace>` (`localhost` by default)
+- `-p, --port <port>` - Port to listen on (default is `3000`)
 
 ## Terraform mock
 
@@ -27,7 +29,9 @@ Example output:
 ## Statistics
 
 There are endpoints which provides statistics:
- * `metrics` - exposes receiver-mock metrics in prometheus format
+
+- `metrics` - exposes receiver-mock metrics in prometheus format
+
   ```
   # TYPE receiver_mock_metrics_count counter
   receiver_mock_metrics_count 123
@@ -36,7 +40,9 @@ There are endpoints which provides statistics:
   # TYPE receiver_mock_logs_bytes_count counter
   receiver_mock_logs_bytes_count 45678
   ```
- * `/metrics-list` - returns list of counted unique metrics
+
+- `/metrics-list` - returns list of counted unique metrics
+
   ```
   prometheus_remote_storage_shards: 100
   prometheus_remote_storage_shards_desired: 100
@@ -45,8 +51,10 @@ There are endpoints which provides statistics:
   prometheus_remote_storage_string_interner_zero_reference_releases_total: 10
   prometheus_remote_storage_succeeded_samples_total: 100
   ```
- * `/metrics-reset` - reset the metrics counter (zeroes `/metrics-list`)
 
-# Disclaimer
+- `/metrics-reset` - reset the metrics counter (zeroes `/metrics-list`)
 
-This tool is not intended to be used by the 3rd party. It can significantly change behavior over development time and should be treated as experimental.
+## Disclaimer
+
+This tool is not intended to be used by the 3rd party.
+It can significantly change behavior over development time and should be treated as experimental.

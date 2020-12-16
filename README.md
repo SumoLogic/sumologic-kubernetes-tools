@@ -73,8 +73,8 @@ There's a simple tool that generates a desired number of spans per minute and se
 
 You can set Jaeger Go client env variables (such as `JAEGER_AGENT_HOST` or `JAEGER_COLLECTOR`) and stress-tester specific ones:
 
-* `TOTAL_SPANS` (default=10000000) - total number of spans to generate
-* `SPANS_PER_MIN` (required) - rate of spans per minute (the tester will adjust the delay between iterations to reach such rate)
+- `TOTAL_SPANS` (default=10000000) - total number of spans to generate
+- `SPANS_PER_MIN` (required) - rate of spans per minute (the tester will adjust the delay between iterations to reach such rate)
 
 ### Receiver-mock
 
@@ -140,6 +140,7 @@ kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/re
 Wait for CRDs to be created. It should take around few seconds.
 
 Apply the generated template:
+
 ```
 kubectl apply -f sumologic.yaml
 ```

@@ -5,13 +5,6 @@ language: shell
 
 jobs:
   include:
-    - stage: shellcheck build.sh
-      install:
-        - sudo apt update
-        - sudo apt install shellcheck
-      script:
-        - shellcheck --norc --enable all ci/build.sh
-
     - stage: test
       language: rust
       rust: stable
@@ -27,10 +20,3 @@ jobs:
       services: docker
       script:
         - bash ci/build.sh
-
-stages:
-  - name: shellcheck build.sh
-    if: type = pull_request
-  - name: test
-    if: type = pull_request
-  - name: build
