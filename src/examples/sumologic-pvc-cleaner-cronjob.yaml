@@ -25,3 +25,4 @@ spec:
              - "collection-sumologic-fluentd-logs"
             imagePullPolicy: IfNotPresent
           restartPolicy: Never
+          serviceAccountName: pvc-cleaner
