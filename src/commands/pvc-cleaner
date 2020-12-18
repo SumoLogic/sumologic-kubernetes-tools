@@ -12,7 +12,7 @@ readonly MAX_ARGS_NUMBER=3
 function print_help() {
   echo "This script removes the unmounted PVCs with given selector."
   echo "By default it removes all of the found unmounted PVCs."
-  echo "With HPA-name argument provided it removes the PVCs which belongs to pod instances with equal or higher number than the current or desired HPA replicas (the higher value of those two is used)."
+  echo "With HPA-name argument provided it removes the PVCs which belongs to statefulset pod instances with equal or higher number than the current or desired HPA replicas (the higher value of those two is used)."
   echo
   echo "Usage:"
   echo "  pvc-cleaner namespace PVC-selector [HPA-name]"
