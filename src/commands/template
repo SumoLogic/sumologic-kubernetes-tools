@@ -29,8 +29,11 @@ tmpfile="$(mktemp /tmp/values.yaml.XXXXXX)"
 extra_params=''
 # Kubectl can take some time before stdin is available for reading
 # thats why we check if just before it's required
-if read -t "${STDIN_WAIT_S}"; then
-  cat <&0 > "${tmpfile}"
+if read -t "${STDIN_WAIT_S}" REPLY; then
+  # Save first line read from stdin
+  echo "${REPLY}" > "${tmpfile}"
+  # Save rest of the stdin
+  cat <&0 >> "${tmpfile}"
   extra_params="-f${tmpfile}"
 fi
 
