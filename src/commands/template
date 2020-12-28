@@ -17,7 +17,7 @@ fi
 
 readonly REPO_PATH="${REPO_PATH:-sumologic/sumologic}"
 readonly REPO_URL="${REPO_URL:-https://sumologic.github.io/sumologic-kubernetes-collection}"
-readonly STDIN_WAIT_S="${STDIN_WAIT_S:10}"
+readonly STDIN_WAIT_S="${STDIN_WAIT_S:-10}"
 
 echoerr '# Add sumologic repository'
 helm repo add sumologic "${REPO_URL}" 1>/dev/null 2>&1
