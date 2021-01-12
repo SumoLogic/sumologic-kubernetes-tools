@@ -16,33 +16,48 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"gopkg.in/yaml.v2"
 	"log"
 	"os"
-	"strconv"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/exporters/otlp"
+	"go.opentelemetry.io/otel/exporters/trace/zipkin"
 	"go.opentelemetry.io/otel/label"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/semconv"
 	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/grpc"
 )
 
-type stressTestConfig struct {
-	// Endpoint address
-	address string
-	// Auth token
-	token string
+type TestConfig struct {
+	// Endpoint Address
+	Address string
+	// Auth Token
+	Token string
 	// How many spans per minute are targeted
-	spansPerMinute int
+	SpansPerMinute int
 	// What should be the size of the trace
-	spansPerTrace int
+	SpansPerTrace int
 	// How many spans until the stress-test finishes
-	totalSpans int
+	TotalSpans int
+	//service name
+	ServiceName string
+}
+
+type Config struct {
+	SpansPerTrace int `yaml:"spansPerTrace"`
+	SpansPerMinute int `yaml:"spansPerMinute"`
+	Address string `yaml:"address"`
+	Tokens []Token `yaml:"tokens"`
+}
+
+type Token struct {
+	Token string `yaml:"token"`
+	ServiceName string `yaml:"serviceName"`
+	TotalSpans int `yaml:"totalSpans"`
 }
 
 const (
@@ -55,42 +70,42 @@ const (
 	EnvTotalSpans              = "TOTAL_SPANS"
 )
 
-func (cfg *stressTestConfig) printConfig() {
-	log.Printf("%s = %s\n", EnvAddress, cfg.address)
-	log.Printf("%s = %s\n", EnvToken, cfg.token)
-	log.Printf("%s = %d\n", EnvSpansPerMin, cfg.spansPerMinute)
-	log.Printf("%s = %d\n", EnvSpansPerTrace, cfg.spansPerTrace)
-	log.Printf("%s = %d\n", EnvTotalSpans, cfg.totalSpans)
+func (cfg *TestConfig) printConfig() {
+	log.Printf("%s = %s\n", EnvAddress, cfg.Address)
+	log.Printf("%s = %s\n", EnvToken, cfg.Token)
+	log.Printf("%s = %d\n", EnvSpansPerMin, cfg.SpansPerMinute)
+	log.Printf("%s = %d\n", EnvSpansPerTrace, cfg.SpansPerTrace)
+	log.Printf("%s = %d\n", EnvTotalSpans, cfg.TotalSpans)
 }
 
-func createStressTestConfig() stressTestConfig {
-	spm, err := strconv.Atoi(os.Getenv(EnvSpansPerMin))
-	handleErr("SPANS_PER_MIN env variable not provided", err)
-
-	spansPerTrace, err := strconv.Atoi(os.Getenv(EnvSpansPerTrace))
+func readConfigFromFile(configPath string) (*Config, error) {
+	config := &Config{}
+	file, err := os.Open(configPath)
 	if err != nil {
-		spansPerTrace = 100
+		return nil, err
 	}
-
-	totalSpans, err := strconv.Atoi(os.Getenv(EnvTotalSpans))
-	if err != nil {
-		totalSpans = 10000000
+	defer file.Close()
+	decoder := yaml.NewDecoder(file)
+	if err := decoder.Decode(&config); err != nil {
+		return nil, err
 	}
+	return config, nil
+}
 
-	address := os.Getenv(EnvAddress)
-	if address == "" {
-		address = DefaultAddress
+func createConfigs(config *Config) []TestConfig {
+	var configs []TestConfig
+	for i:=0; i<len(config.Tokens); i++ {
+		testConfig := TestConfig{
+			Address:        config.Address,
+			Token:          config.Tokens[i].Token,
+			SpansPerMinute: config.SpansPerMinute,
+			SpansPerTrace:  config.SpansPerTrace,
+			TotalSpans:     config.Tokens[i].TotalSpans,
+			ServiceName: 	config.Tokens[i].ServiceName,
+		}
+		configs = append(configs, testConfig)
 	}
-
-	token := os.Getenv(EnvToken)
-
-	return stressTestConfig{
-		address:                 address,
-		token:                   token,
-		spansPerMinute:          spm,
-		spansPerTrace:           spansPerTrace,
-		totalSpans:              totalSpans,
-	}
+	return configs
 }
 
 func buildSpan(tracer trace.Tracer, parentCtx context.Context, countNumber int, magicValue int) (context.Context, trace.Span) {
@@ -106,17 +121,17 @@ func buildSpan(tracer trace.Tracer, parentCtx context.Context, countNumber int, 
 	return ctx, childSpan
 }
 
-func buildTrace(tracer trace.Tracer, testConfig stressTestConfig, traceNumber int) {
-	ctx, parentSpan := tracer.Start(
-		context.Background(),
+func buildTrace(ctx context.Context, tracer trace.Tracer, testConfig TestConfig, traceNumber int) {
+	traceCtx, parentSpan := tracer.Start(
+		ctx,
 		"parent",
 		trace.WithNewRoot(),
 		trace.WithAttributes(label.String("foo", "bar")))
 
 	currentParent := parentSpan
-	currentCtx := ctx
+	currentCtx := traceCtx
 
-	for i := 0; i < testConfig.spansPerTrace-1; i++ {
+	for i := 0; i < testConfig.SpansPerTrace-1; i++ {
 		currentParent.End()
 
 		newCtx, childSpan := buildSpan(tracer, currentCtx, i, traceNumber%100)
@@ -126,28 +141,31 @@ func buildTrace(tracer trace.Tracer, testConfig stressTestConfig, traceNumber in
 	currentParent.End()
 }
 
-func runIteration(bsp *sdktrace.BatchSpanProcessor, testCfg stressTestConfig, i int) int {
-	tracer := otel.Tracer("stress-test-tracer")
-	buildTrace(tracer, testCfg, i)
+func runIteration(ctx context.Context, bsp *sdktrace.BatchSpanProcessor, testCfg TestConfig, i int) int {
+	tracer := otel.Tracer("connection-test-tracer")
+	buildTrace(ctx, tracer, testCfg, i)
 	bsp.ForceFlush()
 
-	return testCfg.spansPerTrace
+	return testCfg.SpansPerTrace
 }
 
-func runStressTest(testCfg stressTestConfig) {
-	bsp, shutdown := initTracing(testCfg)
+func runTest(wg *sync.WaitGroup, testCfg TestConfig) {
+	ctx := context.Background()
+	defer wg.Done()
+	bsp, shutdown := initTracing(ctx, testCfg)
 	defer shutdown()
 
 	totalCount := 0
 
-	tracesCount := testCfg.totalSpans / testCfg.spansPerTrace
+	tracesCount := testCfg.TotalSpans / testCfg.SpansPerTrace
 	start := time.Now()
 	for i := 0; i < tracesCount; i++ {
-		totalCount += runIteration(bsp, testCfg, i)
+		totalCount += runIteration(ctx, bsp, testCfg, i)
+		log.Println(testCfg.ServiceName + " %d", totalCount)
 
 		duration := time.Now().Sub(start)
 
-		desiredDurationMicros := int64(float64(totalCount*60*1000*1000) / float64(testCfg.spansPerMinute))
+		desiredDurationMicros := int64(float64(totalCount*60*1000*1000) / float64(testCfg.SpansPerMinute))
 		sleepDurationMicros := desiredDurationMicros - duration.Microseconds()
 		if sleepDurationMicros > 0 {
 			time.Sleep(time.Duration(sleepDurationMicros) * time.Microsecond)
@@ -174,28 +192,21 @@ func init() {
 	flag.BoolVar(&help, "help", false, "show help")
 }
 
-func initTracing(testCfg stressTestConfig) (*sdktrace.BatchSpanProcessor, func()) {
-	ctx := context.Background()
-
+func initTracing(ctx context.Context, testCfg TestConfig) (*sdktrace.BatchSpanProcessor, func()) {
 	headers := map[string]string{}
-	if testCfg.token != "" {
-		headers[TokenKey] = testCfg.token
+	if testCfg.Token != "" {
+		headers[TokenKey] = testCfg.Token
 	}
 
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
 			// the service name used to display traces in backends
-			semconv.ServiceNameKey.String("stress-tester"),
+			semconv.ServiceNameKey.String(testCfg.ServiceName),
 		),
 	)
 	handleErr("Could not create resource", err)
 
-	exp, err := otlp.NewExporter(otlp.WithInsecure(),
-		otlp.WithHeaders(headers),
-		otlp.WithAddress(testCfg.address),
-		otlp.WithGRPCDialOption(grpc.WithBlock()), // useful for testing
-	)
-
+	exp, err := zipkin.NewRawExporter(testCfg.Address+ "/" + testCfg.Token, testCfg.ServiceName)
 	handleErr("Could not create exporter", err)
 
 	// No sampling
@@ -220,12 +231,21 @@ func initTracing(testCfg stressTestConfig) (*sdktrace.BatchSpanProcessor, func()
 func main() {
 	flag.Parse()
 	if help {
-		fmt.Println("Trace stress-testing")
+		fmt.Println("Trace connection-testing")
 		os.Exit(0)
 	}
 
-	testCfg := createStressTestConfig()
-	testCfg.printConfig()
+	config, err := readConfigFromFile("./cmd/connection-tester/config.yml")
+	handleErr("Could not read config file", err)
+	configs := createConfigs(config)
 
-	runStressTest(testCfg)
+	var waitGroup sync.WaitGroup
+	for i:=0; i<len(configs); i++ {
+		configs[i].printConfig()
+		waitGroup.Add(1)
+		go runTest(&waitGroup, configs[i])
+	}
+	fmt.Println("Main: Waiting for workers to finish")
+	waitGroup.Wait()
+	fmt.Println("Main: Completed")
 }
