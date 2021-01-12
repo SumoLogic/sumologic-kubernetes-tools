@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+IFS=$'\n\t'
+
+readonly SCRIPT_PATH="/usr/local/bin/upgrade-2.0.0.sh"
+
+function print_help() {
+  echo "2.0 k8s migration script."
+  echo "This script outputs migrated values file on stdout (and saves it in new_values.yaml in current working directory inside the container)."
+  echo "Logs produced by the migration script are available on stderr."
+  echo
+  echo "Usage:"
+  echo "  upgrade-2.0 <VALUES_FILE.yaml>"
+}
+
+function err() {
+  echo "${1}" >&2
+}
+
+set -x
+
+if [[ ${#} -ge 1 && "${1}" == "--help" ]]; then
+  print_help
+  exit 0
+fi
+
+FILE=""
+if [[ ${#} -eq 0 ]]; then
+  readonly STDIN_WAIT_S="${STDIN_WAIT_S:-10}"
+  # Take data from stdin if available and put into temporary file
+  readonly TMPFILE="$(mktemp /tmp/values.yaml.XXXXXX)"
+  # Kubectl can take some time before stdin is available for reading
+  # thats why we check if just before it's required
+  if read -t "${STDIN_WAIT_S}" REPLY; then
+    # Save first line read from stdin
+    echo "${REPLY}" > "${TMPFILE}"
+    # Save rest of the stdin
+    cat <&0 >> "${TMPFILE}"
+  fi
+
+  if [[ ! -s "${TMPFILE}" ]]; then
+    err "Values file was not provided on stdin (or it was provided empty). Aborting."
+    exit 1
+  fi
+
+  FILE="${TMPFILE}"
+else
+  FILE="${1}"
+  if [[ ! -f "${FILE}" ]]; then
+    err "Provided file \"${FILE}\" doesn't exist"
+    exit 1
+  fi
+fi
+
+# In case migration script fails we want to handle the error ourselves
+set +e
+"${SCRIPT_PATH}" "${FILE}" >&2
+readonly EXIT_STATUS=$?
+if [[ ${EXIT_STATUS} -ne 0 ]]; then
+  err "Upgrade script failed"
+  exit 1
+fi
+
+cat new_values.yaml

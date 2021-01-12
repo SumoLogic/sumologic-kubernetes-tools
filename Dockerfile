@@ -24,6 +24,7 @@ FROM alpine:3.12
 ENV HELM_VERSION="3.4.2"
 ENV YQ_VERSION="3.4.1"
 ENV KUBECTL_VERSION="v1.18.14"
+ENV UPGRADE_2_0_SCRIPT_URL="https://raw.githubusercontent.com/SumoLogic/sumologic-kubernetes-collection/main/deploy/helm/sumologic/upgrade-2.0.0.sh"
 RUN set -ex \
     && apk update \
     && apk upgrade \
@@ -42,7 +43,9 @@ RUN set -ex \
     && curl -LJ https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 -o /usr/bin/yq \
     && chmod +x /usr/bin/yq \
     && curl -LJ https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl -o /usr/bin/kubectl \
-    && chmod +x /usr/bin/kubectl
+    && chmod +x /usr/bin/kubectl \
+    && curl -LJ "${UPGRADE_2_0_SCRIPT_URL}" -o /usr/local/bin/upgrade-2.0.0.sh \
+    && chmod +x /usr/local/bin/upgrade-2.0.0.sh
 
 COPY \
     ./src/ssh/motd \
@@ -56,6 +59,7 @@ COPY \
     ./src/commands/tools-usage \
     ./src/commands/template \
     ./src/commands/template-dependency \
+    ./src/commands/upgrade-2.0 \
     /usr/bin/
 
 COPY ./src/commands/template-prometheus-mixin \
