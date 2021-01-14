@@ -126,7 +126,7 @@ func buildTrace(ctx context.Context, tracer trace.Tracer, testConfig TestConfig,
 		ctx,
 		"parent",
 		trace.WithNewRoot(),
-		trace.WithAttributes(label.String("foo", "bar")))
+		trace.WithAttributes(label.String("foo", "bar"), label.String("service.name", testConfig.ServiceName)))
 
 	currentParent := parentSpan
 	currentCtx := traceCtx
@@ -142,10 +142,8 @@ func buildTrace(ctx context.Context, tracer trace.Tracer, testConfig TestConfig,
 }
 
 func runIteration(ctx context.Context, bsp *sdktrace.BatchSpanProcessor, testCfg TestConfig, i int) int {
-	tracer := otel.Tracer("connection-test-tracer")
+	tracer := otel.Tracer(fmt.Sprintf("%v", testCfg.ServiceName))
 	buildTrace(ctx, tracer, testCfg, i)
-	bsp.ForceFlush()
-
 	return testCfg.SpansPerTrace
 }
 
@@ -161,7 +159,6 @@ func runTest(wg *sync.WaitGroup, testCfg TestConfig) {
 	start := time.Now()
 	for i := 0; i < tracesCount; i++ {
 		totalCount += runIteration(ctx, bsp, testCfg, i)
-		log.Println(testCfg.ServiceName + " %d", totalCount)
 
 		duration := time.Now().Sub(start)
 
@@ -177,6 +174,7 @@ func runTest(wg *sync.WaitGroup, testCfg TestConfig) {
 			rpm := (60 * 1000 * 1000 * float64(totalCount)) / float64(duration.Microseconds())
 			log.Printf("Created %d spans in %.3f seconds, or %.1f spans/minute\n", totalCount, float64(duration.Milliseconds())/1000.0, rpm)
 		}
+		bsp.ForceFlush()
 	}
 }
 
@@ -186,13 +184,8 @@ func handleErr(message string, err error) {
 	}
 }
 
-var help bool
-
-func init() {
-	flag.BoolVar(&help, "help", false, "show help")
-}
-
 func initTracing(ctx context.Context, testCfg TestConfig) (*sdktrace.BatchSpanProcessor, func()) {
+	log.Println("init tracing:", testCfg.ServiceName, ctx)
 	headers := map[string]string{}
 	if testCfg.Token != "" {
 		headers[TokenKey] = testCfg.Token
@@ -210,7 +203,7 @@ func initTracing(ctx context.Context, testCfg TestConfig) (*sdktrace.BatchSpanPr
 	handleErr("Could not create exporter", err)
 
 	// No sampling
-	bsp := sdktrace.NewBatchSpanProcessor(exp)
+	bsp := sdktrace.NewBatchSpanProcessor(exp, sdktrace.WithMaxExportBatchSize(1))
 	tracerProvider := sdktrace.NewTracerProvider(
 		sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
 		sdktrace.WithResource(res),
@@ -229,13 +222,11 @@ func initTracing(ctx context.Context, testCfg TestConfig) (*sdktrace.BatchSpanPr
 }
 
 func main() {
+	configFileName := flag.String("config", "config.yml", "config file name")
 	flag.Parse()
-	if help {
-		fmt.Println("Trace connection-testing")
-		os.Exit(0)
-	}
+	println(*configFileName)
 
-	config, err := readConfigFromFile("./cmd/connection-tester/config.yml")
+	config, err := readConfigFromFile(*configFileName)
 	handleErr("Could not read config file", err)
 	configs := createConfigs(config)
 
