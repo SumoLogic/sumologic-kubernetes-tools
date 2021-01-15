@@ -24,7 +24,7 @@ FROM alpine:3.12
 ENV HELM_VERSION="3.4.2"
 ENV YQ_VERSION="3.4.1"
 ENV KUBECTL_VERSION="v1.18.14"
-ENV UPGRADE_2_0_SCRIPT_URL="https://raw.githubusercontent.com/SumoLogic/sumologic-kubernetes-collection/main/deploy/helm/sumologic/upgrade-2.0.0.sh"
+ENV UPGRADE_2_0_SCRIPT_URL="https://raw.githubusercontent.com/SumoLogic/sumologic-kubernetes-collection/release-v2.0/deploy/helm/sumologic/upgrade-2.0.0.sh"
 RUN set -ex \
     && apk update \
     && apk upgrade \
