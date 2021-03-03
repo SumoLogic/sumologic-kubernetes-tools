@@ -21,7 +21,7 @@ jobs:
       - name: Print tag
         run: echo "Running dev build for ${{ steps.extract_tag.outputs.tag }}"
       - name: Build kubernetes-tools image
-        run: make build-image BUILD_TAG=${{ steps.extract_tag.outputs.tag }}
+        run: make build-release-image BUILD_TAG=${{ steps.extract_tag.outputs.tag }}
       - name: Login to Docker Hub
         uses: docker/login-action@v1
         with:
