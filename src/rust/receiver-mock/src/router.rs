@@ -272,7 +272,11 @@ pub async fn handler_terraform_fields_create(
     terraform_state: web::Data<TerraformState>,
 ) -> impl Responder {
     let mut fields = terraform_state.fields.lock().unwrap();
-    let id: String = thread_rng().sample_iter(Alphanumeric).take(16).collect();
+    let id: String = thread_rng()
+        .sample_iter(Alphanumeric)
+        .take(16)
+        .map(char::from)
+        .collect();
     let requested_name = req.field_name.clone();
     let exists = fields.iter().find_map(|(id, name)| {
         if name == &requested_name {
