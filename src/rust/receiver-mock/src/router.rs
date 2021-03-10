@@ -185,7 +185,6 @@ struct TerraformFieldObject {
 pub async fn handler_terraform_fields(
     terraform_state: web::Data<TerraformState>,
 ) -> impl Responder {
-
     #[derive(Serialize)]
     struct TerraformFieldsResponse {
         data: Vec<TerraformFieldObject>,
@@ -331,6 +330,10 @@ pub async fn handler_receiver(
     app_state: web::Data<AppState>,
     opts: web::Data<options::Options>,
 ) -> impl Responder {
+    // Returns 500 basing randomly basing on success ratio
+    if opts.success_ratio < 1.0 && thread_rng().gen_range(0.0..1.0) > opts.success_ratio {
+        return HttpResponse::InternalServerError().body("Internal Server Error");
+    }
     // Don't fail when we can't read remote address.
     // Default to localhost and just ingest what was sent.
     let localhost: std::net::SocketAddr =
@@ -406,7 +409,7 @@ pub async fn handler_receiver(
         }
     }
 
-    HttpResponse::Ok()
+    HttpResponse::Ok().body("")
 }
 
 pub fn print_request_headers(

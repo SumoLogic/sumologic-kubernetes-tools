@@ -1,6 +1,7 @@
 #[derive(Clone, Copy)]
 pub struct Options {
     pub print: Print,
+    pub success_ratio: f64,
 }
 
 #[derive(Clone, Copy)]
