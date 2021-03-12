@@ -9,6 +9,7 @@ use chrono::Duration;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde_derive::{Deserialize, Serialize};
+use std::{thread, time};
 
 use crate::metrics;
 use crate::options;
@@ -330,6 +331,11 @@ pub async fn handler_receiver(
     app_state: web::Data<AppState>,
     opts: web::Data<options::Options>,
 ) -> impl Responder {
+    if opts.max_wait_time > opts.min_wait_time {
+        let sleep_time = time::Duration::from_secs(thread_rng().gen_range(opts.min_wait_time..opts.max_wait_time));
+        thread::sleep(sleep_time);
+    }
+
     // Returns 500 basing randomly basing on success ratio
     if opts.success_ratio < 1.0 && thread_rng().gen_range(0.0..1.0) > opts.success_ratio {
         return HttpResponse::InternalServerError().body("Internal Server Error");

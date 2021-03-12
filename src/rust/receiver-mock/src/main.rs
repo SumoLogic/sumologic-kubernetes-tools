@@ -64,11 +64,28 @@ async fn main() -> std::io::Result<()> {
             .help("Use to define success ratio (how much requests are considered successfuly). Takes value 0.0-1.0")
             .takes_value(true)
             .required(false))
+        .arg(Arg::with_name("min_wait_time")
+            .short("w")
+            .long("min-wait-time")
+            .value_name("min_wait_time")
+            .help("Minimum time to wait in seconds before processing request")
+            .takes_value(true)
+            .required(false))
+        .arg(Arg::with_name("max_wait_time")
+            .short("W")
+            .long("max-wait-time")
+            .value_name("max_wait_time")
+            .help("Maximum time to wait in seconds before processing request")
+            .takes_value(true)
+            .required(false))
       .get_matches();
 
     let port = value_t!(matches, "port", u16).unwrap_or(3000);
     let hostname = value_t!(matches, "hostname", String).unwrap_or("localhost".to_string());
     let success_ratio = value_t!(matches, "success_ratio", f64).unwrap_or(1.);
+    let min_wait_time = value_t!(matches, "min_wait_time", u64).unwrap_or(0);
+    let max_wait_time = value_t!(matches, "max_wait_time", u64).unwrap_or(0);
+    println!("{}", min_wait_time);
     let opts = Options {
         print: options::Print {
             logs: matches.is_present("print_logs"),
@@ -76,6 +93,8 @@ async fn main() -> std::io::Result<()> {
             metrics: matches.is_present("print_metrics"),
         },
         success_ratio: success_ratio,
+        min_wait_time: min_wait_time,
+        max_wait_time: max_wait_time,
     };
 
     run_app(hostname, port, opts).await
