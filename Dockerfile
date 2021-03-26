@@ -20,7 +20,7 @@ WORKDIR /build
 RUN apk update && apk upgrade && apk add g++
 RUN cargo build --release
 
-FROM alpine:3.13.2
+FROM alpine:3.13.3
 ENV HELM_VERSION="3.4.2"
 ENV YQ_VERSION="3.4.1"
 ENV KUBECTL_VERSION="v1.18.14"
