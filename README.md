@@ -181,6 +181,21 @@ You can add additional parameters (like `--version=1.0.0`) at the end of the com
 List of supported arguments is compatible with
 [`helm show values`](https://helm.sh/docs/helm/helm_show_values/).
 
+### Logs generator
+
+Logs generator is a tool for generating logs (text lines) using patterns,
+which can specify changing parts (words, digits).
+
+```bash
+kubectl run template-dependency \
+  -it --quiet --rm \
+  --restart=Never -n sumologic \
+  --image sumologic/kubernetes-tools \
+  -- logs-generator --help
+```
+
+[More information](src/rust/logs-generator/README.md)
+
 ### Interactive mode
 
 The pod can be also run in interactive mode:

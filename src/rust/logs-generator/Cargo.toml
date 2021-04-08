@@ -1,0 +1,9 @@
+[package]
+name = "logs-generator"
+version = "0.1.0"
+authors = ["Dominik Rosiek <drosiek@sumologic.com>"]
+edition = "2018"
+
+[dependencies]
+clap-v3 = "3.0.0-beta.1"
+rand = "0.6"

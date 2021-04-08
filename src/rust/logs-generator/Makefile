@@ -8,7 +8,3 @@ rustfmt:
 .PHONY: check-rustfmt
 check-rustfmt:
 	rustfmt --check $(RUSTFMT_FLAGS) $(RUST_SOURCE_FILES)
-
-.PHONY: test
-test:
-	cargo test
