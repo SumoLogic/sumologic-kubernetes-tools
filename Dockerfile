@@ -15,9 +15,14 @@ RUN CGO_ENABLED=0 GOOS=linux \
         -o stress-tester cmd/stress-tester/main.go
 
 FROM rust:1.51.0-alpine3.13 as rust-builder
-COPY ./src/rust/receiver-mock /build
-WORKDIR /build
 RUN apk update && apk upgrade && apk add g++
+
+WORKDIR /receiver-mock
+COPY ./src/rust/receiver-mock .
+RUN cargo build --release
+
+WORKDIR /logs-generator
+COPY ./src/rust/logs-generator .
 RUN cargo build --release
 
 FROM alpine:3.13.5
@@ -45,7 +50,8 @@ RUN set -ex \
     && curl -LJ https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl -o /usr/bin/kubectl \
     && chmod +x /usr/bin/kubectl \
     && curl -LJ "${UPGRADE_2_0_SCRIPT_URL}" -o /usr/local/bin/upgrade-2.0.0.sh \
-    && chmod +x /usr/local/bin/upgrade-2.0.0.sh
+    && chmod +x /usr/local/bin/upgrade-2.0.0.sh \
+    && curl -LJ https://raw.githubusercontent.com/dwyl/english-words/master/words.txt -o /usr/local/wordlist.txt
 
 COPY \
     ./src/ssh/motd \
@@ -72,7 +78,8 @@ COPY --from=go-builder \
     /usr/bin/
 
 COPY --from=rust-builder \
-    /build/target/release/receiver-mock \
+    /receiver-mock/target/release/receiver-mock \
+    /logs-generator/target/release/logs-generator \
     /usr/bin/
 
 CMD ["/usr/bin/tools-usage"]

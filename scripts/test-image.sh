@@ -13,6 +13,7 @@ function test_image() {
   template
   template-dependency
   template-prometheus-mixin
+  logs-generator
   "
   readonly apps
   local tag="${1}"
