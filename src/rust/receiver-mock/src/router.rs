@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::IpAddr;
 use std::sync::Mutex;
 
 use actix_http::http;
@@ -10,6 +10,7 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde_derive::{Deserialize, Serialize};
 use std::{thread, time};
+use std::net::{ToSocketAddrs};
 
 use crate::metrics;
 use crate::options;
@@ -342,9 +343,9 @@ pub async fn handler_receiver(
     }
     // Don't fail when we can't read remote address.
     // Default to localhost and just ingest what was sent.
-    let localhost: std::net::SocketAddr =
-        std::net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let remote_address = req.peer_addr().unwrap_or(localhost).ip();
+    let info = req.connection_info();
+    let address = (*info).realip_remote_addr().unwrap_or("0.0.0.0");
+    let remote_address = address.to_socket_addrs().unwrap().next().unwrap().ip();
 
     let body_length = body.len() as u64;
     // actix automatically decompresses body for us.

@@ -85,7 +85,7 @@ async fn main() -> std::io::Result<()> {
     let success_ratio = value_t!(matches, "success_ratio", f64).unwrap_or(1.);
     let min_wait_time = value_t!(matches, "min_wait_time", u64).unwrap_or(0);
     let max_wait_time = value_t!(matches, "max_wait_time", u64).unwrap_or(0);
-    println!("{}", min_wait_time);
+
     let opts = Options {
         print: options::Print {
             logs: matches.is_present("print_logs"),
