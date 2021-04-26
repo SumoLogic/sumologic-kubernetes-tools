@@ -21,7 +21,7 @@ mod time;
 async fn main() -> std::io::Result<()> {
     let matches = App::new("Receiver mock")
       .version("0.0")
-      .author("Dominik Rosiek <drosiek@sumologic.com>")
+      .author("Sumo Logic <collection@sumologic.com>")
       .about("Receiver mock can be used for testing performance or functionality of kubernetes collection without sending data to sumologic")
       .arg(Arg::with_name("port")
           .short("p")

@@ -1,7 +1,7 @@
 [package]
 name = "logs-generator"
 version = "0.1.0"
-authors = ["Dominik Rosiek <drosiek@sumologic.com>"]
+authors = ["Sumo Logic <collection@sumologic.com>"]
 edition = "2018"
 
 [dependencies]
