@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v2.3.4
-      - uses: actions/setup-ruby@v1
+      - uses: actions/setup-ruby@v1.1.3
       - name: Install markdownlint
         run: gem install mdl
       - name: Check markdown files with markdownlint
