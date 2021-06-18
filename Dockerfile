@@ -14,7 +14,7 @@ RUN CGO_ENABLED=0 GOOS=linux \
         -ldflags '-w -extldflags "-static"' \
         -o stress-tester cmd/stress-tester/main.go
 
-FROM rust:1.52.1-alpine3.13 as rust-builder
+FROM rust:1.53.0-alpine3.13 as rust-builder
 RUN apk update && apk upgrade && apk add g++
 
 WORKDIR /receiver-mock
