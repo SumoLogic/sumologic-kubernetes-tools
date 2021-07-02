@@ -76,6 +76,26 @@ You can set Jaeger Go client env variables (such as `JAEGER_AGENT_HOST` or `JAEG
 - `TOTAL_SPANS` (default=10000000) - total number of spans to generate
 - `SPANS_PER_MIN` (required) - rate of spans per minute (the tester will adjust the delay between iterations to reach such rate)
 
+### Customer Trace Tester
+There's a simple tool that generates a desired number of spans and traces and sends them using OpenTelemetry exporters.
+
+```
+ kubectl run stress-tester \
+  -it --rm \
+  --restart=Never -n sumologic \
+  --image sumologic/kubernetes-tools \
+  --serviceaccount='collection-sumologic' \
+  --env COLLECTOR_HOSTNAME=collection-sumologic-otelcol.sumologic \
+  --env TOTAL_TRACES=1 \
+  --env SPANS_PER_TRACE=10 \
+  -- customer-trace-tester
+```
+
+You can configure tool by setting env variables: such as `COLLECTOR_HOSTNAME` and stress-tester specific ones:
+- `COLLECTOR_HOSTNAME` (default=collection-sumologic-otelcol.sumologic) - the hostname/service of OpenTelemetry Collector
+- `TOTAL_TRACES` (default=1) - total number of traces to generate
+- `SPANS_PER_TRACE` (default=1) - number of spans per trace
+
 ### Receiver-mock
 
 Small tool for mocking sumologic receiver to avoid sending data outside of cluster.
