@@ -94,7 +94,8 @@ You can set Jaeger Go client env variables (such as `JAEGER_AGENT_HOST` or `JAEG
 ```
 #### Configuration
 
-You can configure tool by setting env variables: such as `COLLECTOR_HOSTNAME` and stress-tester specific ones:
+You can configure this tool by setting the following env variables:
+
 - `COLLECTOR_HOSTNAME` (default=collection-sumologic-otelcol.sumologic) - the hostname/service of OpenTelemetry Collector
 - `TOTAL_TRACES` (default=1) - total number of traces to generate
 - `SPANS_PER_TRACE` (default=10) - number of spans per trace
