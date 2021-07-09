@@ -94,6 +94,7 @@ Traces can be easily found with the `service=customer-trace-test-service` filter
   --env SPANS_PER_TRACE=10 \
   -- customer-trace-tester
 ```
+
 #### Configuration
 
 You can configure this tool by setting the following env variables:
