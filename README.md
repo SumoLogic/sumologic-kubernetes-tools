@@ -104,8 +104,9 @@ You can configure this tool by setting the following env variables:
 - `SPANS_PER_TRACE` (default=`10`) - number of spans per trace
 
 #### Example output
+
 ```
-./customer-trace-tester 
+./customer-trace-tester
 
 2021/07/09 00:32:48 OTLP gRPC Exporter endpoint: collection-sumologic-otelcol.sumologic:4317
 2021/07/09 00:32:48 OTLP HTTP Exporter endpoint: collection-sumologic-otelcol.sumologic:4317
@@ -136,6 +137,7 @@ You can configure this tool by setting the following env variables:
 2021/07/09 00:33:10 Expected number of spans in single trace: 10
 2021/07/09 00:33:10 Expected number of spans for all traces: 40
 ```
+
 ### Receiver-mock
 
 Small tool for mocking sumologic receiver to avoid sending data outside of cluster.
