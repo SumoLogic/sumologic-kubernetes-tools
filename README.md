@@ -80,7 +80,7 @@ You can set Jaeger Go client env variables (such as `JAEGER_AGENT_HOST` or `JAEG
 
 ### Customer Trace Tester
 
-`customer-trace-tester` is simple tool that generates a desired number of spans and traces and sends them using OpenTelemetry exporters.
+`customer-trace-tester` is a simple tool that generates a desired number of spans and traces and sends them using OpenTelemetry exporters.
 Traces can be easily found with the `service=customer-trace-test-service` filter in the Sumo Logic web application.
 
 ```
