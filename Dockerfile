@@ -13,6 +13,10 @@ RUN CGO_ENABLED=0 GOOS=linux \
     go build \
         -ldflags '-w -extldflags "-static"' \
         -o stress-tester cmd/stress-tester/main.go
+RUN CGO_ENABLED=0 GOOS=linux \
+    go build \
+        -ldflags '-w -extldflags "-static"' \
+        -o customer-trace-tester cmd/customer-trace-tester/main.go
 
 FROM rust:1.53.0-alpine3.13 as rust-builder
 RUN apk update && apk upgrade && apk add g++
@@ -75,6 +79,7 @@ RUN ln -s /usr/local/template-prometheus-mixin/template-prometheus-mixin /usr/bi
 COPY --from=go-builder \
     /build/k8s-api-test \
     /build/stress-tester \
+    /build/customer-trace-tester \
     /usr/bin/
 
 COPY --from=rust-builder \

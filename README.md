@@ -56,7 +56,7 @@ pod "diag" deleted
 
 ### Trace stress-tester
 
-There's a simple tool that generates a desired number of spans per minute and sends them using Jaeger format
+`stress-tester` is a simple tool that generates a desired number of spans per minute and sends them using Jaeger format
 
 ```
  kubectl run stress-tester \
@@ -71,10 +71,72 @@ There's a simple tool that generates a desired number of spans per minute and se
   -- stress-tester
 ```
 
+#### Configuration
+
 You can set Jaeger Go client env variables (such as `JAEGER_AGENT_HOST` or `JAEGER_COLLECTOR`) and stress-tester specific ones:
 
 - `TOTAL_SPANS` (default=10000000) - total number of spans to generate
 - `SPANS_PER_MIN` (required) - rate of spans per minute (the tester will adjust the delay between iterations to reach such rate)
+
+### Customer Trace Tester
+
+`customer-trace-tester` is a simple tool that generates a desired number of spans and traces and sends them using OpenTelemetry exporters.
+Traces can be easily found with the `service=customer-trace-test-service` filter in the Sumo Logic web application.
+
+```
+ kubectl run stress-tester \
+  -it --rm \
+  --restart=Never -n sumologic \
+  --image sumologic/kubernetes-tools \
+  --serviceaccount='collection-sumologic' \
+  --env COLLECTOR_HOSTNAME=collection-sumologic-otelcol.sumologic \
+  --env TOTAL_TRACES=1 \
+  --env SPANS_PER_TRACE=10 \
+  -- customer-trace-tester
+```
+
+#### Configuration
+
+You can configure this tool by setting the following env variables:
+
+- `COLLECTOR_HOSTNAME` (default=`collection-sumologic-otelcol.sumologic`) - the hostname/service of OpenTelemetry Collector
+- `TOTAL_TRACES` (default=`1`) - total number of traces to generate
+- `SPANS_PER_TRACE` (default=`10`) - number of spans per trace
+
+#### Example output
+
+```
+./customer-trace-tester
+
+2021/07/09 00:32:48 OTLP gRPC Exporter endpoint: collection-sumologic-otelcol.sumologic:4317
+2021/07/09 00:32:48 OTLP HTTP Exporter endpoint: collection-sumologic-otelcol.sumologic:4317
+2021/07/09 00:32:48 Zipkin Exporter url: http://collection-sumologic-otelcol.sumologic:9411/api/v2/spans
+2021/07/09 00:32:48 Jaeger Thrift HTTP Exporter url: http://collection-sumologic-otelcol.sumologic:14268/api/traces
+2021/07/09 00:32:48 *******************************
+2021/07/09 00:32:48 Sending traces thru otlpHttp exporter
+2021/07/09 00:32:48 COLLECTOR_HOSTNAME = collection-sumologic-otelcol.sumologic:4317
+2021/07/09 00:32:48 TOTAL_TRACES = 1
+2021/07/09 00:32:48 SPANS_PER_TRACE = 10
+2021/07/09 00:32:54 *******************************
+2021/07/09 00:32:54 Sending traces thru otlpGrpc exporter
+2021/07/09 00:32:54 COLLECTOR_HOSTNAME = collection-sumologic-otelcol.sumologic:4317
+2021/07/09 00:32:54 TOTAL_TRACES = 1
+2021/07/09 00:32:54 SPANS_PER_TRACE = 10
+2021/07/09 00:32:59 *******************************
+2021/07/09 00:32:59 Sending traces thru zipkin exporter
+2021/07/09 00:32:59 COLLECTOR_HOSTNAME = collection-sumologic-otelcol.sumologic:4317
+2021/07/09 00:32:59 TOTAL_TRACES = 1
+2021/07/09 00:32:59 SPANS_PER_TRACE = 10
+2021/07/09 00:33:04 *******************************
+2021/07/09 00:33:04 Sending traces thru jaegerThriftHttp exporter
+2021/07/09 00:33:04 COLLECTOR_HOSTNAME = collection-sumologic-otelcol.sumologic:4317
+2021/07/09 00:33:04 TOTAL_TRACES = 1
+2021/07/09 00:33:04 SPANS_PER_TRACE = 10
+2021/07/09 00:33:10 *******************************
+2021/07/09 00:33:10 Expected number of all traces: 4
+2021/07/09 00:33:10 Expected number of spans in single trace: 10
+2021/07/09 00:33:10 Expected number of spans for all traces: 40
+```
 
 ### Receiver-mock
 
