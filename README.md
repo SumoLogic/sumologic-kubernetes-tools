@@ -79,6 +79,7 @@ You can set Jaeger Go client env variables (such as `JAEGER_AGENT_HOST` or `JAEG
 - `SPANS_PER_MIN` (required) - rate of spans per minute (the tester will adjust the delay between iterations to reach such rate)
 
 ### Customer Trace Tester
+
 `customer-trace-tester` is simple tool that generates a desired number of spans and traces and sends them using OpenTelemetry exporters.
 Traces can be easily found with the `service=customer-trace-test-service` filter in the Sumo Logic web application.
 
@@ -93,13 +94,14 @@ Traces can be easily found with the `service=customer-trace-test-service` filter
   --env SPANS_PER_TRACE=10 \
   -- customer-trace-tester
 ```
+
 #### Configuration
 
 You can configure this tool by setting the following env variables:
 
-- `COLLECTOR_HOSTNAME` (default=collection-sumologic-otelcol.sumologic) - the hostname/service of OpenTelemetry Collector
-- `TOTAL_TRACES` (default=1) - total number of traces to generate
-- `SPANS_PER_TRACE` (default=10) - number of spans per trace
+- `COLLECTOR_HOSTNAME` (default=`collection-sumologic-otelcol.sumologic`) - the hostname/service of OpenTelemetry Collector
+- `TOTAL_TRACES` (default=`1`) - total number of traces to generate
+- `SPANS_PER_TRACE` (default=`10`) - number of spans per trace
 
 #### Example output
 ```
