@@ -29,7 +29,7 @@ WORKDIR /logs-generator
 COPY ./src/rust/logs-generator .
 RUN cargo build --release
 
-FROM alpine:3.14.0
+FROM alpine:3.14.1
 ENV HELM_VERSION="3.5.4"
 ENV YQ_VERSION="3.4.1"
 ENV KUBECTL_VERSION="v1.18.14"
