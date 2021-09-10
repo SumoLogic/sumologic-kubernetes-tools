@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOOS=linux \
         -ldflags '-w -extldflags "-static"' \
         -o customer-trace-tester cmd/customer-trace-tester/main.go
 
-FROM rust:1.54.0-alpine3.13 as rust-builder
+FROM rust:1.55.0-alpine3.13 as rust-builder
 RUN apk update && apk upgrade && apk add g++
 
 WORKDIR /receiver-mock
