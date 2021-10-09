@@ -8,3 +8,11 @@ rustfmt:
 .PHONY: check-rustfmt
 check-rustfmt:
 	rustfmt --check $(RUSTFMT_FLAGS) $(RUST_SOURCE_FILES)
+
+.PHONY: build
+build:
+	cargo build --release
+
+.PHONY: build-debug
+build-debug:
+	cargo build
