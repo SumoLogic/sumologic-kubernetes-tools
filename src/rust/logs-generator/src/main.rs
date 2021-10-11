@@ -6,7 +6,9 @@ use rand::Rng;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
+use std::ops::Sub;
 use std::process;
+use std::thread;
 use std::time::{Duration, Instant};
 use std::vec::Vec;
 
@@ -68,7 +70,10 @@ fn main() {
                                 .short('I')
                                 .long("time-resolution")
                                 .value_name("time-resolution")
-                                .help("Time resolution defines how often throughput should be verified and statistics printed")
+                                .help(concat!(
+                                    "Time resolution (in seconds) defines how often ",
+                                    "throughput should be verified and statistics printed")
+                                )
                                 .required(false)
                                 .takes_value(true))
 
@@ -131,7 +136,7 @@ fn main() {
                                .takes_value(true))
                            .get_matches();
 
-    let time_resolution = value_t!(matches, "time-resolution", u64).unwrap_or(10);
+    let time_resolution = Duration::from_secs(value_t!(matches, "time-resolution", u64).unwrap_or(10));
     let logs_per_s = value_t!(matches, "logs-throughput", u64).unwrap_or(0);
     let bytes_per_s = value_t!(matches, "throughput", u64).unwrap_or(0);
     let total_logs = value_t!(matches, "total-logs", u64).unwrap_or(0);
@@ -164,11 +169,11 @@ fn main() {
     print(
         verbose,
         format!(
-            "[s] Going to generate logs into {} with average {} lps and average {} Bps with time resolution: {}",
+            "[s] Going to generate logs into {} with average {} lps and average {} Bps with time resolution: {}s",
             &path,
             logs_per_s,
             bytes_per_s,
-            time_resolution
+            time_resolution.as_secs(),
         )
     );
 
@@ -213,7 +218,7 @@ fn main() {
     let mut counter = 0;
     loop {
         // Print statistics
-        if now.elapsed().as_secs() >= time_resolution {
+        if now.elapsed() >= time_resolution {
             print(
                 verbose,
                 format!(
@@ -232,12 +237,14 @@ fn main() {
         }
 
         // Skip iteration because limit of logs/s already reached
-        if logs_per_s > 0 && current_logs >= logs_per_s * time_resolution {
+        if logs_per_s > 0 && current_logs >= logs_per_s * time_resolution.as_secs() {
+            thread::sleep(time_resolution.sub(now.elapsed()));
             continue;
         }
 
         // Skip iteration because limit of bytes/s already reached
-        if bytes_per_s > 0 && current_bytes >= bytes_per_s * time_resolution {
+        if bytes_per_s > 0 && current_bytes >= bytes_per_s * time_resolution.as_secs() {
+            thread::sleep(time_resolution.sub(now.elapsed()));
             continue;
         }
 
