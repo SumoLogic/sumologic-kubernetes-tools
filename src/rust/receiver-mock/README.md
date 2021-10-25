@@ -1,6 +1,6 @@
 # Receiver-mock
 
-receiver-mock is an small contenerised application written in rust which can be used for local testing of the [`kubernetes sumologic collection`](https://github.com/SumoLogic/sumologic-kubernetes-collection)
+receiver-mock is a small containerised application written in rust which can be used for local testing of the [`kubernetes sumologic collection`](https://github.com/SumoLogic/sumologic-kubernetes-collection)
 
 ## Running
 
@@ -18,7 +18,7 @@ List of arguments taken by receiver-mock:
 
 ## Terraform mock
 
-It expose the `/terraform.*` url which can be used to set HTTP source for k8s collection to receiver-mock itself
+It exposes the `/terraform.*` url which can be used to set HTTP source for k8s collection to receiver-mock itself
 
 Example output:
 

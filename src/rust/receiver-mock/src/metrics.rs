@@ -40,13 +40,13 @@ pub fn handle_carbon2(
             println!("metric => {}", line);
         }
         let mut split = line.split("  ");
-        let intrinsic_metrics = split.nth(0).unwrap();
-        for metric in intrinsic_metrics.split(" ") {
-            let mut split = metric.split("=");
-            let field_name = split.nth(0).unwrap().to_string();
+        let intrinsic_metrics = split.next().unwrap();
+        for metric in intrinsic_metrics.split(' ') {
+            let mut split = metric.split('=');
+            let field_name = split.next().unwrap().to_string();
             if field_name == "metric" {
                 // nth() consumes elements hence nth(0) again
-                let metric_name = split.nth(0).unwrap().to_string();
+                let metric_name = split.next().unwrap().to_string();
                 result.handle_metric(metric_name);
                 break;
             }
@@ -111,14 +111,14 @@ pub fn handle_prometheus(
 
     for line in lines {
         // Ignore comments
-        if line.starts_with("#") {
+        if line.starts_with('#') {
             continue;
         }
 
         if print_opts.metrics {
             println!("metric => {}", line);
         }
-        let metric_name = line.split("{").nth(0).unwrap().to_string();
+        let metric_name = line.split('{').next().unwrap().to_string();
         result.handle_metric(metric_name);
         result.handle_ip(address);
     }

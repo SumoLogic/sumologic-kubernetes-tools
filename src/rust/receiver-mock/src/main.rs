@@ -60,7 +60,7 @@ async fn main() -> std::io::Result<()> {
       .get_matches();
 
     let port = value_t!(matches, "port", u16).unwrap_or(3000);
-    let hostname = value_t!(matches, "hostname", String).unwrap_or("localhost".to_string());
+    let hostname = value_t!(matches, "hostname", String).unwrap_or_else(|_| "localhost".to_string());
     let opts = Options {
         print: options::Print {
             logs: matches.is_present("print_logs"),
@@ -109,7 +109,7 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
                 srv.call(req)
             })
             .app_data(app_state.clone()) // Mutable shared state
-            .data(opts.clone())
+            .data(opts)
             .route("/metrics-reset", web::post().to(router::handler_metrics_reset))
             .route("/metrics-list", web::get().to(router::handler_metrics_list))
             .route("/metrics-ips", web::get().to(router::handler_metrics_ips))
@@ -139,7 +139,7 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
             // Treat every other url as receiver endpoint
             .default_service(web::get().to(router::handler_receiver))
             // Set metrics payload limit to 100MB
-            .app_data(web::PayloadConfig::default().limit(100 * 2 << 20))
+            .app_data(web::PayloadConfig::default().limit(100 * (1 << 20)))
     })
     .bind(format!("0.0.0.0:{}", port))?
     .run()

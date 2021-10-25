@@ -4,7 +4,6 @@ use std::sync::Mutex;
 
 use actix_http::http;
 use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
-use bytes;
 use chrono::Duration;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
@@ -248,7 +247,7 @@ pub async fn handler_terraform_field(
             errors: vec![TerraformFieldResponseErrorField {
                 code: String::from("field:doesnt_exist"),
                 message: String::from("Field with the given id doesn't exist"),
-                meta: TerraformFieldResponseErrorMetaField { id: id },
+                meta: TerraformFieldResponseErrorMetaField { id },
             }],
         }),
     }
@@ -372,7 +371,7 @@ pub async fn handler_receiver(
         // Logs & events
         "application/x-www-form-urlencoded" => {
             // TODO: refactor
-            let mut lines_count = 0 as u64;
+            let mut lines_count = 0_u64;
             if opts.print.logs {
                 for line in lines {
                     println!("log => {}", line);
@@ -451,7 +450,7 @@ pub fn start_print_stats_timer(
             now,
             *metrics - p_metrics,
             *logs - p_logs,
-            ((*logs_bytes - p_logs_bytes) as f64) / ((now - ts) as f64) / (1e6 as f64)
+            ((*logs_bytes - p_logs_bytes) as f64) / ((now - ts) as f64) / (1e6_f64)
         );
 
         ts = now;
