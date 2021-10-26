@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::net::IpAddr;
+use log::{info, warn};
 
 use crate::options;
 
@@ -37,7 +38,7 @@ pub fn handle_carbon2(
 
     for line in lines {
         if print_opts.metrics {
-            println!("metric => {}", line);
+            info!("metric => {}", line);
         }
         let mut split = line.split("  ");
         let intrinsic_metrics = split.next().unwrap();
@@ -73,17 +74,17 @@ pub fn handle_graphite(
 
     for line in lines {
         if print_opts.metrics {
-            println!("metric => {}", line);
+            info!("metric => {}", line);
         }
         let split_line = line.split(' ').collect::<Vec<_>>();
         if split_line.len() != 3 {
-            println!("Incorrect graphite metric line: {}", line);
+            warn!("Incorrect graphite metric line: {}", line);
             continue;
         }
 
         let split_metric = split_line[0].split('.').collect::<Vec<_>>();
         if split_metric.len() != 3 {
-            println!("Incorrect graphite metric name: {}", split_line[0]);
+            warn!("Incorrect graphite metric name: {}", split_line[0]);
             continue;
         }
 
@@ -116,7 +117,7 @@ pub fn handle_prometheus(
         }
 
         if print_opts.metrics {
-            println!("metric => {}", line);
+            info!("metric => {}", line);
         }
         let metric_name = line.split('{').next().unwrap().to_string();
         result.handle_metric(metric_name);

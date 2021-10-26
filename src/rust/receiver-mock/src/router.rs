@@ -8,6 +8,7 @@ use chrono::Duration;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde_derive::{Deserialize, Serialize};
+use log::{info, warn};
 
 use crate::metrics;
 use crate::options;
@@ -374,7 +375,7 @@ pub async fn handler_receiver(
             let mut lines_count = 0_u64;
             if opts.print.logs {
                 for line in lines {
-                    println!("log => {}", line);
+                    info!("log => {}", line);
                     lines_count += 1;
                 }
             } else {
@@ -401,7 +402,7 @@ pub async fn handler_receiver(
         }
 
         &_ => {
-            println!("invalid header value");
+            warn!("invalid header value");
         }
     }
 
@@ -417,11 +418,11 @@ pub fn print_request_headers(
     let method = method.as_str();
     let uri = uri.path();
 
-    println!("--> {} {} {:?}", method, uri, version);
+    info!("--> {} {} {:?}", method, uri, version);
     for (key, value) in headers {
-        println!("--> {}: {}", key, value.to_str().unwrap());
+        info!("--> {}: {}", key, value.to_str().unwrap());
     }
-    println!();
+    info!();
 }
 
 // TODO: extract stdout as parameter to make testing easier.
@@ -445,7 +446,7 @@ pub fn start_print_stats_timer(
         // TODO: make this print metrics per minute (as DPM) and logs
         // per second, regardless of used interval
         // ref: https://github.com/SumoLogic/sumologic-kubernetes-tools/issues/57
-        println!(
+        info!(
             "{} Metrics: {:10.} Logs: {:10.}; {:6.6} MB/s",
             now,
             *metrics - p_metrics,
