@@ -140,8 +140,8 @@ fn main() {
     let logs_per_s = value_t!(matches, "logs-throughput", u64).unwrap_or(0);
     let bytes_per_s = value_t!(matches, "throughput", u64).unwrap_or(0);
     let total_logs = value_t!(matches, "total-logs", u64).unwrap_or(0);
-    let path = value_t!(matches, "path", String).unwrap_or("/dev/stdout".to_string());
-    let verbose = value_t!(matches, "verbose", bool).unwrap_or(true);
+    let path = value_t!(matches, "path", String).unwrap_or_else(|_| "/dev/stdout".to_string());
+    let verbose = value_t!(matches, "verbose", bool).unwrap_or_else(true);
     let duration = value_t!(matches, "duration", u64).unwrap_or(0);
     let duration = Duration::from_secs(duration);
     let no_duration = Duration::from_secs(0);
@@ -158,7 +158,7 @@ fn main() {
     };
 
     // Read words from dictionary file
-    let wordlist = value_t!(matches, "wordlist", String).unwrap_or("/usr/local/wordlist.txt".to_string());
+    let wordlist = value_t!(matches, "wordlist", String).unwrap_or_else(|_| "/usr/local/wordlist.txt".to_string());
     let wordlist = read_wordlist(&wordlist);
     print(
         verbose,
@@ -182,9 +182,9 @@ fn main() {
     // otherwise pattern is generated using known_words, random_words, random digits, min and max
     //  - known_words, random_words and random_digits represents ratio eg, 4:5:1, means that 40% of pattern should be known_words etc
     //  - min and max limits length of the pattern in terms of words
-    let pattern = value_t!(matches, "pattern", String).unwrap_or("".to_string());
+    let pattern = value_t!(matches, "pattern", String).unwrap_or_else(|_| "".to_string());
     let random_patterns = value_t!(matches, "random-patterns", u32).unwrap_or(0);
-    let pattern_file = value_t!(matches, "pattern-file", String).unwrap_or("".to_string());
+    let pattern_file = value_t!(matches, "pattern-file", String).unwrap_or_else(|_| "".to_string());
     let min = value_t!(matches, "min", u32).unwrap_or(5);
     let max = value_t!(matches, "max", u32).unwrap_or(20);
     let random_words = value_t!(matches, "random_words", u32).unwrap_or(2);
@@ -267,11 +267,11 @@ fn main() {
 
         // Generate logs from patterns
         for pattern in &patterns {
-            let log = build_log(&pattern, &wordlist, &mut counter);
+            let log = build_log(pattern, &wordlist, &mut counter);
             let mut saved_logs: u64 = 0;
 
             match &fd {
-                Some(x) => saved_logs = save_log(&x, &log),
+                Some(x) => saved_logs = save_log(x, &log),
                 None => {}
             }
 
@@ -291,44 +291,44 @@ fn main() {
     print(verbose, format!("Sent {} bytes in total", count_bytes));
 }
 
-fn save_log(mut fd: &File, log: &String) -> u64 {
+fn save_log(mut fd: &File, log: &str) -> u64 {
     let write = fd.write_all(log.as_bytes());
     match write {
         Ok(_result) => {
-            return 1;
+            1
         }
         Err(_err) => {
-            return 0;
+            0
         }
     }
 }
 
-fn read_wordlist(filename: &String) -> Vec<String> {
+fn read_wordlist(filename: &str) -> Vec<String> {
     let mut vec = Vec::<String>::new();
     let file = File::open(filename).unwrap();
     for line in BufReader::new(file).lines() {
         vec.push(line.unwrap());
     }
-    return vec;
+    vec
 }
 
-fn build_log(pattern: &String, wordlist: &Vec<String>, counter: &mut u64) -> String {
+fn build_log(pattern: &str, wordlist: &[String], counter: &mut u64) -> String {
     let mut rng = rand::thread_rng();
     let slices = pattern.split_whitespace();
     let mut log = "".to_owned();
 
     for slice in slices {
-        if slice.starts_with("{") && slice.ends_with("}") {
+        if slice.starts_with('{') && slice.ends_with('}') {
             // replace {w} with random word
-            if slice.contains("w") {
-                log += &get_random_word(wordlist);
+            if slice.contains('w') {
+                log += get_random_word(wordlist);
             }
             // replace {d} with random digit
-            else if slice.contains("d") {
+            else if slice.contains('d') {
                 log += &rng.gen_range(0, 0xffffff).to_string();
             }
             // replace {c} with counter value
-            else if slice.contains("c") {
+            else if slice.contains('c') {
                 // counter
                 log += &counter.to_string();
                 *counter += 1;
@@ -339,16 +339,16 @@ fn build_log(pattern: &String, wordlist: &Vec<String>, counter: &mut u64) -> Str
         log += " ";
     }
     log += "\n";
-    return log;
+    log
 }
 
-fn get_random_word(wordlist: &Vec<String>) -> &String {
+fn get_random_word(wordlist: &[String]) -> &String {
     let mut rng = rand::thread_rng();
     return wordlist.get(rng.gen_range(0, wordlist.len())).unwrap();
 }
 
 fn generate_pattern(
-    wordlist: &Vec<String>,
+    wordlist: &[String],
     min: u32,
     max: u32,
     known_words: u32,
@@ -386,14 +386,14 @@ fn generate_pattern(
         pattern += " ";
     }
 
-    return pattern;
+    pattern
 }
 
 // Collect patterns from argument and merge with random patterns
 fn collect_patterns(
     pattern: String,
     random_patterns: u32,
-    wordlist: &Vec<String>,
+    wordlist: &[String],
     min: u32,
     max: u32,
     known_words: u32,
@@ -420,7 +420,7 @@ fn collect_patterns(
         ));
     }
 
-    return patterns;
+    patterns
 }
 
 // Read patterns from file
@@ -432,7 +432,7 @@ fn read_patterns(filename: String) -> Vec<String> {
         patterns.push(line.unwrap());
     }
 
-    return patterns;
+    patterns
 }
 
 // Prints message to stderr if verbose is true
