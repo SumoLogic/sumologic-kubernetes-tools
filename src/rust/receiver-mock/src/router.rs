@@ -350,6 +350,14 @@ pub async fn handler_receiver(
         .to_str()
         .unwrap();
 
+    let mut rng = rand::thread_rng();
+    let number: i64 = rng.gen_range(0..100);
+    if number < opts.drop_rate {
+        println!("Dropping data for {}", content_type);
+        return HttpResponse::InternalServerError()
+    }
+
+
     match content_type {
         // Metrics in carbon2 format
         "application/vnd.sumologic.carbon2" => {

@@ -1,6 +1,7 @@
 #[derive(Clone, Copy)]
 pub struct Options {
     pub print: Print,
+    pub drop_rate: i64,
 }
 
 #[derive(Clone, Copy)]
