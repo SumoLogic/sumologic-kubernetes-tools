@@ -2,6 +2,9 @@
 #[macro_use]
 extern crate json_str;
 
+#[macro_use]
+extern crate log;
+
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -10,7 +13,6 @@ use actix_web::web;
 
 use chrono::Duration;
 use clap::{value_t, App, Arg};
-use log::{info, error};
 
 mod metrics;
 mod options;

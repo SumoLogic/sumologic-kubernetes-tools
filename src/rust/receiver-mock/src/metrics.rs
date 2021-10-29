@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::net::IpAddr;
-use log::{info, warn};
 
 use crate::options;
 

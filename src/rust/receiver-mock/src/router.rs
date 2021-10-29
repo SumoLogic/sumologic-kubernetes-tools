@@ -8,7 +8,6 @@ use chrono::Duration;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde_derive::{Deserialize, Serialize};
-use log::{info, warn};
 
 use crate::metrics;
 use crate::options;
