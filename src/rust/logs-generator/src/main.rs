@@ -141,7 +141,7 @@ fn main() {
     let bytes_per_s = value_t!(matches, "throughput", u64).unwrap_or(0);
     let total_logs = value_t!(matches, "total-logs", u64).unwrap_or(0);
     let path = value_t!(matches, "path", String).unwrap_or_else(|_| "/dev/stdout".to_string());
-    let verbose = value_t!(matches, "verbose", bool).unwrap_or_else(true);
+    let verbose = value_t!(matches, "verbose", bool).unwrap_or_else(|_| true);
     let duration = value_t!(matches, "duration", u64).unwrap_or(0);
     let duration = Duration::from_secs(duration);
     let no_duration = Duration::from_secs(0);

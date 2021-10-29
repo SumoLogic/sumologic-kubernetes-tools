@@ -430,7 +430,7 @@ pub fn print_request_headers(
     for (key, value) in headers {
         info!("--> {}: {}", key, value.to_str().unwrap());
     }
-    info!();
+    eprintln!();
 }
 
 // TODO: extract stdout as parameter to make testing easier.
