@@ -59,9 +59,17 @@ async fn main() -> std::io::Result<()> {
           .help("Use to print received metrics (with dimensions) on stdout")
           .takes_value(false)
           .required(false))
+      .arg(Arg::with_name("drop_rate")
+          .short("d")
+          .long("drop-rate")
+          .value_name("drop_rate")
+          .help("Use to specify packet drop rate. This is number from 0 (do not drop) to 100 (drop all).")
+          .takes_value(true)
+          .required(false))
       .get_matches();
 
     let port = value_t!(matches, "port", u16).unwrap_or(3000);
+    let drop_rate = value_t!(matches, "drop_rate", i64).unwrap_or(0);
     let hostname = value_t!(matches, "hostname", String).unwrap_or_else(|_| "localhost".to_string());
     let opts = Options {
         print: options::Print {
@@ -69,6 +77,7 @@ async fn main() -> std::io::Result<()> {
             headers: matches.is_present("print_headers"),
             metrics: matches.is_present("print_metrics"),
         },
+        drop_rate,
     };
 
     run_app(hostname, port, opts).await
