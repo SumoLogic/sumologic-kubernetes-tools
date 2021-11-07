@@ -35,24 +35,6 @@ build-image:
 		--tag $(IMAGE_NAME):$(BUILD_TAG) \
 		.
 
-build-release-image:
-	DOCKER_BUILDKIT=1 docker build \
-		--build-arg BUILDKIT_INLINE_CACHE=1 \
-		--target go-builder \
-		--tag $(IMAGE_NAME):$(BUILD_GO_CACHE_TAG) \
-		.
-
-	DOCKER_BUILDKIT=1 docker build \
-		--build-arg BUILDKIT_INLINE_CACHE=1 \
-		--target rust-builder \
-		--tag $(IMAGE_NAME):$(BUILD_RUST_CACHE_TAG) \
-		.
-
-	DOCKER_BUILDKIT=1 docker build \
-		--build-arg BUILDKIT_INLINE_CACHE=1 \
-		--tag $(IMAGE_NAME):$(BUILD_TAG) \
-		.
-
 tag-release-image-with-latest:
 	docker tag $(IMAGE_NAME):$(BUILD_TAG) $(REPO_URL):latest
 	docker push $(REPO_URL):latest
