@@ -26,8 +26,6 @@ jobs:
         run: make push-image BUILD_TAG=${{ steps.extract_tag.outputs.tag }}
       - name: Tag latest to point to most recent release in Docker Hub
         run: make tag-release-image-with-latest BUILD_TAG=${{ steps.extract_tag.outputs.tag }}
-      - name: Push kubernetes-tools image build cache to Docker Hub
-        run: make push-image-cache BUILD_TAG=${{ steps.extract_tag.outputs.tag }}
       - name: Login to ECR
         run: make login-ecr
         env:
@@ -37,5 +35,3 @@ jobs:
         run: make push-image-ecr BUILD_TAG=${{ steps.extract_tag.outputs.tag }}
       - name: Tag latest to point to most recent release in ECR
         run: make tag-release-image-with-latest-ecr BUILD_TAG=${{ steps.extract_tag.outputs.tag }}
-      - name: Push kubernetes-tools image build cache to ECR
-        run: make push-image-cache-ecr BUILD_TAG=${{ steps.extract_tag.outputs.tag }}
