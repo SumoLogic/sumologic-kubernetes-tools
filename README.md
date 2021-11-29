@@ -2,6 +2,16 @@
 
 This repository provides set of tools which can be used for debugging and testing [sumologic kubernetes collection](https://github.com/SumoLogic/sumologic-kubernetes-collection/) solution.
 
+All the various tools are packaged into a single container image that is available in the following public registries:
+
+- Docker Hub [docker.io/sumologic/kubernetes-tools](https://hub.docker.com/r/sumologic/kubernetes-tools/)
+- AWS Public ECR [public.ecr.aws/sumologic/kubernetes-setup](https://gallery.ecr.aws/sumologic/kubernetes-setup)
+
+The images are built for the following architectures:
+
+- `linux/amd64`
+- `linux/arm64/v8`
+
 ## Disclaimer
 
 This toolset is designed for internal usage and it's in development state. We are not giving guarantee of consistency and stability of the application. Inappropriate usage can lead to breaking cluster configuration and/or deployments.
