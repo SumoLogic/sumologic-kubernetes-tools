@@ -5,7 +5,7 @@ This repository provides set of tools which can be used for debugging and testin
 All the various tools are packaged into a single container image that is available in the following public registries:
 
 - Docker Hub [docker.io/sumologic/kubernetes-tools](https://hub.docker.com/r/sumologic/kubernetes-tools/)
-- AWS Public ECR [public.ecr.aws/sumologic/kubernetes-setup](https://gallery.ecr.aws/sumologic/kubernetes-setup)
+- AWS Public ECR [public.ecr.aws/sumologic/kubernetes-tools](https://gallery.ecr.aws/sumologic/kubernetes-tools)
 
 The images are built for the following architectures:
 
