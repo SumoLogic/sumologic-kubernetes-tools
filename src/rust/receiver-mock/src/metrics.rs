@@ -182,7 +182,8 @@ mem_total{host="myhostname"} 6.8719476736e+10
 mem_available{host="myhostname"} 3.4083602432e+10
 mem_used{host="myhostname"} 3.4635874304e+10
 mem_used_percent{host="myhostname"} 50.40183067321777
-mem_free{host="myhostname"} 1.190197248e+10"##.lines();
+mem_free{host="myhostname"} 1.190197248e+10"##
+            .lines();
 
         let ip_address = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
         let print_opts = options::Print {
@@ -221,7 +222,8 @@ myhostname.mem.total 68719476736 1601909210
 myhostname.mem.used 35408572416 1601909210
 myhostname.mem.inactive 22692282368 1601909210
 myhostname.mem.free 10618621952 1601909210
-myhostname.mem.wired 5680394240 1601909210".lines();
+myhostname.mem.wired 5680394240 1601909210"
+            .lines();
 
         let ip_address = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
         let print_opts = options::Print {

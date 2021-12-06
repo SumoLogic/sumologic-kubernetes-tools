@@ -10,9 +10,9 @@ use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde_derive::{Deserialize, Serialize};
 
+use crate::logs;
 use crate::metrics;
 use crate::options;
-use crate::logs;
 use crate::time::get_now;
 
 pub struct AppState {
@@ -183,7 +183,6 @@ struct TerraformFieldObject {
 pub async fn handler_terraform_fields(
     terraform_state: web::Data<TerraformState>,
 ) -> impl Responder {
-
     #[derive(Serialize)]
     struct TerraformFieldsResponse {
         data: Vec<TerraformFieldObject>,
@@ -332,8 +331,7 @@ pub async fn handler_receiver(
     // Don't fail when we can't read remote address.
     // Default to localhost and just ingest what was sent.
     let localhost: std::net::SocketAddr =
-        std::net::SocketAddr::new(
-            ::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+        std::net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let remote_address = req.peer_addr().unwrap_or(localhost).ip();
 
     // actix automatically decompresses body for us.
@@ -352,9 +350,8 @@ pub async fn handler_receiver(
     let number: i64 = rng.gen_range(0..100);
     if number < opts.drop_rate {
         println!("Dropping data for {}", content_type);
-        return HttpResponse::InternalServerError()
+        return HttpResponse::InternalServerError();
     }
-
 
     match content_type {
         // Metrics in carbon2 format
