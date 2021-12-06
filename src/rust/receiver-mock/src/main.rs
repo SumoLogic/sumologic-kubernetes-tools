@@ -3,7 +3,7 @@
 extern crate json_str;
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 
 use actix_service::Service;
 use actix_web::web;
@@ -11,6 +11,7 @@ use actix_web::web;
 use chrono::Duration;
 use clap::{value_t, App, Arg};
 
+mod logs;
 mod metrics;
 mod options;
 use options::Options;
@@ -84,11 +85,9 @@ async fn main() -> std::io::Result<()> {
 async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<()> {
     let app_state = web::Data::new(router::AppState {
         metrics: Mutex::new(0),
-        logs: Mutex::new(0),
-        logs_bytes: Mutex::new(0),
+        logs: RwLock::new(logs::LogRepository::new()),
         metrics_list: Mutex::new(HashMap::new()),
         metrics_ip_list: Mutex::new(HashMap::new()),
-        logs_ip_list: Mutex::new(HashMap::new()),
     });
 
     let t = timer::Timer::new();
@@ -119,7 +118,10 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
             })
             .app_data(app_state.clone()) // Mutable shared state
             .data(opts.clone())
-            .route("/metrics-reset", web::post().to(router::handler_metrics_reset))
+            .route(
+                "/metrics-reset",
+                web::post().to(router::handler_metrics_reset),
+            )
             .route("/metrics-list", web::get().to(router::handler_metrics_list))
             .route("/metrics-ips", web::get().to(router::handler_metrics_ips))
             .route("/metrics", web::get().to(router::handler_metrics))

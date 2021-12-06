@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::net::{IpAddr, Ipv4Addr};
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 
 use actix_http::http;
 use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
@@ -12,19 +12,17 @@ use serde_derive::{Deserialize, Serialize};
 
 use crate::metrics;
 use crate::options;
+use crate::logs;
 use crate::time::get_now;
 
 pub struct AppState {
     // Mutexes are necessary to mutate data safely across threads in handlers.
     //
     pub metrics: Mutex<u64>,
-    pub logs: Mutex<u64>,
-    pub logs_bytes: Mutex<u64>,
+    pub logs: RwLock<logs::LogRepository>,
 
     pub metrics_list: Mutex<HashMap<String, u64>>,
     pub metrics_ip_list: Mutex<HashMap<IpAddr, u64>>,
-    // logs_ip_list: .0 is logs counter, .1 is bytes counter
-    pub logs_ip_list: Mutex<HashMap<IpAddr, (u64, u64)>>,
 }
 
 impl AppState {
@@ -97,8 +95,8 @@ receiver_mock_logs_count {}
 # TYPE receiver_mock_logs_bytes_count counter
 receiver_mock_logs_bytes_count {}\n",
         app_state.metrics.lock().unwrap(),
-        app_state.logs.lock().unwrap(),
-        app_state.logs_bytes.lock().unwrap(),
+        app_state.logs.read().unwrap().total.count,
+        app_state.logs.read().unwrap().total.bytes,
     );
 
     {
@@ -117,21 +115,21 @@ receiver_mock_logs_bytes_count {}\n",
     }
 
     {
-        let logs_ip_list = app_state.logs_ip_list.lock().unwrap();
-        if logs_ip_list.len() > 0 {
+        let logs = app_state.logs.read().unwrap();
+        if logs.ipaddr_to_stats.len() > 0 {
             let mut logs_ip_count_bytes_string =
                 String::from("# TYPE receiver_mock_logs_bytes_ip_count counter\n");
             let mut logs_ip_count_string =
                 String::from("# TYPE receiver_mock_logs_ip_count counter\n");
 
-            for (ip, val) in logs_ip_list.iter() {
+            for (ip, val) in logs.ipaddr_to_stats.iter() {
                 logs_ip_count_string.push_str(&format!(
                     "receiver_mock_logs_ip_count{{ip_address=\"{}\"}} {}\n",
-                    ip, val.0
+                    ip, val.count
                 ));
                 logs_ip_count_bytes_string.push_str(&format!(
                     "receiver_mock_logs_bytes_ip_count{{ip_address=\"{}\"}} {}\n",
-                    ip, val.1
+                    ip, val.bytes
                 ));
             }
             body.push_str(&logs_ip_count_string);
@@ -334,10 +332,10 @@ pub async fn handler_receiver(
     // Don't fail when we can't read remote address.
     // Default to localhost and just ingest what was sent.
     let localhost: std::net::SocketAddr =
-        std::net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+        std::net::SocketAddr::new(
+            ::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let remote_address = req.peer_addr().unwrap_or(localhost).ip();
 
-    let body_length = body.len() as u64;
     // actix automatically decompresses body for us.
     let string_body = String::from_utf8(body.to_vec()).unwrap();
     let lines = string_body.trim().lines();
@@ -379,33 +377,16 @@ pub async fn handler_receiver(
 
         // Logs & events
         "application/x-www-form-urlencoded" => {
-            // TODO: refactor
-            let mut lines_count = 0 as u64;
-            if opts.print.logs {
-                for line in lines {
-                    println!("log => {}", line);
-                    lines_count += 1;
+            {
+                let mut log_repository = app_state.logs.write().unwrap();
+                for line in lines.clone() {
+                    log_repository.add_log_message(line.to_string(), remote_address)
                 }
-            } else {
-                lines_count = lines.count() as u64;
             }
-
-            {
-                let mut logs_bytes = app_state.logs_bytes.lock().unwrap();
-                *logs_bytes += body_length;
-            }
-
-            {
-                let mut logs = app_state.logs.lock().unwrap();
-                *logs += lines_count;
-            }
-
-            {
-                let mut logs_ip_list = app_state.logs_ip_list.lock().unwrap();
-                let (logs_count, bytes_count) =
-                    logs_ip_list.entry(remote_address).or_insert((0, 0));
-                *logs_count += lines_count;
-                *bytes_count += body_length;
+            if opts.print.logs {
+                for line in lines.clone() {
+                    println!("log => {}", line);
+                }
             }
         }
 
@@ -448,8 +429,7 @@ pub fn start_print_stats_timer(
     t.schedule_repeating(interval, move || {
         let now = get_now();
         let metrics = app_state.metrics.lock().unwrap();
-        let logs = app_state.logs.lock().unwrap();
-        let logs_bytes = app_state.logs_bytes.lock().unwrap();
+        let logs = app_state.logs.read().unwrap();
 
         // TODO: make this print metrics per minute (as DPM) and logs
         // per second, regardless of used interval
@@ -458,14 +438,14 @@ pub fn start_print_stats_timer(
             "{} Metrics: {:10.} Logs: {:10.}; {:6.6} MB/s",
             now,
             *metrics - p_metrics,
-            *logs - p_logs,
-            ((*logs_bytes - p_logs_bytes) as f64) / ((now - ts) as f64) / (1e6 as f64)
+            logs.total.count - p_logs,
+            ((logs.total.bytes - p_logs_bytes) as f64) / ((now - ts) as f64) / (1e6 as f64)
         );
 
         ts = now;
         p_metrics = *metrics;
-        p_logs = *logs;
-        p_logs_bytes = *logs_bytes;
+        p_logs = logs.total.count;
+        p_logs_bytes = logs.total.bytes;
     })
 }
 
@@ -541,11 +521,9 @@ mod tests {
         metrics_list.insert(String::from("mem_free"), 2000);
         let app_state = web::Data::new(AppState {
             metrics: Mutex::new(3000),
-            logs: Mutex::new(0),
-            logs_bytes: Mutex::new(0),
+            logs: RwLock::new(logs::LogRepository::new()),
             metrics_list: Mutex::new(metrics_list),
             metrics_ip_list: Mutex::new(HashMap::new()),
-            logs_ip_list: Mutex::new(HashMap::new()),
         });
 
         let mut app = test::init_service(
@@ -606,11 +584,9 @@ receiver_mock_logs_bytes_count 0
         metrics_list.insert(String::from("mem_free"), 2000);
         let app_state = web::Data::new(AppState {
             metrics: Mutex::new(2000),
-            logs: Mutex::new(0),
-            logs_bytes: Mutex::new(0),
+            logs: RwLock::new(logs::LogRepository::new()),
             metrics_list: Mutex::new(metrics_list),
             metrics_ip_list: Mutex::new(HashMap::new()),
-            logs_ip_list: Mutex::new(HashMap::new()),
         });
 
         let mut app = test::init_service(
@@ -643,11 +619,9 @@ receiver_mock_logs_bytes_count 0
 
         let app_state = web::Data::new(AppState {
             metrics: Mutex::new(0),
-            logs: Mutex::new(0),
-            logs_bytes: Mutex::new(0),
+            logs: RwLock::new(logs::LogRepository::new()),
             metrics_list: Mutex::new(HashMap::new()),
             metrics_ip_list: Mutex::new(HashMap::new()),
-            logs_ip_list: Mutex::new(HashMap::new()),
         });
 
         let mut app = test::init_service(
@@ -686,11 +660,9 @@ receiver_mock_logs_bytes_count 0
 
         let app_state = web::Data::new(AppState {
             metrics: Mutex::new(0),
-            logs: Mutex::new(0),
-            logs_bytes: Mutex::new(0),
+            logs: RwLock::new(logs::LogRepository::new()),
             metrics_list: Mutex::new(HashMap::new()),
             metrics_ip_list: Mutex::new(HashMap::new()),
-            logs_ip_list: Mutex::new(HashMap::new()),
         });
 
         let terraform_state = web::Data::new(TerraformState {
