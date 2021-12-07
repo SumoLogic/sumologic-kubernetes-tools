@@ -440,7 +440,12 @@ pub async fn handler_receiver(
             {
                 let mut log_repository = app_state.logs.write().unwrap();
                 for line in lines.clone() {
-                    log_repository.add_log_message(line.to_string(), remote_address)
+                    match log_repository.add_log_message(line.to_string(), remote_address) {
+                        Ok(_) => (),
+                        Err(error) => {
+                            eprintln!("error `{}` encountered when parsing {}", error, line)
+                        }
+                    }
                 }
             }
             if opts.print.logs {
