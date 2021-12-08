@@ -1,24 +1,78 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
+use std::io;
 use std::net::IpAddr;
+
+use serde_derive::Serialize;
 
 use crate::options;
 
 pub struct MetricsHandleResult {
-    pub metrics: u64,
+    pub metrics_count: u64,
     pub metrics_list: HashMap<String, u64>,
     pub metrics_ip_list: HashMap<IpAddr, u64>,
+    pub metrics_samples: HashSet<Sample>,
 }
 
 impl MetricsHandleResult {
+    pub fn new() -> Self {
+        return Self {
+            metrics_count: 0,
+            metrics_list: HashMap::new(),
+            metrics_ip_list: HashMap::new(),
+            metrics_samples: HashSet::new(),
+        };
+    }
+
     fn handle_metric(&mut self, metric_name: String) {
         let saved_metric = self.metrics_list.entry(metric_name).or_insert(0);
         *saved_metric += 1;
-        self.metrics += 1;
+        self.metrics_count += 1;
     }
 
     fn handle_ip(&mut self, ip_address: IpAddr) {
         let metrics_ip_list = self.metrics_ip_list.entry(ip_address).or_insert(0);
         *metrics_ip_list += 1;
+    }
+}
+
+// TODO: extract this (together with internal metrics handling code to a separate file).
+
+// Would love to use predefined structs from prometheus_parse create but since those
+// don't define Serialize/Deserialize impls we can't.
+// ref: https://serde.rs/remote-derive.html
+#[derive(Debug, Serialize, Clone)]
+// #[derive(PartialEq)]
+pub struct Sample {
+    pub metric: String,
+    pub value: f64,
+    pub labels: HashMap<String, String>,
+    pub timestamp: i64, // milliseconds epoch timestamp
+}
+
+impl PartialEq for Sample {
+    fn eq(&self, other: &Self) -> bool {
+        self.metric == other.metric && self.labels.eq(&other.labels)
+    }
+}
+
+impl Eq for Sample {}
+
+impl Hash for Sample {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.metric.hash(state);
+
+        // Sort otherwise we get a different hash
+        let mut sorted_labels: Vec<_> = self.labels.iter().collect();
+        sorted_labels.sort_by(|x, y| x.0.cmp(&y.0));
+
+        for s in sorted_labels {
+            s.0.hash(state);
+            s.1.hash(state);
+            // This would produce a different hash :()
+            // self.labels.hash(state);
+        }
     }
 }
 
@@ -29,11 +83,7 @@ pub fn handle_carbon2(
     address: IpAddr,
     print_opts: options::Print,
 ) -> MetricsHandleResult {
-    let mut result = MetricsHandleResult {
-        metrics: 0,
-        metrics_list: HashMap::new(),
-        metrics_ip_list: HashMap::new(),
-    };
+    let mut result = MetricsHandleResult::new();
 
     for line in lines {
         if print_opts.metrics {
@@ -65,11 +115,7 @@ pub fn handle_graphite(
     address: IpAddr,
     print_opts: options::Print,
 ) -> MetricsHandleResult {
-    let mut result = MetricsHandleResult {
-        metrics: 0,
-        metrics_list: HashMap::new(),
-        metrics_ip_list: HashMap::new(),
-    };
+    let mut result = MetricsHandleResult::new();
 
     for line in lines {
         if print_opts.metrics {
@@ -101,26 +147,57 @@ pub fn handle_graphite(
 pub fn handle_prometheus(
     lines: std::str::Lines,
     address: IpAddr,
-    print_opts: options::Print,
+    opts: &options::Options,
 ) -> MetricsHandleResult {
-    let mut result = MetricsHandleResult {
-        metrics: 0,
-        metrics_list: HashMap::new(),
-        metrics_ip_list: HashMap::new(),
-    };
+    let mut result = MetricsHandleResult::new();
 
-    for line in lines {
-        // Ignore comments
-        if line.starts_with("#") {
+    let mut lines_vec: Vec<io::Result<String>> = Vec::new();
+    for l in lines {
+        if l.starts_with("#") {
             continue;
         }
 
-        if print_opts.metrics {
-            println!("metric => {}", line);
+        if opts.print.metrics {
+            println!("metric => {}", l);
         }
-        let metric_name = line.split("{").nth(0).unwrap().to_string();
+        // This should also be implemented in terms of parsed metrics, see below.
+        let metric_name = l.split("{").nth(0).unwrap().to_string();
         result.handle_metric(metric_name);
         result.handle_ip(address);
+
+        if opts.store_metrics {
+            lines_vec.push(Ok(l.to_owned()));
+        }
+    }
+
+    if opts.store_metrics {
+        let scrape = prometheus_parse::Scrape::parse(lines_vec.into_iter()).unwrap();
+        let samples = scrape.samples;
+        result.metrics_samples = samples
+            .iter()
+            .map(|sample| {
+                let n = sample.labels.len();
+                let mut labels: HashMap<String, String> = HashMap::with_capacity(n);
+                for s in sample.labels.iter() {
+                    labels.insert(s.0.to_owned(), s.1.to_owned());
+                }
+
+                let value = match sample.value {
+                    prometheus_parse::Value::Counter(v)
+                    | prometheus_parse::Value::Gauge(v)
+                    | prometheus_parse::Value::Untyped(v) => v,
+                    // Don't support summaries and histograms
+                    _ => 0.0,
+                };
+
+                Sample {
+                    metric: sample.metric.clone(),
+                    value: value,
+                    labels: labels,
+                    timestamp: sample.timestamp.timestamp_millis(),
+                }
+            })
+            .collect();
     }
 
     result
@@ -153,7 +230,7 @@ metric=mem_available host=myhostname  34655776768 1601906858"
         };
         let result = handle_carbon2(lines, ip_address, print_opts);
 
-        assert_eq!(result.metrics, 9);
+        assert_eq!(result.metrics_count, 9);
 
         let mut metrics_list: HashMap<String, u64> = HashMap::new();
         metrics_list.insert(String::from("mem_available_percent"), 1);
@@ -186,14 +263,18 @@ mem_free{host="myhostname"} 1.190197248e+10"##
             .lines();
 
         let ip_address = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
-        let print_opts = options::Print {
-            logs: false,
-            headers: false,
-            metrics: false,
+        let opts = options::Options {
+            print: options::Print {
+                logs: false,
+                headers: false,
+                metrics: false,
+            },
+            drop_rate: 0,
+            store_metrics: false,
         };
-        let result = handle_prometheus(lines, ip_address, print_opts);
+        let result = handle_prometheus(lines, ip_address, &opts);
 
-        assert_eq!(result.metrics, 9);
+        assert_eq!(result.metrics_count, 9);
 
         let mut metrics_list: HashMap<String, u64> = HashMap::new();
         metrics_list.insert(String::from("mem_available_percent"), 1);
@@ -233,7 +314,7 @@ myhostname.mem.wired 5680394240 1601909210"
         };
         let result = handle_graphite(lines, ip_address, print_opts);
 
-        assert_eq!(result.metrics, 9);
+        assert_eq!(result.metrics_count, 9);
 
         let mut metrics_list: HashMap<String, u64> = HashMap::new();
         metrics_list.insert(String::from("mem_available_percent"), 1);

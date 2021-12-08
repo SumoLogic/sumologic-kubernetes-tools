@@ -1,17 +1,17 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::{Mutex, RwLock};
 
 use actix_http::http;
 use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
 use bytes;
-use chrono::Duration;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::logs;
 use crate::metrics;
+use crate::metrics::Sample;
 use crate::options;
 use crate::time::get_now;
 
@@ -21,15 +21,33 @@ pub struct AppState {
     pub metrics: Mutex<u64>,
     pub logs: RwLock<logs::LogRepository>,
 
+    pub metrics_samples: Mutex<HashSet<Sample>>,
     pub metrics_list: Mutex<HashMap<String, u64>>,
     pub metrics_ip_list: Mutex<HashMap<IpAddr, u64>>,
 }
 
 impl AppState {
-    pub fn add_metrics_result(&self, result: metrics::MetricsHandleResult) {
+    pub fn new() -> Self {
+        return Self {
+            logs: RwLock::new(logs::LogRepository::new()),
+
+            metrics: Mutex::new(0),
+            metrics_list: Mutex::new(HashMap::new()),
+            metrics_ip_list: Mutex::new(HashMap::new()),
+            metrics_samples: Mutex::new(HashSet::new()),
+        };
+    }
+}
+
+impl AppState {
+    pub fn add_metrics_result(
+        &self,
+        result: metrics::MetricsHandleResult,
+        opts: &options::Options,
+    ) {
         {
             let mut metrics = self.metrics.lock().unwrap();
-            *metrics += result.metrics;
+            *metrics += result.metrics_count;
         }
 
         {
@@ -43,6 +61,15 @@ impl AppState {
             let mut metrics_ip_list = self.metrics_ip_list.lock().unwrap();
             for (&ip_address, count) in result.metrics_ip_list.iter() {
                 *metrics_ip_list.entry(ip_address).or_insert(0) += count;
+            }
+        }
+
+        if opts.store_metrics {
+            // Replace old data points that represent the same data series
+            // (the same metric name and labels) with new ones.
+            let mut samples = self.metrics_samples.lock().unwrap();
+            for s in result.metrics_samples {
+                samples.replace(s);
             }
         }
     }
@@ -83,6 +110,103 @@ pub async fn handler_metrics_ips(app_state: web::Data<AppState>) -> impl Respond
         out.push_str(&format!("{}: {}\n", ip_address, count));
     }
     HttpResponse::Ok().body(out)
+}
+
+// Return consumed metrics. Endpoint handled by this handler will accept URL query
+// which is a key value list of label names and values that the metric should contain
+// in order be returned.
+// Label values can be ommitted in which case only presence of a particular label
+// will be checked, not its value in the filtered sample.
+// `__name__` is handled specially as it will be matched against the metric name.
+//
+// Exemplar usage of this endpoint:
+//
+// $ curl -s localhost:3000/metrics-samples\?__name__=apiserver_request_total\&cluster | jq .
+// [
+//     {
+//       "metric": "apiserver_request_total",
+//       "value": 124,
+//       "labels": {
+//         "prometheus_replica": "prometheus-release-test-1638873119-ku-prometheus-0",
+//         "_origin": "kubernetes",
+//         "component": "apiserver",
+//         "service": "kubernetes",
+//         "resource": "events",
+//         "code": "422",
+//         "instance": "172.18.0.2:6443",
+//         "group": "events.k8s.io",
+//         "namespace": "default",
+//         "verb": "POST",
+//         "scope": "resource",
+//         "endpoint": "https",
+//         "version": "v1",
+//         "job": "apiserver",
+//         "cluster": "microk8s",
+//         "prometheus": "ns-test-1638873119/release-test-1638873119-ku-prometheus"
+//       },
+//       "timestamp": 163123123
+//     }
+//   ]
+//
+pub async fn handler_metrics_samples(
+    app_state: web::Data<AppState>,
+    web::Query(params): web::Query<HashMap<String, String>>,
+    opts: web::Data<options::Options>,
+) -> impl Responder {
+    if !opts.store_metrics {
+        return HttpResponse::NotImplemented().body("");
+    }
+
+    let x: HashSet<Sample> = app_state
+        .metrics_samples
+        .lock()
+        .unwrap()
+        .clone()
+        .into_iter()
+        .filter(|sample| {
+            // For every provided param 'key-value' pair...
+            for (param_key, param_val) in &params {
+                // In order to keep the params simply a key value list let's treat
+                // '__name__' specially so that it matches the metric name.
+                if param_key == "__name__" {
+                    if param_val != "" && &sample.metric != param_val {
+                        // If the metric name doesn't match the provided '__name__'
+                        // value then drop the sample.
+                        return false;
+                    }
+                    // Otherwise continue (get next key value pair from params)
+                    continue;
+                }
+
+                // ...try to find it in sample's labels...
+                match sample.labels.get(&param_key[..]) {
+                    Some(sample_value) => {
+                        // ...if sample contains it and query param was provided
+                        // without a value then keep iterating...
+                        if param_val == "" {
+                            continue;
+                        }
+
+                        // ...if the value was provided and it matches sample's
+                        // label value then also keep iterating...
+                        if sample_value == param_val {
+                            continue;
+                        }
+
+                        // ...otherwise drop this sample: the requested label has
+                        // a different value.
+                        return false;
+                    }
+
+                    // If the requested label wasn't found in sample's labels then bail.
+                    None => return false,
+                }
+            }
+            true
+        })
+        .collect();
+
+    HttpResponse::Ok().json(x)
 }
 
 // Metrics in prometheus format
@@ -357,19 +481,19 @@ pub async fn handler_receiver(
         // Metrics in carbon2 format
         "application/vnd.sumologic.carbon2" => {
             let result = metrics::handle_carbon2(lines, remote_address, opts.print);
-            app_state.add_metrics_result(result);
+            app_state.add_metrics_result(result, opts.get_ref());
         }
 
         // Metrics in graphite format
         "application/vnd.sumologic.graphite" => {
             let result = metrics::handle_graphite(lines, remote_address, opts.print);
-            app_state.add_metrics_result(result);
+            app_state.add_metrics_result(result, opts.get_ref());
         }
 
         // Metrics in prometheus format
         "application/vnd.sumologic.prometheus" => {
-            let result = metrics::handle_prometheus(lines, remote_address, opts.print);
-            app_state.add_metrics_result(result);
+            let result = metrics::handle_prometheus(lines, remote_address, opts.get_ref());
+            app_state.add_metrics_result(result, opts.get_ref());
         }
 
         // Logs & events
@@ -415,7 +539,7 @@ pub fn print_request_headers(
 // ref: https://github.com/SumoLogic/sumologic-kubernetes-tools/issues/58
 pub fn start_print_stats_timer(
     t: &timer::Timer,
-    interval: Duration,
+    interval: chrono::Duration,
     app_state: web::Data<AppState>,
 ) -> timer::Guard {
     let mut p_metrics: u64 = 0;
@@ -516,16 +640,15 @@ mod tests {
         let mut metrics_list = HashMap::new();
         metrics_list.insert(String::from("mem_active"), 1000);
         metrics_list.insert(String::from("mem_free"), 2000);
-        let app_state = web::Data::new(AppState {
-            metrics: Mutex::new(3000),
-            logs: RwLock::new(logs::LogRepository::new()),
-            metrics_list: Mutex::new(metrics_list),
-            metrics_ip_list: Mutex::new(HashMap::new()),
-        });
+
+        let app_state = AppState::new();
+        *app_state.metrics.lock().unwrap() = 3000;
+        *app_state.metrics_list.lock().unwrap() = metrics_list;
+        let web_data_app_state = web::Data::new(app_state);
 
         let mut app = test::init_service(
             App::new()
-                .app_data(app_state.clone()) // Mutable shared state
+                .app_data(web_data_app_state.clone()) // Mutable shared state
                 .route("/metrics-reset", web::post().to(handler_metrics_reset))
                 .route("/metrics", web::get().to(handler_metrics)),
         )
@@ -579,16 +702,15 @@ receiver_mock_logs_bytes_count 0
     async fn test_handler_metrics_list() {
         let mut metrics_list = HashMap::new();
         metrics_list.insert(String::from("mem_free"), 2000);
-        let app_state = web::Data::new(AppState {
-            metrics: Mutex::new(2000),
-            logs: RwLock::new(logs::LogRepository::new()),
-            metrics_list: Mutex::new(metrics_list),
-            metrics_ip_list: Mutex::new(HashMap::new()),
-        });
+
+        let app_state = AppState::new();
+        *app_state.metrics.lock().unwrap() = 2000;
+        *app_state.metrics_list.lock().unwrap() = metrics_list;
+        let web_data_app_state = web::Data::new(app_state);
 
         let mut app = test::init_service(
             App::new()
-                .app_data(app_state.clone()) // Mutable shared state
+                .app_data(web_data_app_state.clone()) // Mutable shared state
                 .route("/metrics-list", web::get().to(handler_metrics_list))
                 .route("/metrics", web::get().to(handler_metrics)),
         )
@@ -614,16 +736,11 @@ receiver_mock_logs_bytes_count 0
             url: String::from("http://hostname:3000/receiver"),
         });
 
-        let app_state = web::Data::new(AppState {
-            metrics: Mutex::new(0),
-            logs: RwLock::new(logs::LogRepository::new()),
-            metrics_list: Mutex::new(HashMap::new()),
-            metrics_ip_list: Mutex::new(HashMap::new()),
-        });
+        let web_data_app_state = web::Data::new(AppState::new());
 
         let mut app = test::init_service(
             App::new()
-                .app_data(app_state.clone()) // Mutable shared state
+                .app_data(web_data_app_state.clone()) // Mutable shared state
                 .service(
                     web::scope("/terraform")
                         .app_data(app_metadata.clone())
@@ -655,12 +772,7 @@ receiver_mock_logs_bytes_count 0
             url: String::from("http://hostname:3000/receiver"),
         });
 
-        let app_state = web::Data::new(AppState {
-            metrics: Mutex::new(0),
-            logs: RwLock::new(logs::LogRepository::new()),
-            metrics_list: Mutex::new(HashMap::new()),
-            metrics_ip_list: Mutex::new(HashMap::new()),
-        });
+        let web_data_app_state = web::Data::new(AppState::new());
 
         let terraform_state = web::Data::new(TerraformState {
             fields: Mutex::new(HashMap::new()),
@@ -668,19 +780,13 @@ receiver_mock_logs_bytes_count 0
 
         let mut app = test::init_service(
             App::new()
-                .app_data(app_state.clone()) // Mutable shared state
+                .app_data(web_data_app_state.clone()) // Mutable shared state
                 .service(
                     web::scope("/terraform")
                         .app_data(app_metadata.clone())
                         .app_data(terraform_state.clone())
-                        .route(
-                            "/api/v1/fields/{field}",
-                            web::get().to(handler_terraform_field),
-                        )
-                        .route(
-                            "/api/v1/fields",
-                            web::post().to(handler_terraform_fields_create),
-                        )
+                        .route("/api/v1/fields/{field}", web::get().to(handler_terraform_field))
+                        .route("/api/v1/fields", web::post().to(handler_terraform_fields_create))
                         .route("/api/v1/fields", web::get().to(handler_terraform_fields))
                         .default_service(web::get().to(handler_terraform)),
                 ),
