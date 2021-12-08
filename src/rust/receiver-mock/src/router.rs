@@ -442,9 +442,7 @@ pub async fn handler_receiver(
                 for line in lines.clone() {
                     match log_repository.add_log_message(line.to_string(), remote_address) {
                         Ok(_) => (),
-                        Err(error) => {
-                            eprintln!("error `{}` encountered when parsing {}", error, line)
-                        }
+                        Err(error) => eprintln!("{} when processing log line {}", error, line),
                     }
                 }
             }
@@ -461,6 +459,43 @@ pub async fn handler_receiver(
     }
 
     HttpResponse::Ok()
+}
+
+// Data structures and handlers for logs endpoints start here
+#[derive(Deserialize)]
+pub struct LogsParams {
+    #[serde(default = "default_from_ts")]
+    from_ts: u64,
+    #[serde(default = "default_to_ts")]
+    to_ts: u64,
+}
+
+// Unfortunately serde doesn't allow defaults which are simple constants
+fn default_from_ts() -> u64 {
+    return 0;
+}
+
+fn default_to_ts() -> u64 {
+    return u64::MAX;
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct LogsCountResponse {
+    count: usize,
+}
+
+// Returns the number of logs received in a given timestamp range
+pub async fn handler_logs_count(
+    app_state: web::Data<AppState>,
+    web::Query(params): web::Query<LogsParams>,
+) -> impl Responder {
+    let count = app_state
+        .logs
+        .read()
+        .unwrap()
+        .get_message_count(params.from_ts, params.to_ts);
+
+    HttpResponse::Ok().json(LogsCountResponse { count })
 }
 
 pub fn print_request_headers(
@@ -996,6 +1031,63 @@ mod tests_metrics {
 
             let result: Vec<Sample> = test::read_body_json(resp).await;
             assert_eq!(result.len(), 2);
+        }
+    }
+}
+#[cfg(test)]
+mod tests_logs {
+    use super::*;
+    use actix_rt;
+    use actix_web::{test, web, App};
+
+    #[actix_rt::test]
+    async fn test_handler_logs_count() {
+        let ip_address = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
+        let timestamps = [1, 5, 8];
+        let bodies = timestamps
+            .iter()
+            .map(|ts| format!("{{\"log\": \"Log message\", \"timestamp\": {}}}", ts));
+        let raw_logs: Vec<(String, IpAddr)> = bodies.map(|body| (body, ip_address)).collect();
+        let repository = logs::LogRepository::from_raw_logs(raw_logs).unwrap();
+        let mut app_state = AppState::new();
+        app_state.logs = RwLock::new(repository);
+        let app_data = web::Data::new(app_state);
+
+        let mut app = test::init_service(
+            App::new()
+                .app_data(app_data.clone()) // Mutable shared state
+                .route("/logs/count", web::get().to(handler_logs_count)),
+        )
+        .await;
+
+        // count all the logs
+        {
+            let req = test::TestRequest::get().uri("/logs/count").to_request();
+            let resp = test::call_service(&mut app, req).await;
+
+            let response_body: LogsCountResponse = test::read_body_json(resp).await;
+
+            assert_eq!(response_body.count, 3);
+        }
+
+        // from_ts is inclusive
+        {
+            let req = test::TestRequest::get().uri("/logs/count?from_ts=5").to_request();
+            let resp = test::call_service(&mut app, req).await;
+
+            let response_body: LogsCountResponse = test::read_body_json(resp).await;
+
+            assert_eq!(response_body.count, 2);
+        }
+
+        // to_ts is exclusive
+        {
+            let req = test::TestRequest::get().uri("/logs/count?to_ts=5").to_request();
+            let resp = test::call_service(&mut app, req).await;
+
+            let response_body: LogsCountResponse = test::read_body_json(resp).await;
+
+            assert_eq!(response_body.count, 1);
         }
     }
 }

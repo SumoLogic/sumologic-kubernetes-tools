@@ -26,9 +26,9 @@ Example output:
 {"source":{"url":"http://localhost:3333/receiver"}}
 ```
 
-## Statistics
+## Metrics
 
-There are endpoints which provides statistics:
+These are endpoints which provide information about received metrics:
 
 - `metrics` - exposes receiver-mock metrics in prometheus format
 
@@ -91,6 +91,20 @@ There are endpoints which provides statistics:
         "timestamp": 163123123
       }
     ]
+## Logs
+
+These following endpoints provide information about received logs:
+
+- `/logs/count?from_ts=1&to_ts=1000`
+
+  Returns the number of logs received between `from_ts` and `to_ts`. The values are epoch timestamps in milliseconds, and the range represented by them is inclusive at the start and exclusive at the end. Both values are optional.
+
+  ```json
+
+  {
+      "count": 7
+  }
+
   ```
 
 ## Disclaimer
