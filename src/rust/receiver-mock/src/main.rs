@@ -129,6 +129,7 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
                 web::get().to(router::handler_metrics_samples),
             )
             .route("/metrics", web::get().to(router::handler_metrics))
+            .route("/logs/count", web::get().to(router::handler_logs_count))
             .service(
                 web::scope("/terraform")
                     .app_data(app_metadata.clone())

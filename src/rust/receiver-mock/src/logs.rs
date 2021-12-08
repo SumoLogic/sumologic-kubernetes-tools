@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Error};
+use anyhow::anyhow;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::net::IpAddr;
@@ -11,7 +11,8 @@ pub struct LogStats {
 
 #[derive(Clone)]
 pub struct LogMessage {
-    // TODO: add body here once there's an API to query it
+    // This structure is intended to house more data as we add APIs requiring it
+// For example, metadata when we want to query log count by label
 }
 
 #[derive(Clone)]
@@ -30,7 +31,19 @@ impl LogRepository {
         };
     }
 
-    pub fn add_log_message(&mut self, body: String, ipaddr: IpAddr) -> Result<(), Error> {
+    #[cfg(test)]
+    pub fn from_raw_logs(raw_logs: Vec<(String, IpAddr)>) -> Result<Self, anyhow::Error> {
+        let mut repository = Self::new();
+        for (body, ipaddr) in raw_logs {
+            match repository.add_log_message(body, ipaddr) {
+                Ok(_) => (),
+                Err(error) => return Err(error),
+            };
+        }
+        return Ok(repository);
+    }
+
+    pub fn add_log_message(&mut self, body: String, ipaddr: IpAddr) -> Result<(), anyhow::Error> {
         // add the log message to the time index
         let timestamp = match get_timestamp_from_body(&body) {
             Some(ts) => ts,
@@ -54,15 +67,16 @@ impl LogRepository {
         Ok(())
     }
 
-    pub fn get_message_count(&self, from_ts: u64, to_ts: u64) -> u32 {
+    pub fn get_message_count(&self, from_ts: u64, to_ts: u64) -> usize {
         let mut count = 0;
         let entries = self.messages_by_ts.range(from_ts..to_ts);
         for (_, messages) in entries {
             count += messages.len()
         }
-        return count as u32;
+        return count;
     }
 
+    #[cfg(test)]
     pub fn get_stats_for_ipaddr(&self, ipaddr: IpAddr) -> LogStats {
         return self
             .ipaddr_to_stats
@@ -131,16 +145,12 @@ mod tests {
     #[test]
     fn test_repo_range_query() {
         let ip_address = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
-        let mut repository = LogRepository::new();
         let timestamps = [1, 5, 8];
         let bodies = timestamps
             .iter()
             .map(|ts| format!("{{\"log\": \"Log message\", \"timestamp\": {}}}", ts));
-
-        for body in bodies {
-            let result = repository.add_log_message(body.to_string(), ip_address);
-            assert!(result.is_ok());
-        }
+        let raw_logs: Vec<(String, IpAddr)> = bodies.map(|body| (body, ip_address)).collect();
+        let repository = LogRepository::from_raw_logs(raw_logs).unwrap();
 
         assert_eq!(repository.total.count, 3);
         assert_eq!(repository.get_message_count(1, 6), 2);
