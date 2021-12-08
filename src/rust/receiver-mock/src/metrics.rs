@@ -4,7 +4,7 @@ use std::hash::{Hash, Hasher};
 use std::io;
 use std::net::IpAddr;
 
-use serde_derive::Serialize;
+use serde_derive::{Deserialize, Serialize};
 
 use crate::options;
 
@@ -42,7 +42,7 @@ impl MetricsHandleResult {
 // Would love to use predefined structs from prometheus_parse create but since those
 // don't define Serialize/Deserialize impls we can't.
 // ref: https://serde.rs/remote-derive.html
-#[derive(Debug, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 // #[derive(PartialEq)]
 pub struct Sample {
     pub metric: String,

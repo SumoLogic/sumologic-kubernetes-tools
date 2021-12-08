@@ -786,7 +786,10 @@ receiver_mock_logs_bytes_count 0
                         .app_data(app_metadata.clone())
                         .app_data(terraform_state.clone())
                         .route("/api/v1/fields/{field}", web::get().to(handler_terraform_field))
-                        .route("/api/v1/fields", web::post().to(handler_terraform_fields_create))
+                        .route(
+                            "/api/v1/fields",
+                            web::post().to(handler_terraform_fields_create),
+                        )
                         .route("/api/v1/fields", web::get().to(handler_terraform_fields))
                         .default_service(web::get().to(handler_terraform)),
                 ),
@@ -892,6 +895,186 @@ receiver_mock_logs_bytes_count 0
                     data: []
                 })
             );
+        }
+    }
+}
+
+#[cfg(test)]
+mod metrics_storage {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+    use actix_rt;
+    use actix_web::test;
+    use std::array::IntoIter;
+    use std::iter::FromIterator;
+
+    #[actix_rt::test]
+    async fn test_handler_metrics_storage() {
+        let web_data_app_state = web::Data::new(AppState::new());
+        let opts = options::Options {
+            print: options::Print {
+                logs: false,
+                headers: false,
+                metrics: false,
+            },
+            drop_rate: 0,
+            store_metrics: true,
+        };
+
+        let mut app = test::init_service(
+            actix_web::App::new()
+                .data(opts.clone())
+                .app_data(web_data_app_state.clone()) // Mutable shared state
+                .route("/metrics-samples", web::get().to(handler_metrics_samples))
+                .default_service(web::get().to(handler_receiver)),
+        )
+        .await;
+
+        {
+            let req = test::TestRequest::post().uri("/")
+            .set_payload(r#"apiserver_request_total{cluster="microk8s",mock="yes",code="200",component="apiserver",endpoint="https",group="events.k8s.io",job="apiserver"} 123.12 1638873379541"#)
+            .header("Content-Type", "application/vnd.sumologic.prometheus")
+            .to_request();
+
+            let resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+        }
+        {
+            let req = test::TestRequest::get()
+                .uri("/metrics-samples")
+                .to_request();
+
+            let resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let result: Vec<Sample> = test::read_body_json(resp).await;
+            assert_eq!(result.len(), 1);
+            assert_eq!(result[0].metric, "apiserver_request_total");
+            assert_eq!(result[0].value, 123.12);
+            assert_eq!(result[0].timestamp, 1638873379541);
+            assert_eq!(
+                result[0].labels,
+                // ref: https://stackoverflow.com/a/27582993
+                HashMap::<String, String>::from_iter(IntoIter::new([
+                    ("mock".to_owned(), "yes".to_owned()),
+                    ("group".to_owned(), "events.k8s.io".to_owned()),
+                    ("code".to_owned(), "200".to_owned()),
+                    ("job".to_owned(), "apiserver".to_owned()),
+                    ("cluster".to_owned(), "microk8s".to_owned()),
+                    ("component".to_owned(), "apiserver".to_owned()),
+                    ("endpoint".to_owned(), "https".to_owned()),
+                ]))
+            );
+        }
+        {
+            // Another request with a different time series (different labels set)
+            // should produce a different/new time series
+            let req = test::TestRequest::post().uri("/")
+            .set_payload(r#"apiserver_request_total{cluster="microk8s",code="200",component="apiserver",endpoint="https",group="events.k8s.io",job="apiserver",namespace="default",resource="events"} 128.12 1638873379541"#)
+            .header("Content-Type", "application/vnd.sumologic.prometheus")
+            .to_request();
+
+            let resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+        }
+        {
+            // Let's check those by adding URL query params
+            // This time series has a namespace & resources labels while the other
+            // one doesn't.
+            let req = test::TestRequest::get()
+                .uri("/metrics-samples?resource=events")
+                .to_request();
+
+            let resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let result: Vec<Sample> = test::read_body_json(resp).await;
+            assert_eq!(result.len(), 1);
+            assert_eq!(result[0].metric, "apiserver_request_total");
+            assert_eq!(result[0].value, 128.12);
+            assert_eq!(result[0].timestamp, 1638873379541);
+            assert_eq!(
+                result[0].labels,
+                HashMap::<String, String>::from_iter(IntoIter::new([
+                    ("cluster".to_owned(), "microk8s".to_owned()),
+                    ("code".to_owned(), "200".to_owned()),
+                    ("component".to_owned(), "apiserver".to_owned()),
+                    ("endpoint".to_owned(), "https".to_owned()),
+                    ("group".to_owned(), "events.k8s.io".to_owned()),
+                    ("job".to_owned(), "apiserver".to_owned()),
+                    ("namespace".to_owned(), "default".to_owned()),
+                    ("resource".to_owned(), "events".to_owned()),
+                ]))
+            );
+        }
+        {
+            // Checking for existence of `namespace` label should also yield the
+            // second time series only.
+            let req = test::TestRequest::get()
+                .uri("/metrics-samples?namespace")
+                .to_request();
+
+            let resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let result: Vec<Sample> = test::read_body_json(resp).await;
+            assert_eq!(result.len(), 1);
+            assert_eq!(result[0].metric, "apiserver_request_total");
+            assert_eq!(result[0].value, 128.12);
+            assert_eq!(result[0].timestamp, 1638873379541);
+            assert_eq!(
+                result[0].labels,
+                HashMap::<String, String>::from_iter(IntoIter::new([
+                    ("cluster".to_owned(), "microk8s".to_owned()),
+                    ("code".to_owned(), "200".to_owned()),
+                    ("component".to_owned(), "apiserver".to_owned()),
+                    ("endpoint".to_owned(), "https".to_owned()),
+                    ("group".to_owned(), "events.k8s.io".to_owned()),
+                    ("job".to_owned(), "apiserver".to_owned()),
+                    ("namespace".to_owned(), "default".to_owned()),
+                    ("resource".to_owned(), "events".to_owned()),
+                ]))
+            );
+        }
+        {
+            // and now let's check the previous time series with URL query params
+            let req = test::TestRequest::get()
+                .uri("/metrics-samples?mock=yes")
+                .to_request();
+
+            let resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let result: Vec<Sample> = test::read_body_json(resp).await;
+            assert_eq!(result.len(), 1);
+            assert_eq!(result[0].metric, "apiserver_request_total");
+            assert_eq!(result[0].value, 123.12);
+            assert_eq!(result[0].timestamp, 1638873379541);
+            assert_eq!(
+                result[0].labels,
+                HashMap::<String, String>::from_iter(IntoIter::new([
+                    ("mock".to_owned(), "yes".to_owned()),
+                    ("group".to_owned(), "events.k8s.io".to_owned()),
+                    ("code".to_owned(), "200".to_owned()),
+                    ("job".to_owned(), "apiserver".to_owned()),
+                    ("cluster".to_owned(), "microk8s".to_owned()),
+                    ("component".to_owned(), "apiserver".to_owned()),
+                    ("endpoint".to_owned(), "https".to_owned()),
+                ]))
+            );
+        }
+        {
+            // Now let's just check that we have those 2 time series when no
+            // filters are applied.
+            let req = test::TestRequest::get()
+                .uri("/metrics-samples")
+                .to_request();
+
+            let resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let result: Vec<Sample> = test::read_body_json(resp).await;
+            assert_eq!(result.len(), 2);
         }
     }
 }
