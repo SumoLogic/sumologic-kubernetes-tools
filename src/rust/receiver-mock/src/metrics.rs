@@ -4,7 +4,7 @@ use std::hash::{Hash, Hasher};
 use std::io;
 use std::net::IpAddr;
 
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use crate::options;
 
