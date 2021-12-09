@@ -97,9 +97,12 @@ These are endpoints which provide information about received metrics:
 
 The following endpoints provide information about received logs:
 
-- `/logs/count?from_ts=1&to_ts=1000`
+- `/logs/count?from_ts=1&to_ts=1000&namespace=default&deployment=`
 
   Returns the number of logs received between `from_ts` and `to_ts`. The values are epoch timestamps in milliseconds, and the range represented by them is inclusive at the start and exclusive at the end. Both values are optional.
+
+  It's also possible to filter by log metadata. Any query parameter without a fixed meaning (such as `from_ts`) will be treated
+  as a key-value pair of metadata, and only logs containing that pair will be counted. Similarly to the metrics samples endpoint, an empty value is treated as a wildcard.
 
   ```json
   {

@@ -1,4 +1,6 @@
+use std::array::IntoIter;
 use std::collections::{HashMap, HashSet};
+use std::iter::FromIterator;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::{Mutex, RwLock};
 
@@ -70,7 +72,13 @@ impl AppState {
             }
         }
     }
-    pub fn add_log_lines<'a>(&self, lines: impl Iterator<Item = &'a str>, ipaddr: IpAddr, opts: &options::Options) {
+    pub fn add_log_lines<'a>(
+        &self,
+        lines: impl Iterator<Item = &'a str>,
+        metadata: logs::LogMetadata,
+        ipaddr: IpAddr,
+        opts: &options::Options,
+    ) {
         let mut message_count = 0;
         let mut byte_count = 0;
         let mut log_messages = self.log_messages.write().unwrap();
@@ -78,7 +86,7 @@ impl AppState {
             message_count += 1;
             byte_count += line.len() as u64;
             if opts.store_logs {
-                log_messages.add_log_message(line.to_string())
+                log_messages.add_log_message(line.to_string(), metadata.clone())
             }
         }
         let mut log_stats = self.log_stats.write().unwrap();
@@ -428,8 +436,9 @@ pub async fn handler_receiver(
     let mut rng = rand::thread_rng();
     let number: i64 = rng.gen_range(0..100);
     if number < opts.drop_rate {
-        println!("Dropping data for {}", content_type);
-        return HttpResponse::InternalServerError();
+        let msg = format!("Dropping data for {}", content_type);
+        println!("{}", msg);
+        return HttpResponse::InternalServerError().body(msg);
     }
 
     match content_type {
@@ -453,7 +462,14 @@ pub async fn handler_receiver(
 
         // Logs & events
         "application/x-www-form-urlencoded" => {
-            app_state.add_log_lines(lines.clone(), remote_address, &opts);
+            let x_sumo_fields_value = headers.get("x-sumo-fields").unwrap_or(&empty_header).to_str().unwrap();
+            let metadata = match logs::parse_sumo_fields_header_value(x_sumo_fields_value) {
+                Ok(metadata) => metadata,
+                Err(error) => {
+                    return HttpResponse::BadRequest().body(format!("Invalid X-Sumo-Fields header value: {}", error))
+                }
+            };
+            app_state.add_log_lines(lines.clone(), metadata, remote_address, &opts);
             if opts.print.logs {
                 for line in lines.clone() {
                     println!("log => {}", line);
@@ -466,7 +482,7 @@ pub async fn handler_receiver(
         }
     }
 
-    HttpResponse::Ok()
+    HttpResponse::Ok().body("")
 }
 
 // Data structures and handlers for logs endpoints start here
@@ -496,17 +512,24 @@ pub struct LogsCountResponse {
 pub async fn handler_logs_count(
     app_state: web::Data<AppState>,
     web::Query(params): web::Query<LogsParams>,
+    web::Query(all_params): web::Query<HashMap<String, String>>,
     opts: web::Data<options::Options>,
 ) -> impl Responder {
     if !opts.store_logs {
         return HttpResponse::NotImplemented().body("Use the --store-logs flag to enable this endpoint");
     }
-
+    // all_params has all the parameters, so we need to remove the fixed ones
+    let fixed_params: HashSet<&str> = HashSet::from_iter(IntoIter::new(["from_ts", "to_ts"]));
+    let metadata_params: HashMap<&str, &str> = all_params
+        .iter()
+        .filter(|(key, _)| !fixed_params.contains(key.as_str()))
+        .map(|(key, value)| (key.as_str(), value.as_str()))
+        .collect();
     let count = app_state
         .log_messages
         .read()
         .unwrap()
-        .get_message_count(params.from_ts, params.to_ts);
+        .get_message_count(params.from_ts, params.to_ts, metadata_params);
 
     HttpResponse::Ok().json(LogsCountResponse { count })
 }
@@ -1048,6 +1071,7 @@ mod tests_metrics {
         }
     }
 }
+
 #[cfg(test)]
 mod tests_logs {
     use super::*;
@@ -1056,14 +1080,17 @@ mod tests_logs {
 
     #[actix_rt::test]
     async fn test_handler_logs_count() {
+        let x_sumo_fields_values = [
+            "namespace=default, deployment=collection-kube-state-metrics, node=sumologic-control-plane",
+            "namespace=sumologic, deployment=collection-kube-state-metrics, node=sumologic-control-plane",
+            "namespace=kube-system, statefulset=collection-fluentd-metrics",
+        ];
         let timestamps = [1, 5, 8];
-        let raw_logs = timestamps
+        let raw_logs: Vec<_> = timestamps
             .iter()
             .map(|ts| format!("{{\"log\": \"Log message\", \"timestamp\": {}}}", ts))
             .collect();
-        let repository = logs::LogRepository::from_raw_logs(raw_logs).unwrap();
-        let mut app_state = AppState::new();
-        app_state.log_messages = RwLock::new(repository);
+        let app_state = AppState::new();
         let app_data = web::Data::new(app_state);
         let opts = options::Options {
             print: options::Print {
@@ -1080,9 +1107,42 @@ mod tests_logs {
             App::new()
                 .data(opts.clone())
                 .app_data(app_data.clone()) // Mutable shared state
-                .route("/logs/count", web::get().to(handler_logs_count)),
+                .route("/logs/count", web::get().to(handler_logs_count))
+                .default_service(web::get().to(handler_receiver)),
         )
         .await;
+
+        // invalid x-sumo-fields results in a 400
+        {
+            let log_payload = raw_logs[0].clone();
+            let x_sumo_fields_value = ",no_equals_sign";
+            let req = test::TestRequest::post()
+                .uri("/")
+                .set_payload(log_payload)
+                .header("Content-Type", "application/x-www-form-urlencoded")
+                .header("X-Sumo-Fields", x_sumo_fields_value)
+                .to_request();
+
+            let resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 400);
+        }
+
+        // add logs with metadata
+        {
+            for i in 0..raw_logs.len() {
+                let log_payload = raw_logs[i].clone();
+                let x_sumo_fields_value = x_sumo_fields_values[i];
+                let req = test::TestRequest::post()
+                    .uri("/")
+                    .set_payload(log_payload)
+                    .header("Content-Type", "application/x-www-form-urlencoded")
+                    .header("X-Sumo-Fields", x_sumo_fields_value)
+                    .to_request();
+
+                let resp = test::call_service(&mut app, req).await;
+                assert_eq!(resp.status(), 200);
+            }
+        }
 
         // count all the logs
         {
@@ -1107,6 +1167,40 @@ mod tests_logs {
         // to_ts is exclusive
         {
             let req = test::TestRequest::get().uri("/logs/count?to_ts=5").to_request();
+            let resp = test::call_service(&mut app, req).await;
+
+            let response_body: LogsCountResponse = test::read_body_json(resp).await;
+
+            assert_eq!(response_body.count, 1);
+        }
+
+        // normal metadata query
+        {
+            let req = test::TestRequest::get()
+                .uri("/logs/count?deployment=collection-kube-state-metrics")
+                .to_request();
+            let resp = test::call_service(&mut app, req).await;
+
+            let response_body: LogsCountResponse = test::read_body_json(resp).await;
+
+            assert_eq!(response_body.count, 2);
+        }
+
+        // wildcard query
+        {
+            let req = test::TestRequest::get().uri("/logs/count?namespace=").to_request();
+            let resp = test::call_service(&mut app, req).await;
+
+            let response_body: LogsCountResponse = test::read_body_json(resp).await;
+
+            assert_eq!(response_body.count, 3);
+        }
+
+        // everything at once
+        {
+            let req = test::TestRequest::get()
+                .uri("/logs/count?namespace=&deployment=collection-kube-state-metrics&from_ts=5&to_ts=10")
+                .to_request();
             let resp = test::call_service(&mut app, req).await;
 
             let response_body: LogsCountResponse = test::read_body_json(resp).await;
