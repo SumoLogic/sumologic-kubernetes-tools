@@ -242,7 +242,7 @@ pub async fn handler_terraform_fields_quota() -> impl Responder {
     })
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct TerraformFieldObject {
     field_name: String,
@@ -251,12 +251,12 @@ struct TerraformFieldObject {
     state: String,
 }
 
-pub async fn handler_terraform_fields(terraform_state: web::Data<TerraformState>) -> impl Responder {
-    #[derive(Serialize)]
-    struct TerraformFieldsResponse {
-        data: Vec<TerraformFieldObject>,
-    }
+#[derive(Deserialize, Serialize)]
+struct TerraformFieldsResponse {
+    data: Vec<TerraformFieldObject>,
+}
 
+pub async fn handler_terraform_fields(terraform_state: web::Data<TerraformState>) -> impl Responder {
     let fields = terraform_state.fields.lock().unwrap();
     let res = fields.iter().map(|(id, name)| TerraformFieldObject {
         field_name: name.clone(),
@@ -515,7 +515,6 @@ mod tests_terraform {
     use super::*;
     use actix_rt;
     use actix_web::{test, web, App};
-    use futures_util::stream::TryStreamExt;
 
     #[actix_rt::test]
     async fn test_handler_terraform() {
@@ -533,12 +532,12 @@ mod tests_terraform {
 
         {
             let req = test::TestRequest::get().uri("/terraform").to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+            let body = test::read_body(resp).await;
             assert_eq!(
-                bytes.unwrap(),
+                body,
                 json_str!({
                     source: {
                       url: "http://hostname:3000/terraform"
@@ -550,12 +549,12 @@ mod tests_terraform {
             let req = test::TestRequest::get()
                 .uri("/terraform/api/v1/collectors/0/sources/0")
                 .to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+            let body = test::read_body(resp).await;
             assert_eq!(
-                bytes.unwrap(),
+                body,
                 json_str!({
                     source: {
                       url: "http://hostname:3000/terraform"
@@ -565,11 +564,11 @@ mod tests_terraform {
         }
         {
             let req = test::TestRequest::get().uri("/different_route").to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 404);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
-            assert_eq!(bytes.unwrap(), "");
+            let body = test::read_body(resp).await;
+            assert_eq!(body, "");
         }
     }
 
@@ -600,12 +599,11 @@ mod tests_terraform {
             let req = test::TestRequest::get()
                 .uri("/terraform/api/v1/fields/quota")
                 .to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
-
-            assert_eq!(bytes.unwrap(), r#"{"quota":200,"remaining":100}"#);
+            let body = test::read_body(resp).await;
+            assert_eq!(body, r#"{"quota":200,"remaining":100}"#);
         }
     }
 
@@ -641,16 +639,15 @@ mod tests_terraform {
 
         {
             let req = test::TestRequest::get().uri("/terraform/api/v1/fields").to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
-
+            let body = test::read_body(resp).await;
             assert_eq!(
-                bytes.unwrap(),
+                body,
                 json_str!({
                     data: []
-                })
+                }),
             );
         }
 
@@ -658,13 +655,12 @@ mod tests_terraform {
             let req = test::TestRequest::get()
                 .uri("/terraform/api/v1/fields/dummyID123")
                 .to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 404);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
-
+            let body = test::read_body(resp).await;
             assert_eq!(
-                bytes.unwrap(),
+                body,
                 json_str!({
                     id: "QL6LR-5P7KI-RAR20",
                     errors: [
@@ -682,13 +678,12 @@ mod tests_terraform {
 
         {
             let req = test::TestRequest::get().uri("/terraform/api/v1/fields").to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
-
+            let body = test::read_body(resp).await;
             assert_eq!(
-                bytes.unwrap(),
+                body,
                 json_str!({
                     data: []
                 })
@@ -696,42 +691,39 @@ mod tests_terraform {
         }
 
         {
-            let req = test::TestRequest::post()
-                .uri("/terraform/api/v1/fields")
-                .set_json(&TerraformFieldCreateRequest {
-                    field_name: String::from("dummyID123"),
-                })
-                .to_request();
-            let mut resp = test::call_service(&mut app, req).await;
-            assert_eq!(resp.status(), 200);
+            let field_id: String;
+            {
+                // Create a field ...
+                let req = test::TestRequest::post()
+                    .uri("/terraform/api/v1/fields")
+                    .set_json(&TerraformFieldCreateRequest {
+                        field_name: String::from("dummyID123"),
+                    })
+                    .to_request();
+                let resp = test::call_service(&mut app, req).await;
+                assert_eq!(resp.status(), 200);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+                let body: TerraformFieldObject = test::read_body_json(resp).await;
+                assert_eq!(body.field_name, "dummyID123");
+                assert_eq!(body.data_type, "String");
+                assert_eq!(body.state, "Enabled");
+                assert_ne!(body.field_id, "");
+                field_id = body.field_id;
+            }
 
-            // Probably add more checks about the returned body: generated random
-            // IDs are a bit problematic here.
-            assert_ne!(
-                bytes.unwrap(),
-                json_str!({
-                    data: []
-                })
-            );
-        }
+            // ... and check it exists
+            {
+                let req = test::TestRequest::get().uri("/terraform/api/v1/fields").to_request();
+                let resp = test::call_service(&mut app, req).await;
+                assert_eq!(resp.status(), 200);
 
-        {
-            let req = test::TestRequest::get().uri("/terraform/api/v1/fields").to_request();
-            let mut resp = test::call_service(&mut app, req).await;
-            assert_eq!(resp.status(), 200);
-
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
-
-            // Probably add more checks about the returned body: generated random
-            // IDs are a bit problematic here.
-            assert_ne!(
-                bytes.unwrap(),
-                json_str!({
-                    data: []
-                })
-            );
+                let body: TerraformFieldsResponse = test::read_body_json(resp).await;
+                assert_eq!(body.data.len(), 1);
+                assert_eq!(body.data[0].field_name, "dummyID123");
+                assert_eq!(body.data[0].data_type, "String");
+                assert_eq!(body.data[0].state, "Enabled");
+                assert_eq!(body.data[0].field_id, field_id);
+            }
         }
     }
 }
@@ -741,7 +733,6 @@ mod tests_metrics {
     use super::*;
     use actix_rt;
     use actix_web::{test, web, App};
-    use futures_util::stream::TryStreamExt;
     use std::array::IntoIter;
     use std::iter::FromIterator;
 
@@ -766,44 +757,46 @@ mod tests_metrics {
 
         {
             let req = test::TestRequest::get().uri("/metrics").to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+            let body = test::read_body(resp).await;
             assert_eq!(
-                bytes.unwrap(),
-                r#"# TYPE receiver_mock_metrics_count counter
-receiver_mock_metrics_count 3000
-# TYPE receiver_mock_logs_count counter
-receiver_mock_logs_count 0
-# TYPE receiver_mock_logs_bytes_count counter
-receiver_mock_logs_bytes_count 0
-"#
+                bytes::Bytes::from_static(
+                    b"# TYPE receiver_mock_metrics_count counter\n\
+                 receiver_mock_metrics_count 3000\n\
+                 # TYPE receiver_mock_logs_count counter\n\
+                 receiver_mock_logs_count 0\n\
+                 # TYPE receiver_mock_logs_bytes_count counter\n\
+                 receiver_mock_logs_bytes_count 0\n",
+                ),
+                body,
             );
         }
         {
             let req = test::TestRequest::post().uri("/metrics-reset").to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
-            assert_eq!(bytes.unwrap(), "All counters reset successfully");
+            let body = test::read_body(resp).await;
+            assert_eq!(body, "All counters reset successfully");
         }
         {
             let req = test::TestRequest::get().uri("/metrics").to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+            let body = test::read_body(resp).await;
             assert_eq!(
-                bytes.unwrap(),
-                r#"# TYPE receiver_mock_metrics_count counter
-receiver_mock_metrics_count 0
-# TYPE receiver_mock_logs_count counter
-receiver_mock_logs_count 0
-# TYPE receiver_mock_logs_bytes_count counter
-receiver_mock_logs_bytes_count 0
-"#
+                bytes::Bytes::from_static(
+                    b"# TYPE receiver_mock_metrics_count counter\n\
+                  receiver_mock_metrics_count 0\n\
+                  # TYPE receiver_mock_logs_count counter\n\
+                  receiver_mock_logs_count 0\n\
+                  # TYPE receiver_mock_logs_bytes_count counter\n\
+                  receiver_mock_logs_bytes_count 0\n",
+                ),
+                body,
             );
         }
     }
@@ -828,15 +821,15 @@ receiver_mock_logs_bytes_count 0
 
         {
             let req = test::TestRequest::get().uri("/metrics-list").to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+            let body = test::read_body(resp).await;
 
             // Testing multiple metric names being returned properly would be nice
             // but since we're using a hashmap we'd need to sort the lines from the byte
             // buffer that we receive and ain't that easy (but definitely doable).
-            assert_eq!(bytes.unwrap(), "mem_free: 2000\n");
+            assert_eq!(body, "mem_free: 2000\n");
         }
     }
 

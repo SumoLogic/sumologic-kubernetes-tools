@@ -1382,7 +1382,6 @@ dependencies = [
  "chrono",
  "clap",
  "futures",
- "futures-util",
  "json_str",
  "prometheus-parse",
  "rand 0.8.4",
