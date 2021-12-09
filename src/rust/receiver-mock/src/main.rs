@@ -65,6 +65,13 @@ async fn main() -> std::io::Result<()> {
           .help("Use to store metrics which will then be returned via /metrics-samples")
           .takes_value(false)
           .required(false))
+      .arg(Arg::with_name("store_logs")
+          .short("sl")
+          .long("store-logs")
+          .value_name("store_logs")
+          .help("Use to store log data which can then be queried via /logs/* endpoints")
+          .takes_value(false)
+          .required(false))
       .arg(Arg::with_name("drop_rate")
           .short("d")
           .long("drop-rate")
@@ -85,6 +92,7 @@ async fn main() -> std::io::Result<()> {
         },
         drop_rate: drop_rate,
         store_metrics: matches.is_present("store_metrics"),
+        store_logs: matches.is_present("store_logs"),
     };
 
     run_app(hostname, port, opts).await

@@ -312,6 +312,7 @@ mem_free{host="myhostname"} 1.190197248e+10"##
             },
             drop_rate: 0,
             store_metrics: false,
+            store_logs: true,
         };
         let result = handle_prometheus(lines, ip_address, &opts);
 

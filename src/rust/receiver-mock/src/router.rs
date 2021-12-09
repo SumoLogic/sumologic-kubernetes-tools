@@ -18,7 +18,8 @@ pub struct AppState {
     // Mutexes are necessary to mutate data safely across threads in handlers.
     //
     pub metrics: Mutex<u64>,
-    pub logs: RwLock<logs::LogRepository>,
+    pub log_stats: RwLock<logs::LogStatsRepository>,
+    pub log_messages: RwLock<logs::LogRepository>,
 
     pub metrics_samples: Mutex<HashSet<Sample>>,
     pub metrics_list: Mutex<HashMap<String, u64>>,
@@ -28,7 +29,8 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         return Self {
-            logs: RwLock::new(logs::LogRepository::new()),
+            log_stats: RwLock::new(logs::LogStatsRepository::new()),
+            log_messages: RwLock::new(logs::LogRepository::new()),
 
             metrics: Mutex::new(0),
             metrics_list: Mutex::new(HashMap::new()),
@@ -67,6 +69,20 @@ impl AppState {
                 samples.replace(s);
             }
         }
+    }
+    pub fn add_log_lines<'a>(&self, lines: impl Iterator<Item = &'a str>, ipaddr: IpAddr, opts: &options::Options) {
+        let mut message_count = 0;
+        let mut byte_count = 0;
+        let mut log_messages = self.log_messages.write().unwrap();
+        for line in lines {
+            message_count += 1;
+            byte_count += line.len() as u64;
+            if opts.store_logs {
+                log_messages.add_log_message(line.to_string())
+            }
+        }
+        let mut log_stats = self.log_stats.write().unwrap();
+        log_stats.update(message_count, byte_count, ipaddr);
     }
 }
 
@@ -168,8 +184,8 @@ receiver_mock_logs_count {}
 # TYPE receiver_mock_logs_bytes_count counter
 receiver_mock_logs_bytes_count {}\n",
         app_state.metrics.lock().unwrap(),
-        app_state.logs.read().unwrap().total.count,
-        app_state.logs.read().unwrap().total.bytes,
+        app_state.log_stats.read().unwrap().total.message_count,
+        app_state.log_stats.read().unwrap().total.byte_count,
     );
 
     {
@@ -187,19 +203,19 @@ receiver_mock_logs_bytes_count {}\n",
     }
 
     {
-        let logs = app_state.logs.read().unwrap();
-        if logs.ipaddr_to_stats.len() > 0 {
+        let log_ipaddr_stats = &app_state.log_stats.read().unwrap().ipaddr;
+        if log_ipaddr_stats.len() > 0 {
             let mut logs_ip_count_bytes_string = String::from("# TYPE receiver_mock_logs_bytes_ip_count counter\n");
             let mut logs_ip_count_string = String::from("# TYPE receiver_mock_logs_ip_count counter\n");
 
-            for (ip, val) in logs.ipaddr_to_stats.iter() {
+            for (ip, val) in log_ipaddr_stats.iter() {
                 logs_ip_count_string.push_str(&format!(
                     "receiver_mock_logs_ip_count{{ip_address=\"{}\"}} {}\n",
-                    ip, val.count
+                    ip, val.message_count
                 ));
                 logs_ip_count_bytes_string.push_str(&format!(
                     "receiver_mock_logs_bytes_ip_count{{ip_address=\"{}\"}} {}\n",
-                    ip, val.bytes
+                    ip, val.byte_count
                 ));
             }
             body.push_str(&logs_ip_count_string);
@@ -392,7 +408,7 @@ pub async fn handler_terraform_fields_create(
 
 pub async fn handler_receiver(
     req: HttpRequest,
-    body: web::Bytes ,
+    body: web::Bytes,
     app_state: web::Data<AppState>,
     opts: web::Data<options::Options>,
 ) -> impl Responder {
@@ -437,15 +453,7 @@ pub async fn handler_receiver(
 
         // Logs & events
         "application/x-www-form-urlencoded" => {
-            {
-                let mut log_repository = app_state.logs.write().unwrap();
-                for line in lines.clone() {
-                    match log_repository.add_log_message(line.to_string(), remote_address) {
-                        Ok(_) => (),
-                        Err(error) => eprintln!("{} when processing log line {}", error, line),
-                    }
-                }
-            }
+            app_state.add_log_lines(lines.clone(), remote_address, &opts);
             if opts.print.logs {
                 for line in lines.clone() {
                     println!("log => {}", line);
@@ -488,9 +496,14 @@ pub struct LogsCountResponse {
 pub async fn handler_logs_count(
     app_state: web::Data<AppState>,
     web::Query(params): web::Query<LogsParams>,
+    opts: web::Data<options::Options>,
 ) -> impl Responder {
+    if !opts.store_logs {
+        return HttpResponse::NotImplemented().body("Use the --store-logs flag to enable this endpoint");
+    }
+
     let count = app_state
-        .logs
+        .log_messages
         .read()
         .unwrap()
         .get_message_count(params.from_ts, params.to_ts);
@@ -529,7 +542,7 @@ pub fn start_print_stats_timer(
     t.schedule_repeating(interval, move || {
         let now = get_now();
         let metrics = app_state.metrics.lock().unwrap();
-        let logs = app_state.logs.read().unwrap();
+        let log_stats = app_state.log_stats.read().unwrap();
 
         // TODO: make this print metrics per minute (as DPM) and logs
         // per second, regardless of used interval
@@ -538,14 +551,14 @@ pub fn start_print_stats_timer(
             "{} Metrics: {:10.} Logs: {:10.}; {:6.6} MB/s",
             now,
             *metrics - p_metrics,
-            logs.total.count - p_logs,
-            ((logs.total.bytes - p_logs_bytes) as f64) / ((now - ts) as f64) / (1e6 as f64)
+            log_stats.total.message_count - p_logs,
+            ((log_stats.total.byte_count - p_logs_bytes) as f64) / ((now - ts) as f64) / (1e6 as f64)
         );
 
         ts = now;
         p_metrics = *metrics;
-        p_logs = logs.total.count;
-        p_logs_bytes = logs.total.bytes;
+        p_logs = log_stats.total.message_count;
+        p_logs_bytes = log_stats.total.byte_count;
     })
 }
 
@@ -883,6 +896,7 @@ mod tests_metrics {
             },
             drop_rate: 0,
             store_metrics: true,
+            store_logs: true,
         };
 
         let mut app = test::init_service(
@@ -1042,19 +1056,29 @@ mod tests_logs {
 
     #[actix_rt::test]
     async fn test_handler_logs_count() {
-        let ip_address = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
         let timestamps = [1, 5, 8];
-        let bodies = timestamps
+        let raw_logs = timestamps
             .iter()
-            .map(|ts| format!("{{\"log\": \"Log message\", \"timestamp\": {}}}", ts));
-        let raw_logs: Vec<(String, IpAddr)> = bodies.map(|body| (body, ip_address)).collect();
+            .map(|ts| format!("{{\"log\": \"Log message\", \"timestamp\": {}}}", ts))
+            .collect();
         let repository = logs::LogRepository::from_raw_logs(raw_logs).unwrap();
         let mut app_state = AppState::new();
-        app_state.logs = RwLock::new(repository);
+        app_state.log_messages = RwLock::new(repository);
         let app_data = web::Data::new(app_state);
+        let opts = options::Options {
+            print: options::Print {
+                logs: false,
+                headers: false,
+                metrics: false,
+            },
+            drop_rate: 0,
+            store_metrics: true,
+            store_logs: true,
+        };
 
         let mut app = test::init_service(
             App::new()
+                .data(opts.clone())
                 .app_data(app_data.clone()) // Mutable shared state
                 .route("/logs/count", web::get().to(handler_logs_count)),
         )
