@@ -4,10 +4,9 @@ use std::sync::{Mutex, RwLock};
 
 use actix_http::http;
 use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
-use bytes;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
-use serde_derive::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 use crate::logs;
 use crate::metrics;
@@ -393,7 +392,7 @@ pub async fn handler_terraform_fields_create(
 
 pub async fn handler_receiver(
     req: HttpRequest,
-    body: bytes::Bytes,
+    body: web::Bytes ,
     app_state: web::Data<AppState>,
     opts: web::Data<options::Options>,
 ) -> impl Responder {
@@ -762,7 +761,7 @@ mod tests_metrics {
 
             let body = test::read_body(resp).await;
             assert_eq!(
-                bytes::Bytes::from_static(
+                web::Bytes::from_static(
                     b"# TYPE receiver_mock_metrics_count counter\n\
                  receiver_mock_metrics_count 3000\n\
                  # TYPE receiver_mock_logs_count counter\n\
@@ -788,7 +787,7 @@ mod tests_metrics {
 
             let body = test::read_body(resp).await;
             assert_eq!(
-                bytes::Bytes::from_static(
+                web::Bytes::from_static(
                     b"# TYPE receiver_mock_metrics_count counter\n\
                   receiver_mock_metrics_count 0\n\
                   # TYPE receiver_mock_logs_count counter\n\
