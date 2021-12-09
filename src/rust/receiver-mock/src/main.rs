@@ -3,7 +3,7 @@
 extern crate json_str;
 
 use std::collections::HashMap;
-use std::sync::{Mutex, RwLock};
+use std::sync::Mutex;
 
 use actix_service::Service;
 use actix_web::web;
@@ -58,6 +58,13 @@ async fn main() -> std::io::Result<()> {
           .help("Use to print received metrics (with dimensions) on stdout")
           .takes_value(false)
           .required(false))
+      .arg(Arg::with_name("store_metrics")
+          .short("s")
+          .long("store-metrics")
+          .value_name("store_metrics")
+          .help("Use to store metrics which will then be returned via /metrics-samples")
+          .takes_value(false)
+          .required(false))
       .arg(Arg::with_name("drop_rate")
           .short("d")
           .long("drop-rate")
@@ -77,18 +84,14 @@ async fn main() -> std::io::Result<()> {
             metrics: matches.is_present("print_metrics"),
         },
         drop_rate: drop_rate,
+        store_metrics: matches.is_present("store_metrics"),
     };
 
     run_app(hostname, port, opts).await
 }
 
 async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<()> {
-    let app_state = web::Data::new(router::AppState {
-        metrics: Mutex::new(0),
-        logs: RwLock::new(logs::LogRepository::new()),
-        metrics_list: Mutex::new(HashMap::new()),
-        metrics_ip_list: Mutex::new(HashMap::new()),
-    });
+    let app_state = web::Data::new(router::AppState::new());
 
     let t = timer::Timer::new();
     // TODO: configure interval?
@@ -118,12 +121,13 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
             })
             .app_data(app_state.clone()) // Mutable shared state
             .data(opts.clone())
-            .route(
-                "/metrics-reset",
-                web::post().to(router::handler_metrics_reset),
-            )
+            .route("/metrics-reset", web::post().to(router::handler_metrics_reset))
             .route("/metrics-list", web::get().to(router::handler_metrics_list))
             .route("/metrics-ips", web::get().to(router::handler_metrics_ips))
+            .route(
+                "/metrics-samples",
+                web::get().to(router::handler_metrics_samples),
+            )
             .route("/metrics", web::get().to(router::handler_metrics))
             .service(
                 web::scope("/terraform")

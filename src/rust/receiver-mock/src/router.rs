@@ -1,17 +1,17 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::{Mutex, RwLock};
 
 use actix_http::http;
 use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
 use bytes;
-use chrono::Duration;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::logs;
 use crate::metrics;
+use crate::metrics::Sample;
 use crate::options;
 use crate::time::get_now;
 
@@ -21,15 +21,29 @@ pub struct AppState {
     pub metrics: Mutex<u64>,
     pub logs: RwLock<logs::LogRepository>,
 
+    pub metrics_samples: Mutex<HashSet<Sample>>,
     pub metrics_list: Mutex<HashMap<String, u64>>,
     pub metrics_ip_list: Mutex<HashMap<IpAddr, u64>>,
 }
 
 impl AppState {
-    pub fn add_metrics_result(&self, result: metrics::MetricsHandleResult) {
+    pub fn new() -> Self {
+        return Self {
+            logs: RwLock::new(logs::LogRepository::new()),
+
+            metrics: Mutex::new(0),
+            metrics_list: Mutex::new(HashMap::new()),
+            metrics_ip_list: Mutex::new(HashMap::new()),
+            metrics_samples: Mutex::new(HashSet::new()),
+        };
+    }
+}
+
+impl AppState {
+    pub fn add_metrics_result(&self, result: metrics::MetricsHandleResult, opts: &options::Options) {
         {
             let mut metrics = self.metrics.lock().unwrap();
-            *metrics += result.metrics;
+            *metrics += result.metrics_count;
         }
 
         {
@@ -43,6 +57,15 @@ impl AppState {
             let mut metrics_ip_list = self.metrics_ip_list.lock().unwrap();
             for (&ip_address, count) in result.metrics_ip_list.iter() {
                 *metrics_ip_list.entry(ip_address).or_insert(0) += count;
+            }
+        }
+
+        if opts.store_metrics {
+            // Replace old data points that represent the same data series
+            // (the same metric name and labels) with new ones.
+            let mut samples = self.metrics_samples.lock().unwrap();
+            for s in result.metrics_samples {
+                samples.replace(s);
             }
         }
     }
@@ -85,6 +108,57 @@ pub async fn handler_metrics_ips(app_state: web::Data<AppState>) -> impl Respond
     HttpResponse::Ok().body(out)
 }
 
+// Return consumed metrics. Endpoint handled by this handler will accept URL query
+// which is a key value list of label names and values that the metric should contain
+// in order be returned.
+// Label values can be ommitted in which case only presence of a particular label
+// will be checked, not its value in the filtered sample.
+// `__name__` is handled specially as it will be matched against the metric name.
+//
+// Exemplar usage of this endpoint:
+//
+// $ curl -s localhost:3000/metrics-samples\?__name__=apiserver_request_total\&cluster | jq .
+// [
+//     {
+//       "metric": "apiserver_request_total",
+//       "value": 124,
+//       "labels": {
+//         "prometheus_replica": "prometheus-release-test-1638873119-ku-prometheus-0",
+//         "_origin": "kubernetes",
+//         "component": "apiserver",
+//         "service": "kubernetes",
+//         "resource": "events",
+//         "code": "422",
+//         "instance": "172.18.0.2:6443",
+//         "group": "events.k8s.io",
+//         "namespace": "default",
+//         "verb": "POST",
+//         "scope": "resource",
+//         "endpoint": "https",
+//         "version": "v1",
+//         "job": "apiserver",
+//         "cluster": "microk8s",
+//         "prometheus": "ns-test-1638873119/release-test-1638873119-ku-prometheus"
+//       },
+//       "timestamp": 163123123
+//     }
+//   ]
+//
+pub async fn handler_metrics_samples(
+    app_state: web::Data<AppState>,
+    web::Query(params): web::Query<HashMap<String, String>>,
+    opts: web::Data<options::Options>,
+) -> impl Responder {
+    if !opts.store_metrics {
+        return HttpResponse::NotImplemented().body("");
+    }
+
+    let samples = &*app_state.metrics_samples.lock().unwrap();
+    let response = metrics::filter_samples(samples, params);
+
+    HttpResponse::Ok().json(response)
+}
+
 // Metrics in prometheus format
 pub async fn handler_metrics(app_state: web::Data<AppState>) -> impl Responder {
     let mut body = format!(
@@ -102,8 +176,7 @@ receiver_mock_logs_bytes_count {}\n",
     {
         let metrics_ip_list = app_state.metrics_ip_list.lock().unwrap();
         if metrics_ip_list.len() > 0 {
-            let mut metrics_ip_string =
-                String::from("# TYPE receiver_mock_metrics_ip_count counter\n");
+            let mut metrics_ip_string = String::from("# TYPE receiver_mock_metrics_ip_count counter\n");
             for (ip, count) in metrics_ip_list.iter() {
                 metrics_ip_string.push_str(&format!(
                     "receiver_mock_metrics_ip_count{{ip_address=\"{}\"}} {}\n",
@@ -117,10 +190,8 @@ receiver_mock_logs_bytes_count {}\n",
     {
         let logs = app_state.logs.read().unwrap();
         if logs.ipaddr_to_stats.len() > 0 {
-            let mut logs_ip_count_bytes_string =
-                String::from("# TYPE receiver_mock_logs_bytes_ip_count counter\n");
-            let mut logs_ip_count_string =
-                String::from("# TYPE receiver_mock_logs_ip_count counter\n");
+            let mut logs_ip_count_bytes_string = String::from("# TYPE receiver_mock_logs_bytes_ip_count counter\n");
+            let mut logs_ip_count_string = String::from("# TYPE receiver_mock_logs_ip_count counter\n");
 
             for (ip, val) in logs.ipaddr_to_stats.iter() {
                 logs_ip_count_string.push_str(&format!(
@@ -180,9 +251,7 @@ struct TerraformFieldObject {
     state: String,
 }
 
-pub async fn handler_terraform_fields(
-    terraform_state: web::Data<TerraformState>,
-) -> impl Responder {
+pub async fn handler_terraform_fields(terraform_state: web::Data<TerraformState>) -> impl Responder {
     #[derive(Serialize)]
     struct TerraformFieldsResponse {
         data: Vec<TerraformFieldObject>,
@@ -196,9 +265,7 @@ pub async fn handler_terraform_fields(
         state: String::from("Enabled"),
     });
 
-    web::Json(TerraformFieldsResponse {
-        data: res.collect(),
-    })
+    web::Json(TerraformFieldsResponse { data: res.collect() })
 }
 
 #[derive(Deserialize)]
@@ -275,13 +342,15 @@ pub async fn handler_terraform_fields_create(
         .map(char::from)
         .collect();
     let requested_name = req.field_name.clone();
-    let exists = fields.iter().find_map(|(id, name)| {
-        if name == &requested_name {
-            Some(id)
-        } else {
-            None
-        }
-    });
+    let exists = fields.iter().find_map(
+        |(id, name)| {
+            if name == &requested_name {
+                Some(id)
+            } else {
+                None
+            }
+        },
+    );
 
     match exists {
         // Field with given ID already existed
@@ -330,8 +399,7 @@ pub async fn handler_receiver(
 ) -> impl Responder {
     // Don't fail when we can't read remote address.
     // Default to localhost and just ingest what was sent.
-    let localhost: std::net::SocketAddr =
-        std::net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+    let localhost: std::net::SocketAddr = std::net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
     let remote_address = req.peer_addr().unwrap_or(localhost).ip();
 
     // actix automatically decompresses body for us.
@@ -340,11 +408,7 @@ pub async fn handler_receiver(
 
     let headers = req.headers();
     let empty_header = http::HeaderValue::from_str("").unwrap();
-    let content_type = headers
-        .get("content-type")
-        .unwrap_or(&empty_header)
-        .to_str()
-        .unwrap();
+    let content_type = headers.get("content-type").unwrap_or(&empty_header).to_str().unwrap();
 
     let mut rng = rand::thread_rng();
     let number: i64 = rng.gen_range(0..100);
@@ -357,19 +421,19 @@ pub async fn handler_receiver(
         // Metrics in carbon2 format
         "application/vnd.sumologic.carbon2" => {
             let result = metrics::handle_carbon2(lines, remote_address, opts.print);
-            app_state.add_metrics_result(result);
+            app_state.add_metrics_result(result, opts.get_ref());
         }
 
         // Metrics in graphite format
         "application/vnd.sumologic.graphite" => {
             let result = metrics::handle_graphite(lines, remote_address, opts.print);
-            app_state.add_metrics_result(result);
+            app_state.add_metrics_result(result, opts.get_ref());
         }
 
         // Metrics in prometheus format
         "application/vnd.sumologic.prometheus" => {
-            let result = metrics::handle_prometheus(lines, remote_address, opts.print);
-            app_state.add_metrics_result(result);
+            let result = metrics::handle_prometheus(lines, remote_address, opts.get_ref());
+            app_state.add_metrics_result(result, opts.get_ref());
         }
 
         // Logs & events
@@ -415,7 +479,7 @@ pub fn print_request_headers(
 // ref: https://github.com/SumoLogic/sumologic-kubernetes-tools/issues/58
 pub fn start_print_stats_timer(
     t: &timer::Timer,
-    interval: Duration,
+    interval: chrono::Duration,
     app_state: web::Data<AppState>,
 ) -> timer::Guard {
     let mut p_metrics: u64 = 0;
@@ -447,7 +511,7 @@ pub fn start_print_stats_timer(
 }
 
 #[cfg(test)]
-mod tests {
+mod tests_terraform {
     use super::*;
     use actix_rt;
     use actix_web::{test, web, App};
@@ -500,9 +564,7 @@ mod tests {
             );
         }
         {
-            let req = test::TestRequest::get()
-                .uri("/different_route")
-                .to_request();
+            let req = test::TestRequest::get().uri("/different_route").to_request();
             let mut resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 404);
 
@@ -512,20 +574,191 @@ mod tests {
     }
 
     #[actix_rt::test]
-    async fn test_handler_metrics_reset() {
-        let mut metrics_list = HashMap::new();
-        metrics_list.insert(String::from("mem_active"), 1000);
-        metrics_list.insert(String::from("mem_free"), 2000);
-        let app_state = web::Data::new(AppState {
-            metrics: Mutex::new(3000),
-            logs: RwLock::new(logs::LogRepository::new()),
-            metrics_list: Mutex::new(metrics_list),
-            metrics_ip_list: Mutex::new(HashMap::new()),
+    async fn test_handler_terraform_fields_quota() {
+        let app_metadata = web::Data::new(AppMetadata {
+            url: String::from("http://hostname:3000/receiver"),
+        });
+
+        let web_data_app_state = web::Data::new(AppState::new());
+
+        let mut app = test::init_service(
+            App::new()
+                .app_data(web_data_app_state.clone()) // Mutable shared state
+                .service(
+                    web::scope("/terraform")
+                        .app_data(app_metadata.clone())
+                        .route(
+                            "/api/v1/fields/quota",
+                            web::get().to(handler_terraform_fields_quota),
+                        )
+                        .default_service(web::get().to(handler_terraform)),
+                ),
+        )
+        .await;
+
+        {
+            let req = test::TestRequest::get()
+                .uri("/terraform/api/v1/fields/quota")
+                .to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            assert_eq!(bytes.unwrap(), r#"{"quota":200,"remaining":100}"#);
+        }
+    }
+
+    #[actix_rt::test]
+    async fn test_handler_terraform_fields() {
+        let app_metadata = web::Data::new(AppMetadata {
+            url: String::from("http://hostname:3000/receiver"),
+        });
+
+        let web_data_app_state = web::Data::new(AppState::new());
+
+        let terraform_state = web::Data::new(TerraformState {
+            fields: Mutex::new(HashMap::new()),
         });
 
         let mut app = test::init_service(
             App::new()
-                .app_data(app_state.clone()) // Mutable shared state
+                .app_data(web_data_app_state.clone()) // Mutable shared state
+                .service(
+                    web::scope("/terraform")
+                        .app_data(app_metadata.clone())
+                        .app_data(terraform_state.clone())
+                        .route("/api/v1/fields/{field}", web::get().to(handler_terraform_field))
+                        .route(
+                            "/api/v1/fields",
+                            web::post().to(handler_terraform_fields_create),
+                        )
+                        .route("/api/v1/fields", web::get().to(handler_terraform_fields))
+                        .default_service(web::get().to(handler_terraform)),
+                ),
+        )
+        .await;
+
+        {
+            let req = test::TestRequest::get().uri("/terraform/api/v1/fields").to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            assert_eq!(
+                bytes.unwrap(),
+                json_str!({
+                    data: []
+                })
+            );
+        }
+
+        {
+            let req = test::TestRequest::get()
+                .uri("/terraform/api/v1/fields/dummyID123")
+                .to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 404);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            assert_eq!(
+                bytes.unwrap(),
+                json_str!({
+                    id: "QL6LR-5P7KI-RAR20",
+                    errors: [
+                        {
+                            code: "field:doesnt_exist",
+                            message: "Field with the given id doesn't exist",
+                            meta: {
+                                id: "dummyID123"
+                            }
+                        }
+                    ]
+                })
+            );
+        }
+
+        {
+            let req = test::TestRequest::get().uri("/terraform/api/v1/fields").to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            assert_eq!(
+                bytes.unwrap(),
+                json_str!({
+                    data: []
+                })
+            );
+        }
+
+        {
+            let req = test::TestRequest::post()
+                .uri("/terraform/api/v1/fields")
+                .set_json(&TerraformFieldCreateRequest {
+                    field_name: String::from("dummyID123"),
+                })
+                .to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            // Probably add more checks about the returned body: generated random
+            // IDs are a bit problematic here.
+            assert_ne!(
+                bytes.unwrap(),
+                json_str!({
+                    data: []
+                })
+            );
+        }
+
+        {
+            let req = test::TestRequest::get().uri("/terraform/api/v1/fields").to_request();
+            let mut resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+
+            // Probably add more checks about the returned body: generated random
+            // IDs are a bit problematic here.
+            assert_ne!(
+                bytes.unwrap(),
+                json_str!({
+                    data: []
+                })
+            );
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests_metrics {
+    use super::*;
+    use actix_rt;
+    use actix_web::{test, web, App};
+    use futures_util::stream::TryStreamExt;
+    use std::array::IntoIter;
+    use std::iter::FromIterator;
+
+    #[actix_rt::test]
+    async fn test_handler_metrics_reset() {
+        let mut metrics_list = HashMap::new();
+        metrics_list.insert(String::from("mem_active"), 1000);
+        metrics_list.insert(String::from("mem_free"), 2000);
+
+        let app_state = AppState::new();
+        *app_state.metrics.lock().unwrap() = 3000;
+        *app_state.metrics_list.lock().unwrap() = metrics_list;
+        let web_data_app_state = web::Data::new(app_state);
+
+        let mut app = test::init_service(
+            App::new()
+                .app_data(web_data_app_state.clone()) // Mutable shared state
                 .route("/metrics-reset", web::post().to(handler_metrics_reset))
                 .route("/metrics", web::get().to(handler_metrics)),
         )
@@ -579,16 +812,15 @@ receiver_mock_logs_bytes_count 0
     async fn test_handler_metrics_list() {
         let mut metrics_list = HashMap::new();
         metrics_list.insert(String::from("mem_free"), 2000);
-        let app_state = web::Data::new(AppState {
-            metrics: Mutex::new(2000),
-            logs: RwLock::new(logs::LogRepository::new()),
-            metrics_list: Mutex::new(metrics_list),
-            metrics_ip_list: Mutex::new(HashMap::new()),
-        });
+
+        let app_state = AppState::new();
+        *app_state.metrics.lock().unwrap() = 2000;
+        *app_state.metrics_list.lock().unwrap() = metrics_list;
+        let web_data_app_state = web::Data::new(app_state);
 
         let mut app = test::init_service(
             App::new()
-                .app_data(app_state.clone()) // Mutable shared state
+                .app_data(web_data_app_state.clone()) // Mutable shared state
                 .route("/metrics-list", web::get().to(handler_metrics_list))
                 .route("/metrics", web::get().to(handler_metrics)),
         )
@@ -609,183 +841,164 @@ receiver_mock_logs_bytes_count 0
     }
 
     #[actix_rt::test]
-    async fn test_handler_terraform_fields_quota() {
-        let app_metadata = web::Data::new(AppMetadata {
-            url: String::from("http://hostname:3000/receiver"),
-        });
-
-        let app_state = web::Data::new(AppState {
-            metrics: Mutex::new(0),
-            logs: RwLock::new(logs::LogRepository::new()),
-            metrics_list: Mutex::new(HashMap::new()),
-            metrics_ip_list: Mutex::new(HashMap::new()),
-        });
+    async fn test_handler_metrics_storage() {
+        let web_data_app_state = web::Data::new(AppState::new());
+        let opts = options::Options {
+            print: options::Print {
+                logs: false,
+                headers: false,
+                metrics: false,
+            },
+            drop_rate: 0,
+            store_metrics: true,
+        };
 
         let mut app = test::init_service(
-            App::new()
-                .app_data(app_state.clone()) // Mutable shared state
-                .service(
-                    web::scope("/terraform")
-                        .app_data(app_metadata.clone())
-                        .route(
-                            "/api/v1/fields/quota",
-                            web::get().to(handler_terraform_fields_quota),
-                        )
-                        .default_service(web::get().to(handler_terraform)),
-                ),
+            actix_web::App::new()
+                .data(opts.clone())
+                .app_data(web_data_app_state.clone()) // Mutable shared state
+                .route("/metrics-samples", web::get().to(handler_metrics_samples))
+                .default_service(web::get().to(handler_receiver)),
         )
         .await;
 
         {
-            let req = test::TestRequest::get()
-                .uri("/terraform/api/v1/fields/quota")
-                .to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            let req = test::TestRequest::post().uri("/")
+            .set_payload(r#"apiserver_request_total{cluster="microk8s",mock="yes",code="200",component="apiserver",endpoint="https",group="events.k8s.io",job="apiserver"} 123.12 1638873379541"#)
+            .header("Content-Type", "application/vnd.sumologic.prometheus")
+            .to_request();
+
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
-
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
-
-            assert_eq!(bytes.unwrap(), r#"{"quota":200,"remaining":100}"#);
         }
-    }
-
-    #[actix_rt::test]
-    async fn test_handler_terraform_fields() {
-        let app_metadata = web::Data::new(AppMetadata {
-            url: String::from("http://hostname:3000/receiver"),
-        });
-
-        let app_state = web::Data::new(AppState {
-            metrics: Mutex::new(0),
-            logs: RwLock::new(logs::LogRepository::new()),
-            metrics_list: Mutex::new(HashMap::new()),
-            metrics_ip_list: Mutex::new(HashMap::new()),
-        });
-
-        let terraform_state = web::Data::new(TerraformState {
-            fields: Mutex::new(HashMap::new()),
-        });
-
-        let mut app = test::init_service(
-            App::new()
-                .app_data(app_state.clone()) // Mutable shared state
-                .service(
-                    web::scope("/terraform")
-                        .app_data(app_metadata.clone())
-                        .app_data(terraform_state.clone())
-                        .route(
-                            "/api/v1/fields/{field}",
-                            web::get().to(handler_terraform_field),
-                        )
-                        .route(
-                            "/api/v1/fields",
-                            web::post().to(handler_terraform_fields_create),
-                        )
-                        .route("/api/v1/fields", web::get().to(handler_terraform_fields))
-                        .default_service(web::get().to(handler_terraform)),
-                ),
-        )
-        .await;
-
         {
-            let req = test::TestRequest::get()
-                .uri("/terraform/api/v1/fields")
-                .to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            let req = test::TestRequest::get().uri("/metrics-samples").to_request();
+
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
-
+            let result: Vec<Sample> = test::read_body_json(resp).await;
+            assert_eq!(result.len(), 1);
+            assert_eq!(result[0].metric, "apiserver_request_total");
+            assert_eq!(result[0].value, 123.12);
+            assert_eq!(result[0].timestamp, 1638873379541);
             assert_eq!(
-                bytes.unwrap(),
-                json_str!({
-                    data: []
-                })
+                result[0].labels,
+                // ref: https://stackoverflow.com/a/27582993
+                HashMap::<String, String>::from_iter(IntoIter::new([
+                    ("mock".to_owned(), "yes".to_owned()),
+                    ("group".to_owned(), "events.k8s.io".to_owned()),
+                    ("code".to_owned(), "200".to_owned()),
+                    ("job".to_owned(), "apiserver".to_owned()),
+                    ("cluster".to_owned(), "microk8s".to_owned()),
+                    ("component".to_owned(), "apiserver".to_owned()),
+                    ("endpoint".to_owned(), "https".to_owned()),
+                ]))
             );
         }
-
         {
+            // Another request with a different time series (different labels set)
+            // should produce a different/new time series
+            let req = test::TestRequest::post().uri("/")
+            .set_payload(r#"apiserver_request_total{cluster="microk8s",code="200",component="apiserver",endpoint="https",group="events.k8s.io",job="apiserver",namespace="default",resource="events"} 128.12 1638873379541"#)
+            .header("Content-Type", "application/vnd.sumologic.prometheus")
+            .to_request();
+
+            let resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+        }
+        {
+            // Let's check those by adding URL query params
+            // This time series has a namespace & resources labels while the other
+            // one doesn't.
             let req = test::TestRequest::get()
-                .uri("/terraform/api/v1/fields/dummyID123")
+                .uri("/metrics-samples?resource=events")
                 .to_request();
-            let mut resp = test::call_service(&mut app, req).await;
-            assert_eq!(resp.status(), 404);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
+            let resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
 
+            let result: Vec<Sample> = test::read_body_json(resp).await;
+            assert_eq!(result.len(), 1);
+            assert_eq!(result[0].metric, "apiserver_request_total");
+            assert_eq!(result[0].value, 128.12);
+            assert_eq!(result[0].timestamp, 1638873379541);
             assert_eq!(
-                bytes.unwrap(),
-                json_str!({
-                    id: "QL6LR-5P7KI-RAR20",
-                    errors: [
-                        {
-                            code: "field:doesnt_exist",
-                            message: "Field with the given id doesn't exist",
-                            meta: {
-                                id: "dummyID123"
-                            }
-                        }
-                    ]
-                })
+                result[0].labels,
+                HashMap::<String, String>::from_iter(IntoIter::new([
+                    ("cluster".to_owned(), "microk8s".to_owned()),
+                    ("code".to_owned(), "200".to_owned()),
+                    ("component".to_owned(), "apiserver".to_owned()),
+                    ("endpoint".to_owned(), "https".to_owned()),
+                    ("group".to_owned(), "events.k8s.io".to_owned()),
+                    ("job".to_owned(), "apiserver".to_owned()),
+                    ("namespace".to_owned(), "default".to_owned()),
+                    ("resource".to_owned(), "events".to_owned()),
+                ]))
             );
         }
-
         {
-            let req = test::TestRequest::get()
-                .uri("/terraform/api/v1/fields")
-                .to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            // Checking for existence of `namespace` label should also yield the
+            // second time series only.
+            let req = test::TestRequest::get().uri("/metrics-samples?namespace").to_request();
+
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
-
+            let result: Vec<Sample> = test::read_body_json(resp).await;
+            assert_eq!(result.len(), 1);
+            assert_eq!(result[0].metric, "apiserver_request_total");
+            assert_eq!(result[0].value, 128.12);
+            assert_eq!(result[0].timestamp, 1638873379541);
             assert_eq!(
-                bytes.unwrap(),
-                json_str!({
-                    data: []
-                })
+                result[0].labels,
+                HashMap::<String, String>::from_iter(IntoIter::new([
+                    ("cluster".to_owned(), "microk8s".to_owned()),
+                    ("code".to_owned(), "200".to_owned()),
+                    ("component".to_owned(), "apiserver".to_owned()),
+                    ("endpoint".to_owned(), "https".to_owned()),
+                    ("group".to_owned(), "events.k8s.io".to_owned()),
+                    ("job".to_owned(), "apiserver".to_owned()),
+                    ("namespace".to_owned(), "default".to_owned()),
+                    ("resource".to_owned(), "events".to_owned()),
+                ]))
             );
         }
-
         {
-            let req = test::TestRequest::post()
-                .uri("/terraform/api/v1/fields")
-                .set_json(&TerraformFieldCreateRequest {
-                    field_name: String::from("dummyID123"),
-                })
-                .to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            // and now let's check the previous time series with URL query params
+            let req = test::TestRequest::get().uri("/metrics-samples?mock=yes").to_request();
+
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
-
-            // Probably add more checks about the returned body: generated random
-            // IDs are a bit problematic here.
-            assert_ne!(
-                bytes.unwrap(),
-                json_str!({
-                    data: []
-                })
+            let result: Vec<Sample> = test::read_body_json(resp).await;
+            assert_eq!(result.len(), 1);
+            assert_eq!(result[0].metric, "apiserver_request_total");
+            assert_eq!(result[0].value, 123.12);
+            assert_eq!(result[0].timestamp, 1638873379541);
+            assert_eq!(
+                result[0].labels,
+                HashMap::<String, String>::from_iter(IntoIter::new([
+                    ("mock".to_owned(), "yes".to_owned()),
+                    ("group".to_owned(), "events.k8s.io".to_owned()),
+                    ("code".to_owned(), "200".to_owned()),
+                    ("job".to_owned(), "apiserver".to_owned()),
+                    ("cluster".to_owned(), "microk8s".to_owned()),
+                    ("component".to_owned(), "apiserver".to_owned()),
+                    ("endpoint".to_owned(), "https".to_owned()),
+                ]))
             );
         }
-
         {
-            let req = test::TestRequest::get()
-                .uri("/terraform/api/v1/fields")
-                .to_request();
-            let mut resp = test::call_service(&mut app, req).await;
+            // Now let's just check that we have those 2 time series when no
+            // filters are applied.
+            let req = test::TestRequest::get().uri("/metrics-samples").to_request();
+
+            let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
-            let bytes = test::load_stream(resp.take_body().into_stream()).await;
-
-            // Probably add more checks about the returned body: generated random
-            // IDs are a bit problematic here.
-            assert_ne!(
-                bytes.unwrap(),
-                json_str!({
-                    data: []
-                })
-            );
+            let result: Vec<Sample> = test::read_body_json(resp).await;
+            assert_eq!(result.len(), 2);
         }
     }
 }

@@ -54,6 +54,45 @@ There are endpoints which provides statistics:
 
 - `/metrics-reset` - reset the metrics counter (zeroes `/metrics-list`)
 
+- `/metrics-samples` - return metrics samples (last data point for each time series)
+
+  It accepts a list of key value pairs being a label set that the metric sample will
+  have to fullfil in order to be returned.
+  Label values can be ommitted in which case only presence of a particular label
+  will be checked.
+  `__name__` is handled specially as it will be matched against the metric name.
+
+  Exemplar output:
+
+  ```shell
+  $ curl -s localhost:3000/metrics-samples\?__name__=apiserver_request_total\&cluster | jq .
+  [
+      {
+        "metric": "apiserver_request_total",
+        "value": 124,
+        "labels": {
+          "prometheus_replica": "prometheus-release-test-1638873119-ku-prometheus-0",
+          "_origin": "kubernetes",
+          "component": "apiserver",
+          "service": "kubernetes",
+          "resource": "events",
+          "code": "422",
+          "instance": "172.18.0.2:6443",
+          "group": "events.k8s.io",
+          "namespace": "default",
+          "verb": "POST",
+          "scope": "resource",
+          "endpoint": "https",
+          "version": "v1",
+          "job": "apiserver",
+          "cluster": "microk8s",
+          "prometheus": "ns-test-1638873119/release-test-1638873119-ku-prometheus"
+        },
+        "timestamp": 163123123
+      }
+    ]
+  ```
+
 ## Disclaimer
 
 This tool is not intended to be used by the 3rd party.

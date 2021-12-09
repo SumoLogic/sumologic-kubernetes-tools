@@ -11,4 +11,13 @@ check-rustfmt:
 
 .PHONY: test
 test:
-	cargo test
+	@cargo test
+
+.PHONY: build
+build:
+	@cargo build --release
+
+.PHONY: build-debug
+build-debug:
+	@cargo build
+
