@@ -1,4 +1,5 @@
 use crate::time;
+use anyhow::anyhow;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::net::IpAddr;
@@ -52,10 +53,12 @@ impl LogStatsRepository {
     }
 }
 
+pub type LogMetadata = HashMap<String, String>;
+
 #[derive(Clone)]
 pub struct LogMessage {
     // This structure is intended to house more data as we add APIs requiring it
-// For example, metadata when we want to query log count by label
+    metadata: LogMetadata,
 }
 
 #[derive(Clone)]
@@ -72,15 +75,15 @@ impl LogRepository {
 
     // This function is a helper to make repository creation in tests easier
     #[cfg(test)]
-    pub fn from_raw_logs(raw_logs: Vec<String>) -> Result<Self, anyhow::Error> {
+    pub fn from_raw_logs(raw_logs: Vec<(String, LogMetadata)>) -> Result<Self, anyhow::Error> {
         let mut repository = Self::new();
-        for body in raw_logs {
-            repository.add_log_message(body)
+        for (body, metadata) in raw_logs {
+            repository.add_log_message(body, metadata)
         }
         return Ok(repository);
     }
 
-    pub fn add_log_message(&mut self, body: String) {
+    pub fn add_log_message(&mut self, body: String, metadata: LogMetadata) {
         // add the log message to the time index
         let timestamp = match get_timestamp_from_body(&body) {
             Some(ts) => ts,
@@ -90,16 +93,42 @@ impl LogRepository {
             }
         };
         let messages = self.messages_by_ts.entry(timestamp).or_insert(Vec::new());
-        messages.push(LogMessage {});
+        messages.push(LogMessage { metadata });
     }
 
-    pub fn get_message_count(&self, from_ts: u64, to_ts: u64) -> usize {
+    // Count logs with timestamps in the provided range, with the provided metadata. Empty values
+    // in the metadata map mean we just check if the key is there.
+    pub fn get_message_count(&self, from_ts: u64, to_ts: u64, metadata_query: HashMap<&str, &str>) -> usize {
         let mut count = 0;
         let entries = self.messages_by_ts.range(from_ts..to_ts);
         for (_, messages) in entries {
-            count += messages.len()
+            for message in messages {
+                if Self::metadata_matches(&metadata_query, &message.metadata) {
+                    count += 1
+                }
+            }
         }
         return count;
+    }
+
+    // Check if log metadata matches a query in the form of a map of string to string.
+    // There's a match if the metadata contains the same keys and values as the query.
+    // The query value of an empty string has special meaning, it matches anything.
+    fn metadata_matches(query: &HashMap<&str, &str>, target: &LogMetadata) -> bool {
+        for (key, value) in query.iter() {
+            let target_value = match target.get(*key) {
+                // get the value from the target
+                Some(v) => v,
+                None => return false, // key not present, no match
+            };
+            if value.len() > 0 {
+                // always match if query value is ""
+                if value != target_value {
+                    return false; // different values, no match
+                }
+            }
+        }
+        return true;
     }
 }
 
@@ -116,22 +145,15 @@ fn get_timestamp_from_body(body: &str) -> Option<u64> {
 }
 
 /// Parse the value of the X-Sumo-Fields header into a map of field name to field value
-fn parse_sumo_fields_header_value(header_value: &str) -> Result<HashMap<String, String>, anyhow::Error> {
+pub fn parse_sumo_fields_header_value(header_value: &str) -> Result<LogMetadata, anyhow::Error> {
     let mut field_values = HashMap::new();
     if header_value.trim().len() == 0 {
         return Ok(field_values);
     }
     for entry in header_value.split(",") {
         match entry.trim().split_once("=") {
-            Some((field_name, field_value)) => {
-                field_values.insert(field_name.to_string(), field_value.to_string())
-            }
-            None => {
-                return Err(anyhow!(
-                    "Failed to parse X-Sumo-Fields, no `=` in {}",
-                    entry
-                ))
-            }
+            Some((field_name, field_value)) => field_values.insert(field_name.to_string(), field_value.to_string()),
+            None => return Err(anyhow!("Failed to parse X-Sumo-Fields, no `=` in {}", entry)),
         };
     }
     return Ok(field_values);
@@ -141,6 +163,8 @@ fn parse_sumo_fields_header_value(header_value: &str) -> Result<HashMap<String, 
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
+    use std::array::IntoIter;
+    use std::iter::FromIterator;
     use std::net::{IpAddr, Ipv4Addr};
 
     #[test]
@@ -174,7 +198,7 @@ mod tests {
         let mut repository = LogRepository::new();
         let body = r#"{"log": "Log message", "timestamp": 1}"#;
 
-        repository.add_log_message(body.to_string());
+        repository.add_log_message(body.to_string(), LogMetadata::new());
 
         assert_eq!(repository.messages_by_ts.len(), 1);
     }
@@ -184,7 +208,7 @@ mod tests {
         let mut repository = LogRepository::new();
         let body_without_ts = r#"{"log": "Log message"}"#;
 
-        repository.add_log_message(body_without_ts.to_string());
+        repository.add_log_message(body_without_ts.to_string(), LogMetadata::new());
 
         assert_eq!(repository.messages_by_ts.len(), 1);
     }
@@ -195,12 +219,45 @@ mod tests {
         let raw_logs = timestamps
             .iter()
             .map(|ts| format!("{{\"log\": \"Log message\", \"timestamp\": {}}}", ts))
+            .map(|body| (body, LogMetadata::new()))
             .collect();
         let repository = LogRepository::from_raw_logs(raw_logs).unwrap();
 
-        assert_eq!(repository.get_message_count(1, 6), 2);
-        assert_eq!(repository.get_message_count(0, 10), 3);
-        assert_eq!(repository.get_message_count(2, 3), 0);
+        assert_eq!(repository.get_message_count(1, 6, HashMap::new()), 2);
+        assert_eq!(repository.get_message_count(0, 10, HashMap::new()), 3);
+        assert_eq!(repository.get_message_count(2, 3, HashMap::new()), 0);
+    }
+
+    #[test]
+    fn test_repo_metadata_query() {
+        let metadata = [
+            LogMetadata::from_iter(IntoIter::new([])),
+            LogMetadata::from_iter(IntoIter::new([("key".to_string(), "value".to_string())])),
+            LogMetadata::from_iter(IntoIter::new([
+                ("key".to_string(), "valueprime".to_string()),
+                ("key2".to_string(), "value2".to_string()),
+            ])),
+        ];
+        let body = "{\"log\": \"Log message\", \"timestamp\": 1}";
+        let raw_logs = metadata.iter().map(|mt| (body.to_string(), mt.to_owned())).collect();
+        let repository = LogRepository::from_raw_logs(raw_logs).unwrap();
+
+        assert_eq!(
+            repository.get_message_count(0, 100, HashMap::from_iter(IntoIter::new([("key", "value")]))),
+            1
+        );
+        assert_eq!(
+            repository.get_message_count(0, 100, HashMap::from_iter(IntoIter::new([("key", "")]))),
+            2
+        );
+        assert_eq!(
+            repository.get_message_count(
+                0,
+                100,
+                HashMap::from_iter(IntoIter::new([("key", "valueprime"), ("key2", "value2")]))
+            ),
+            1
+        );
     }
 
     #[test]
@@ -235,18 +292,12 @@ mod tests {
                     String::from("deployment"),
                     String::from("collection-kube-state-metrics")
                 ),
-                (
-                    String::from("node"),
-                    String::from("sumologic-control-plane")
-                )
+                (String::from("node"), String::from("sumologic-control-plane"))
             ])
         );
 
         let empty = "";
-        assert_eq!(
-            parse_sumo_fields_header_value(empty).unwrap(),
-            HashMap::new()
-        );
+        assert_eq!(parse_sumo_fields_header_value(empty).unwrap(), HashMap::new());
     }
 
     #[test]
