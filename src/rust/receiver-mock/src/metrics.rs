@@ -48,7 +48,7 @@ pub struct Sample {
     pub metric: String,
     pub value: f64,
     pub labels: HashMap<String, String>,
-    pub timestamp: i64, // milliseconds epoch timestamp
+    pub timestamp: u64, // milliseconds epoch timestamp
 }
 
 impl PartialEq for Sample {
@@ -67,9 +67,9 @@ impl Hash for Sample {
         let mut sorted_labels: Vec<_> = self.labels.iter().collect();
         sorted_labels.sort_by(|x, y| x.0.cmp(&y.0));
 
-        for s in sorted_labels {
-            s.0.hash(state);
-            s.1.hash(state);
+        for (name, value) in sorted_labels {
+            name.hash(state);
+            value.hash(state);
             // This would produce a different hash :()
             // self.labels.hash(state);
         }
@@ -78,11 +78,7 @@ impl Hash for Sample {
 
 // Handle metrics in Carbon2.0 format
 // Reference: https://help.sumologic.com/Metrics/Introduction-to-Metrics/Metric-Formats#carbon-2-0
-pub fn handle_carbon2(
-    lines: std::str::Lines,
-    address: IpAddr,
-    print_opts: options::Print,
-) -> MetricsHandleResult {
+pub fn handle_carbon2(lines: std::str::Lines, address: IpAddr, print_opts: options::Print) -> MetricsHandleResult {
     let mut result = MetricsHandleResult::new();
 
     for line in lines {
@@ -110,11 +106,7 @@ pub fn handle_carbon2(
 
 // Handle metrics in Graphite format
 // Reference: https://help.sumologic.com/Metrics/Introduction-to-Metrics/Metric-Formats#graphite
-pub fn handle_graphite(
-    lines: std::str::Lines,
-    address: IpAddr,
-    print_opts: options::Print,
-) -> MetricsHandleResult {
+pub fn handle_graphite(lines: std::str::Lines, address: IpAddr, print_opts: options::Print) -> MetricsHandleResult {
     let mut result = MetricsHandleResult::new();
 
     for line in lines {
@@ -144,11 +136,7 @@ pub fn handle_graphite(
 
 // Handle metrics in Prometheus format
 // Reference: https://help.sumologic.com/Metrics/Introduction-to-Metrics/Metric-Formats#prometheus
-pub fn handle_prometheus(
-    lines: std::str::Lines,
-    address: IpAddr,
-    opts: &options::Options,
-) -> MetricsHandleResult {
+pub fn handle_prometheus(lines: std::str::Lines, address: IpAddr, opts: &options::Options) -> MetricsHandleResult {
     let mut result = MetricsHandleResult::new();
 
     let mut lines_vec: Vec<io::Result<String>> = Vec::new();
@@ -194,13 +182,66 @@ pub fn handle_prometheus(
                     metric: sample.metric.clone(),
                     value: value,
                     labels: labels,
-                    timestamp: sample.timestamp.timestamp_millis(),
+                    timestamp: sample.timestamp.timestamp_millis() as u64,
                 }
             })
             .collect();
     }
 
     result
+}
+
+// filter_samples filters the provided samples based on the provided labels.
+// In order for the sample to be returned it has to contain all the provided labels
+// with provided values. If a label value is not provided then it's checked for
+// existence within the sample.
+// `__name__` is handled specially as it will be matched against the metric name.
+pub fn filter_samples(samples: &HashSet<Sample>, labels: HashMap<String, String>) -> HashSet<Sample> {
+    samples
+        .iter()
+        .filter(|sample| {
+            // For every provided param 'key-value' pair...
+            for (param_key, param_val) in &labels {
+                // In order to keep the params simply a key value list let's treat
+                // '__name__' specially so that it matches the metric name.
+                if param_key == "__name__" {
+                    if param_val != "" && &sample.metric != param_val {
+                        // If the metric name doesn't match the provided '__name__'
+                        // value then drop the sample.
+                        return false;
+                    }
+                    // Otherwise continue (get next key value pair from params)
+                    continue;
+                }
+
+                // ...try to find it in sample's labels...
+                match sample.labels.get(&param_key[..]) {
+                    Some(sample_value) => {
+                        // ...if sample contains it and query param was provided
+                        // without a value then keep iterating...
+                        if param_val == "" {
+                            continue;
+                        }
+
+                        // ...if the value was provided and it matches sample's
+                        // label value then also keep iterating...
+                        if sample_value == param_val {
+                            continue;
+                        }
+
+                        // ...otherwise drop this sample: the requested label has
+                        // a different value.
+                        return false;
+                    }
+
+                    // If the requested label wasn't found in sample's labels then bail.
+                    None => return false,
+                }
+            }
+            true
+        })
+        .cloned()
+        .collect()
 }
 
 #[cfg(test)]
