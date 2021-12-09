@@ -3,6 +3,7 @@ pub struct Options {
     pub print: Print,
     pub drop_rate: i64,
     pub store_metrics: bool,
+    pub store_logs: bool,
 }
 
 #[derive(Clone, Copy)]

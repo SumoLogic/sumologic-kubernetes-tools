@@ -1,12 +1,55 @@
-use anyhow::anyhow;
+use crate::time;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::net::IpAddr;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct LogStats {
-    pub count: u64,
-    pub bytes: u64,
+    pub message_count: u64,
+    pub byte_count: u64,
+}
+
+pub struct LogStatsRepository {
+    pub total: LogStats,
+    pub ipaddr: HashMap<IpAddr, LogStats>,
+}
+
+impl LogStatsRepository {
+    pub fn new() -> Self {
+        return Self {
+            total: LogStats {
+                message_count: 0,
+                byte_count: 0,
+            },
+            ipaddr: HashMap::new(),
+        };
+    }
+
+    pub fn update(&mut self, message_count: u64, byte_count: u64, ipaddr: IpAddr) {
+        // update total stats
+        self.total.message_count += message_count;
+        self.total.byte_count += byte_count;
+
+        // update per ip address stats
+        let stats = self.ipaddr.entry(ipaddr).or_insert(LogStats {
+            message_count: 0,
+            byte_count: 0,
+        });
+        stats.message_count += message_count;
+        stats.byte_count += byte_count as u64;
+    }
+
+    #[cfg(test)]
+    pub fn get_stats_for_ipaddr(&self, ipaddr: IpAddr) -> LogStats {
+        return self
+            .ipaddr
+            .get(&ipaddr)
+            .unwrap_or(&LogStats {
+                message_count: 0,
+                byte_count: 0,
+            })
+            .clone();
+    }
 }
 
 #[derive(Clone)]
@@ -17,54 +60,37 @@ pub struct LogMessage {
 
 #[derive(Clone)]
 pub struct LogRepository {
-    pub total: LogStats,
-    pub ipaddr_to_stats: HashMap<IpAddr, LogStats>,
     pub messages_by_ts: BTreeMap<u64, Vec<LogMessage>>, // indexed by timestamp to make range queries possible
 }
 
 impl LogRepository {
     pub fn new() -> Self {
         return Self {
-            total: LogStats { count: 0, bytes: 0 },
-            ipaddr_to_stats: HashMap::new(),
             messages_by_ts: BTreeMap::new(),
         };
     }
 
+    // This function is a helper to make repository creation in tests easier
     #[cfg(test)]
-    pub fn from_raw_logs(raw_logs: Vec<(String, IpAddr)>) -> Result<Self, anyhow::Error> {
+    pub fn from_raw_logs(raw_logs: Vec<String>) -> Result<Self, anyhow::Error> {
         let mut repository = Self::new();
-        for (body, ipaddr) in raw_logs {
-            match repository.add_log_message(body, ipaddr) {
-                Ok(_) => (),
-                Err(error) => return Err(error),
-            };
+        for body in raw_logs {
+            repository.add_log_message(body)
         }
         return Ok(repository);
     }
 
-    pub fn add_log_message(&mut self, body: String, ipaddr: IpAddr) -> Result<(), anyhow::Error> {
+    pub fn add_log_message(&mut self, body: String) {
         // add the log message to the time index
         let timestamp = match get_timestamp_from_body(&body) {
             Some(ts) => ts,
-            None => return Err(anyhow!("No timestamp found in log message")),
+            None => {
+                eprintln!("Couldn't find timestamp in log line {}", body);
+                time::get_now_ms() // use current system time if no timestamp found
+            }
         };
         let messages = self.messages_by_ts.entry(timestamp).or_insert(Vec::new());
         messages.push(LogMessage {});
-
-        // update total stats
-        self.total.count += 1;
-        self.total.bytes += body.len() as u64;
-
-        // update per ip address stats
-        let stats = self
-            .ipaddr_to_stats
-            .entry(ipaddr)
-            .or_insert(LogStats { count: 0, bytes: 0 });
-        stats.count += 1;
-        stats.bytes += body.len() as u64;
-
-        Ok(())
     }
 
     pub fn get_message_count(&self, from_ts: u64, to_ts: u64) -> usize {
@@ -74,15 +100,6 @@ impl LogRepository {
             count += messages.len()
         }
         return count;
-    }
-
-    #[cfg(test)]
-    pub fn get_stats_for_ipaddr(&self, ipaddr: IpAddr) -> LogStats {
-        return self
-            .ipaddr_to_stats
-            .get(&ipaddr)
-            .unwrap_or(&LogStats { count: 0, bytes: 0 })
-            .clone();
     }
 }
 
@@ -105,54 +122,60 @@ mod tests {
     use std::net::{IpAddr, Ipv4Addr};
 
     #[test]
-    fn test_repo_add_message_valid() {
-        let ip_address = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
-        let mut repository = LogRepository::new();
-        let old_repository = repository.clone();
-        let body = r#"{"log": "Log message", "timestamp": 1}"#;
+    fn test_stats_repo_update() {
+        let ipaddr = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
+        let message_count = 5;
+        let byte_count = 50;
+        let mut repository = LogStatsRepository::new();
 
-        let result = repository.add_log_message(body.to_string(), ip_address);
+        repository.update(message_count, byte_count, ipaddr);
 
-        assert!(result.is_ok());
-        assert_eq!(repository.total.count, old_repository.total.count + 1);
-        assert_eq!(
-            repository.total.bytes,
-            old_repository.total.bytes + body.len() as u64
-        );
+        assert_eq!(repository.total.message_count, message_count);
+        assert_eq!(repository.total.byte_count, byte_count);
 
+        assert_eq!(repository.ipaddr[&ipaddr].message_count, message_count);
+        assert_eq!(repository.ipaddr[&ipaddr].byte_count, byte_count);
+
+        // check if we get zeroes for an unknown ip address
+        let other_ipaddr = IpAddr::V4(Ipv4Addr::new(1, 1, 1, 1));
         assert_eq!(
-            repository.ipaddr_to_stats[&ip_address].count,
-            old_repository.get_stats_for_ipaddr(ip_address).count + 1
-        );
-        assert_eq!(
-            repository.ipaddr_to_stats[&ip_address].bytes,
-            old_repository.get_stats_for_ipaddr(ip_address).bytes + body.len() as u64
-        );
+            repository.get_stats_for_ipaddr(other_ipaddr),
+            LogStats {
+                message_count: 0,
+                byte_count: 0
+            }
+        )
     }
 
     #[test]
-    fn test_repo_add_message_invalid() {
-        let ip_address = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
+    fn test_repo_add_message_valid() {
+        let mut repository = LogRepository::new();
+        let body = r#"{"log": "Log message", "timestamp": 1}"#;
+
+        repository.add_log_message(body.to_string());
+
+        assert_eq!(repository.messages_by_ts.len(), 1);
+    }
+
+    #[test]
+    fn test_repo_add_message_no_ts() {
         let mut repository = LogRepository::new();
         let body_without_ts = r#"{"log": "Log message"}"#;
 
-        let result = repository.add_log_message(body_without_ts.to_string(), ip_address);
+        repository.add_log_message(body_without_ts.to_string());
 
-        assert!(result.is_err());
-        assert_eq!(repository.total.count, 0);
+        assert_eq!(repository.messages_by_ts.len(), 1);
     }
 
     #[test]
     fn test_repo_range_query() {
-        let ip_address = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
         let timestamps = [1, 5, 8];
-        let bodies = timestamps
+        let raw_logs = timestamps
             .iter()
-            .map(|ts| format!("{{\"log\": \"Log message\", \"timestamp\": {}}}", ts));
-        let raw_logs: Vec<(String, IpAddr)> = bodies.map(|body| (body, ip_address)).collect();
+            .map(|ts| format!("{{\"log\": \"Log message\", \"timestamp\": {}}}", ts))
+            .collect();
         let repository = LogRepository::from_raw_logs(raw_logs).unwrap();
 
-        assert_eq!(repository.total.count, 3);
         assert_eq!(repository.get_message_count(1, 6), 2);
         assert_eq!(repository.get_message_count(0, 10), 3);
         assert_eq!(repository.get_message_count(2, 3), 0);
