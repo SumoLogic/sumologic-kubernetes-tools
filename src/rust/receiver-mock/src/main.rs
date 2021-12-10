@@ -15,6 +15,7 @@ mod logs;
 mod metrics;
 mod options;
 use options::Options;
+mod metadata;
 mod router;
 mod time;
 

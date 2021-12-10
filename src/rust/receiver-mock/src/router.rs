@@ -11,6 +11,7 @@ use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 
 use crate::logs;
+use crate::metadata::{parse_sumo_fields_header_value, Metadata};
 use crate::metrics;
 use crate::metrics::Sample;
 use crate::options;
@@ -75,7 +76,7 @@ impl AppState {
     pub fn add_log_lines<'a>(
         &self,
         lines: impl Iterator<Item = &'a str>,
-        metadata: logs::LogMetadata,
+        metadata: Metadata,
         ipaddr: IpAddr,
         opts: &options::Options,
     ) {
@@ -433,6 +434,14 @@ pub async fn handler_receiver(
     let empty_header = http::HeaderValue::from_str("").unwrap();
     let content_type = headers.get("content-type").unwrap_or(&empty_header).to_str().unwrap();
 
+    // parse the value of the X-Sumo-Fields header
+    // TODO: use the metadata for metrics
+    let x_sumo_fields_value = headers.get("x-sumo-fields").unwrap_or(&empty_header).to_str().unwrap();
+    let metadata = match parse_sumo_fields_header_value(x_sumo_fields_value) {
+        Ok(metadata) => metadata,
+        Err(error) => return HttpResponse::BadRequest().body(format!("Invalid X-Sumo-Fields header value: {}", error)),
+    };
+
     let mut rng = rand::thread_rng();
     let number: i64 = rng.gen_range(0..100);
     if number < opts.drop_rate {
@@ -462,13 +471,6 @@ pub async fn handler_receiver(
 
         // Logs & events
         "application/x-www-form-urlencoded" => {
-            let x_sumo_fields_value = headers.get("x-sumo-fields").unwrap_or(&empty_header).to_str().unwrap();
-            let metadata = match logs::parse_sumo_fields_header_value(x_sumo_fields_value) {
-                Ok(metadata) => metadata,
-                Err(error) => {
-                    return HttpResponse::BadRequest().body(format!("Invalid X-Sumo-Fields header value: {}", error))
-                }
-            };
             app_state.add_log_lines(lines.clone(), metadata, remote_address, &opts);
             if opts.print.logs {
                 for line in lines.clone() {
