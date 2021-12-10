@@ -1,8 +1,9 @@
 use crate::time;
-use anyhow::anyhow;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::net::IpAddr;
+
+use crate::metadata::Metadata;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct LogStats {
@@ -53,12 +54,10 @@ impl LogStatsRepository {
     }
 }
 
-pub type LogMetadata = HashMap<String, String>;
-
 #[derive(Clone)]
 pub struct LogMessage {
     // This structure is intended to house more data as we add APIs requiring it
-    metadata: LogMetadata,
+    metadata: Metadata,
 }
 
 #[derive(Clone)]
@@ -75,7 +74,7 @@ impl LogRepository {
 
     // This function is a helper to make repository creation in tests easier
     #[cfg(test)]
-    pub fn from_raw_logs(raw_logs: Vec<(String, LogMetadata)>) -> Result<Self, anyhow::Error> {
+    pub fn from_raw_logs(raw_logs: Vec<(String, Metadata)>) -> Result<Self, anyhow::Error> {
         let mut repository = Self::new();
         for (body, metadata) in raw_logs {
             repository.add_log_message(body, metadata)
@@ -83,7 +82,7 @@ impl LogRepository {
         return Ok(repository);
     }
 
-    pub fn add_log_message(&mut self, body: String, metadata: LogMetadata) {
+    pub fn add_log_message(&mut self, body: String, metadata: Metadata) {
         // add the log message to the time index
         let timestamp = match get_timestamp_from_body(&body) {
             Some(ts) => ts,
@@ -114,7 +113,7 @@ impl LogRepository {
     // Check if log metadata matches a query in the form of a map of string to string.
     // There's a match if the metadata contains the same keys and values as the query.
     // The query value of an empty string has special meaning, it matches anything.
-    fn metadata_matches(query: &HashMap<&str, &str>, target: &LogMetadata) -> bool {
+    fn metadata_matches(query: &HashMap<&str, &str>, target: &Metadata) -> bool {
         for (key, value) in query.iter() {
             let target_value = match target.get(*key) {
                 // get the value from the target
@@ -142,21 +141,6 @@ fn get_timestamp_from_body(body: &str) -> Option<u64> {
     };
     let timestamp = &parsed_body["timestamp"];
     return timestamp.as_u64();
-}
-
-/// Parse the value of the X-Sumo-Fields header into a map of field name to field value
-pub fn parse_sumo_fields_header_value(header_value: &str) -> Result<LogMetadata, anyhow::Error> {
-    let mut field_values = HashMap::new();
-    if header_value.trim().len() == 0 {
-        return Ok(field_values);
-    }
-    for entry in header_value.split(",") {
-        match entry.trim().split_once("=") {
-            Some((field_name, field_value)) => field_values.insert(field_name.to_string(), field_value.to_string()),
-            None => return Err(anyhow!("Failed to parse X-Sumo-Fields, no `=` in {}", entry)),
-        };
-    }
-    return Ok(field_values);
 }
 
 #[cfg(test)]
@@ -198,7 +182,7 @@ mod tests {
         let mut repository = LogRepository::new();
         let body = r#"{"log": "Log message", "timestamp": 1}"#;
 
-        repository.add_log_message(body.to_string(), LogMetadata::new());
+        repository.add_log_message(body.to_string(), Metadata::new());
 
         assert_eq!(repository.messages_by_ts.len(), 1);
     }
@@ -208,7 +192,7 @@ mod tests {
         let mut repository = LogRepository::new();
         let body_without_ts = r#"{"log": "Log message"}"#;
 
-        repository.add_log_message(body_without_ts.to_string(), LogMetadata::new());
+        repository.add_log_message(body_without_ts.to_string(), Metadata::new());
 
         assert_eq!(repository.messages_by_ts.len(), 1);
     }
@@ -219,7 +203,7 @@ mod tests {
         let raw_logs = timestamps
             .iter()
             .map(|ts| format!("{{\"log\": \"Log message\", \"timestamp\": {}}}", ts))
-            .map(|body| (body, LogMetadata::new()))
+            .map(|body| (body, Metadata::new()))
             .collect();
         let repository = LogRepository::from_raw_logs(raw_logs).unwrap();
 
@@ -231,9 +215,9 @@ mod tests {
     #[test]
     fn test_repo_metadata_query() {
         let metadata = [
-            LogMetadata::from_iter(IntoIter::new([])),
-            LogMetadata::from_iter(IntoIter::new([("key".to_string(), "value".to_string())])),
-            LogMetadata::from_iter(IntoIter::new([
+            Metadata::from_iter(IntoIter::new([])),
+            Metadata::from_iter(IntoIter::new([("key".to_string(), "value".to_string())])),
+            Metadata::from_iter(IntoIter::new([
                 ("key".to_string(), "valueprime".to_string()),
                 ("key2".to_string(), "value2".to_string()),
             ])),
@@ -270,41 +254,5 @@ mod tests {
         assert!(get_timestamp_from_body(r#"{"timestamp": 1.5}"#).is_none());
         assert!(get_timestamp_from_body(r#"{"log": "Some log message"}"#).is_none());
         assert!(get_timestamp_from_body("Not json at all").is_none())
-    }
-
-    #[test]
-    fn test_parse_sumo_fields_valid() {
-        let single_pair = "_collector=test";
-        assert_eq!(
-            parse_sumo_fields_header_value(single_pair).unwrap(),
-            HashMap::from([(String::from("_collector"), String::from("test"))])
-        );
-
-        let multiple_pairs = "service=collection-kube-state-metrics, deployment=collection-kube-state-metrics, node=sumologic-control-plane";
-        assert_eq!(
-            parse_sumo_fields_header_value(multiple_pairs).unwrap(),
-            HashMap::from([
-                (
-                    String::from("service"),
-                    String::from("collection-kube-state-metrics")
-                ),
-                (
-                    String::from("deployment"),
-                    String::from("collection-kube-state-metrics")
-                ),
-                (String::from("node"), String::from("sumologic-control-plane"))
-            ])
-        );
-
-        let empty = "";
-        assert_eq!(parse_sumo_fields_header_value(empty).unwrap(), HashMap::new());
-    }
-
-    #[test]
-    fn test_parse_sumo_fields_invalid() {
-        let invalid_inputs = [",", "no_equals"];
-        for input in invalid_inputs {
-            assert!(parse_sumo_fields_header_value(input).is_err())
-        }
     }
 }
