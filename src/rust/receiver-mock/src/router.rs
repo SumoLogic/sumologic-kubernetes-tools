@@ -20,13 +20,13 @@ use crate::time::get_now;
 pub struct AppState {
     // Mutexes are necessary to mutate data safely across threads in handlers.
     //
-    pub metrics: Mutex<u64>,
     pub log_stats: RwLock<logs::LogStatsRepository>,
     pub log_messages: RwLock<logs::LogRepository>,
 
-    pub metrics_samples: Mutex<HashSet<Sample>>,
-    pub metrics_list: Mutex<HashMap<String, u64>>,
-    pub metrics_ip_list: Mutex<HashMap<IpAddr, u64>>,
+    pub metrics: RwLock<u64>,
+    pub metrics_samples: RwLock<HashSet<Sample>>,
+    pub metrics_list: RwLock<HashMap<String, u64>>,
+    pub metrics_ip_list: RwLock<HashMap<IpAddr, u64>>,
 }
 
 impl AppState {
@@ -35,10 +35,10 @@ impl AppState {
             log_stats: RwLock::new(logs::LogStatsRepository::new()),
             log_messages: RwLock::new(logs::LogRepository::new()),
 
-            metrics: Mutex::new(0),
-            metrics_list: Mutex::new(HashMap::new()),
-            metrics_ip_list: Mutex::new(HashMap::new()),
-            metrics_samples: Mutex::new(HashSet::new()),
+            metrics: RwLock::new(0),
+            metrics_list: RwLock::new(HashMap::new()),
+            metrics_ip_list: RwLock::new(HashMap::new()),
+            metrics_samples: RwLock::new(HashSet::new()),
         };
     }
 }
@@ -46,19 +46,19 @@ impl AppState {
 impl AppState {
     pub fn add_metrics_result(&self, result: metrics::MetricsHandleResult, opts: &options::Options) {
         {
-            let mut metrics = self.metrics.lock().unwrap();
+            let mut metrics = self.metrics.write().unwrap();
             *metrics += result.metrics_count;
         }
 
         {
-            let mut metrics_list = self.metrics_list.lock().unwrap();
+            let mut metrics_list = self.metrics_list.write().unwrap();
             for (name, count) in result.metrics_list.iter() {
                 *metrics_list.entry(name.clone()).or_insert(0) += count;
             }
         }
 
         {
-            let mut metrics_ip_list = self.metrics_ip_list.lock().unwrap();
+            let mut metrics_ip_list = self.metrics_ip_list.write().unwrap();
             for (&ip_address, count) in result.metrics_ip_list.iter() {
                 *metrics_ip_list.entry(ip_address).or_insert(0) += count;
             }
@@ -67,7 +67,7 @@ impl AppState {
         if opts.store_metrics {
             // Replace old data points that represent the same data series
             // (the same metric name and labels) with new ones.
-            let mut samples = self.metrics_samples.lock().unwrap();
+            let mut samples = self.metrics_samples.write().unwrap();
             for s in result.metrics_samples {
                 samples.replace(s);
             }
@@ -103,19 +103,20 @@ pub struct TerraformState {
     pub fields: Mutex<HashMap<String, String>>,
 }
 
-// Reset metrics counter
+// Reset metrics
 pub async fn handler_metrics_reset(app_state: web::Data<AppState>) -> impl Responder {
-    *app_state.metrics.lock().unwrap() = 0;
-    app_state.metrics_list.lock().unwrap().clear();
-    app_state.metrics_ip_list.lock().unwrap().clear();
+    *app_state.metrics.write().unwrap() = 0;
+    app_state.metrics_list.write().unwrap().clear();
+    app_state.metrics_ip_list.write().unwrap().clear();
+    app_state.metrics_samples.write().unwrap().clear();
 
-    HttpResponse::Ok().body("All counters reset successfully")
+    HttpResponse::Ok().body("All metrics were reset successfully")
 }
 
 // List metrics in format: <name>: <count>
 pub async fn handler_metrics_list(app_state: web::Data<AppState>) -> impl Responder {
     let mut out = String::new();
-    let metrics_list = app_state.metrics_list.lock().unwrap();
+    let metrics_list = app_state.metrics_list.read().unwrap();
     for (name, count) in metrics_list.iter() {
         out.push_str(&format!("{}: {}\n", name, count));
     }
@@ -125,7 +126,7 @@ pub async fn handler_metrics_list(app_state: web::Data<AppState>) -> impl Respon
 // List metrics in format: <ip_address>: <count>
 pub async fn handler_metrics_ips(app_state: web::Data<AppState>) -> impl Responder {
     let mut out = String::new();
-    let metrics_ip_list = app_state.metrics_ip_list.lock().unwrap();
+    let metrics_ip_list = app_state.metrics_ip_list.read().unwrap();
     for (ip_address, count) in metrics_ip_list.iter() {
         out.push_str(&format!("{}: {}\n", ip_address, count));
     }
@@ -177,7 +178,7 @@ pub async fn handler_metrics_samples(
         return HttpResponse::NotImplemented().body("");
     }
 
-    let samples = &*app_state.metrics_samples.lock().unwrap();
+    let samples = &*app_state.metrics_samples.read().unwrap();
     let response = metrics::filter_samples(samples, params);
 
     HttpResponse::Ok().json(response)
@@ -185,20 +186,20 @@ pub async fn handler_metrics_samples(
 
 // Metrics in prometheus format
 pub async fn handler_metrics(app_state: web::Data<AppState>) -> impl Responder {
-    let mut body = format!(
+    let mut body= format!(
         "# TYPE receiver_mock_metrics_count counter
 receiver_mock_metrics_count {}
 # TYPE receiver_mock_logs_count counter
 receiver_mock_logs_count {}
 # TYPE receiver_mock_logs_bytes_count counter
 receiver_mock_logs_bytes_count {}\n",
-        app_state.metrics.lock().unwrap(),
+        app_state.metrics.read().unwrap(),
         app_state.log_stats.read().unwrap().total.message_count,
         app_state.log_stats.read().unwrap().total.byte_count,
     );
 
     {
-        let metrics_ip_list = app_state.metrics_ip_list.lock().unwrap();
+        let metrics_ip_list = app_state.metrics_ip_list.read().unwrap();
         if metrics_ip_list.len() > 0 {
             let mut metrics_ip_string = String::from("# TYPE receiver_mock_metrics_ip_count counter\n");
             for (ip, count) in metrics_ip_list.iter() {
@@ -566,7 +567,7 @@ pub fn start_print_stats_timer(
 
     t.schedule_repeating(interval, move || {
         let now = get_now();
-        let metrics = app_state.metrics.lock().unwrap();
+        let metrics = app_state.metrics.read().unwrap();
         let log_stats = app_state.log_stats.read().unwrap();
 
         // TODO: make this print metrics per minute (as DPM) and logs
@@ -820,8 +821,8 @@ mod tests_metrics {
         metrics_list.insert(String::from("mem_free"), 2000);
 
         let app_state = AppState::new();
-        *app_state.metrics.lock().unwrap() = 3000;
-        *app_state.metrics_list.lock().unwrap() = metrics_list;
+        *app_state.metrics.write().unwrap() = 3000;
+        *app_state.metrics_list.write().unwrap() = metrics_list;
         let web_data_app_state = web::Data::new(app_state);
 
         let mut app = test::init_service(
@@ -856,7 +857,7 @@ mod tests_metrics {
             assert_eq!(resp.status(), 200);
 
             let body = test::read_body(resp).await;
-            assert_eq!(body, "All counters reset successfully");
+            assert_eq!(body, "All metrics were reset successfully");
         }
         {
             let req = test::TestRequest::get().uri("/metrics").to_request();
@@ -884,8 +885,8 @@ mod tests_metrics {
         metrics_list.insert(String::from("mem_free"), 2000);
 
         let app_state = AppState::new();
-        *app_state.metrics.lock().unwrap() = 2000;
-        *app_state.metrics_list.lock().unwrap() = metrics_list;
+        *app_state.metrics.write().unwrap() = 2000;
+        *app_state.metrics_list.write().unwrap() = metrics_list;
         let web_data_app_state = web::Data::new(app_state);
 
         let mut app = test::init_service(
