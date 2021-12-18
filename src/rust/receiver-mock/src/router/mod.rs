@@ -17,6 +17,8 @@ use crate::metrics::Sample;
 use crate::options;
 use crate::time::get_now;
 
+pub mod api;
+
 pub struct AppState {
     // Mutexes are necessary to mutate data safely across threads in handlers.
     //
