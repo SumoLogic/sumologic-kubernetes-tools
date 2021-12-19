@@ -375,4 +375,3 @@ myhostname.mem.wired 5680394240 1601909210"
         assert_eq!(*result.metrics_ip_list.get(&ip_address).unwrap(), 9);
     }
 }
-

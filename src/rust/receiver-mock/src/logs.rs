@@ -223,7 +223,10 @@ mod tests {
             ])),
         ];
         let body = "{\"log\": \"Log message\", \"timestamp\": 1}";
-        let raw_logs = metadata.iter().map(|mt| (body.to_string(), mt.to_owned())).collect();
+        let raw_logs = metadata
+            .iter()
+            .map(|mt| (body.to_string(), mt.to_owned()))
+            .collect();
         let repository = LogRepository::from_raw_logs(raw_logs).unwrap();
 
         assert_eq!(
