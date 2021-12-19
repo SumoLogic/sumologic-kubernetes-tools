@@ -145,8 +145,8 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
                     .route(
                         "/collector/heartbeat",
                         web::post().to(router::api::v1::handler_collector_heartbeat),
-                    )
-                )
+                    ),
+            )
             .service(
                 web::scope("/terraform")
                     .app_data(app_metadata.clone())

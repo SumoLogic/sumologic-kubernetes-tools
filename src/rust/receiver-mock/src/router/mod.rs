@@ -11,7 +11,7 @@ use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 
 use crate::logs;
-use crate::metadata::{parse_sumo_fields_header_value, Metadata};
+use crate::metadata::{get_common_metadata_from_headers, parse_sumo_fields_header_value, Metadata};
 use crate::metrics;
 use crate::metrics::Sample;
 use crate::options;
@@ -435,14 +435,17 @@ pub async fn handler_receiver(
 
     let headers = req.headers();
     let empty_header = http::HeaderValue::from_str("").unwrap();
-    let content_type = headers.get("content-type").unwrap_or(&empty_header).to_str().unwrap();
+    let content_type = headers
+        .get("content-type")
+        .unwrap_or(&empty_header)
+        .to_str()
+        .unwrap();
 
-    // parse the value of the X-Sumo-Fields header
+    // parse the value of the X-Sumo-* headers, excluding X-Sumo-Fields, which is handled separately
     // TODO: use the metadata for metrics
-    let x_sumo_fields_value = headers.get("x-sumo-fields").unwrap_or(&empty_header).to_str().unwrap();
-    let metadata = match parse_sumo_fields_header_value(x_sumo_fields_value) {
+    let metadata = match get_common_metadata_from_headers(headers) {
         Ok(metadata) => metadata,
-        Err(error) => return HttpResponse::BadRequest().body(format!("Invalid X-Sumo-Fields header value: {}", error)),
+        Err(error) => return HttpResponse::BadRequest().body(error.to_string()),
     };
 
     let mut rng = rand::thread_rng();
@@ -474,6 +477,18 @@ pub async fn handler_receiver(
 
         // Logs & events
         "application/x-www-form-urlencoded" => {
+            // parse X-Sumo-Fields for metadata
+            let mut metadata = metadata;
+            match headers.get("x-sumo-fields") {
+                Some(header_value) => match header_value.to_str() {
+                    Ok(header_value_str) => match parse_sumo_fields_header_value(header_value_str) {
+                        Ok(fields_metadata) => metadata.extend(fields_metadata),
+                        Err(_) => return HttpResponse::BadRequest().body("Unable to parse X-Sumo-Fields header value"),
+                    },
+                    Err(_) => return HttpResponse::BadRequest().body("Unable to parse X-Sumo-Fields header value"),
+                },
+                None => (),
+            };
             app_state.add_log_lines(lines.clone(), metadata, remote_address, &opts);
             if opts.print.logs {
                 for line in lines.clone() {
@@ -718,7 +733,9 @@ mod tests_terraform {
         .await;
 
         {
-            let req = test::TestRequest::get().uri("/terraform/api/v1/fields").to_request();
+            let req = test::TestRequest::get()
+                .uri("/terraform/api/v1/fields")
+                .to_request();
             let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
@@ -757,7 +774,9 @@ mod tests_terraform {
         }
 
         {
-            let req = test::TestRequest::get().uri("/terraform/api/v1/fields").to_request();
+            let req = test::TestRequest::get()
+                .uri("/terraform/api/v1/fields")
+                .to_request();
             let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
@@ -793,7 +812,9 @@ mod tests_terraform {
 
             // ... and check it exists
             {
-                let req = test::TestRequest::get().uri("/terraform/api/v1/fields").to_request();
+                let req = test::TestRequest::get()
+                    .uri("/terraform/api/v1/fields")
+                    .to_request();
                 let resp = test::call_service(&mut app, req).await;
                 assert_eq!(resp.status(), 200);
 
@@ -1014,7 +1035,9 @@ mod tests_metrics {
         {
             // Checking for existence of `namespace` label should also yield the
             // second time series only.
-            let req = test::TestRequest::get().uri("/metrics-samples?namespace").to_request();
+            let req = test::TestRequest::get()
+                .uri("/metrics-samples?namespace")
+                .to_request();
 
             let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
@@ -1040,7 +1063,9 @@ mod tests_metrics {
         }
         {
             // and now let's check the previous time series with URL query params
-            let req = test::TestRequest::get().uri("/metrics-samples?mock=yes").to_request();
+            let req = test::TestRequest::get()
+                .uri("/metrics-samples?mock=yes")
+                .to_request();
 
             let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
@@ -1142,6 +1167,9 @@ mod tests_logs {
                     .set_payload(log_payload)
                     .header("Content-Type", "application/x-www-form-urlencoded")
                     .header("X-Sumo-Fields", x_sumo_fields_value)
+                    .header("X-Sumo-Host", "localhost")
+                    .header("X-Sumo-Category", "category")
+                    .header("X-Sumo-Name", "name")
                     .to_request();
 
                 let resp = test::call_service(&mut app, req).await;
@@ -1161,7 +1189,9 @@ mod tests_logs {
 
         // from_ts is inclusive
         {
-            let req = test::TestRequest::get().uri("/logs/count?from_ts=5").to_request();
+            let req = test::TestRequest::get()
+                .uri("/logs/count?from_ts=5")
+                .to_request();
             let resp = test::call_service(&mut app, req).await;
 
             let response_body: LogsCountResponse = test::read_body_json(resp).await;
@@ -1191,9 +1221,23 @@ mod tests_logs {
             assert_eq!(response_body.count, 2);
         }
 
+        // X-Sumo-* fields
+        {
+            let req = test::TestRequest::get()
+                .uri("/logs/count?_sourceName=name&_sourceHost=localhost&_sourceCategory=category")
+                .to_request();
+            let resp = test::call_service(&mut app, req).await;
+
+            let response_body: LogsCountResponse = test::read_body_json(resp).await;
+
+            assert_eq!(response_body.count, 3);
+        }
+
         // wildcard query
         {
-            let req = test::TestRequest::get().uri("/logs/count?namespace=").to_request();
+            let req = test::TestRequest::get()
+                .uri("/logs/count?namespace=")
+                .to_request();
             let resp = test::call_service(&mut app, req).await;
 
             let response_body: LogsCountResponse = test::read_body_json(resp).await;
