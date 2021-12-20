@@ -5,4 +5,6 @@ tab_spaces = 4
 
 fn_call_width = 64
 max_width = 120
+chain_width = 64
+
 
