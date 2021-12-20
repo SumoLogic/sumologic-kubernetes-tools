@@ -17,6 +17,8 @@ use crate::metrics::Sample;
 use crate::options;
 use crate::time::get_now;
 
+pub mod api;
+
 pub struct AppState {
     // Mutexes are necessary to mutate data safely across threads in handlers.
     //
@@ -186,7 +188,7 @@ pub async fn handler_metrics_samples(
 
 // Metrics in prometheus format
 pub async fn handler_metrics(app_state: web::Data<AppState>) -> impl Responder {
-    let mut body= format!(
+    let mut body = format!(
         "# TYPE receiver_mock_metrics_count counter
 receiver_mock_metrics_count {}
 # TYPE receiver_mock_logs_count counter
