@@ -30,6 +30,8 @@ COPY ./src/rust/logs-generator .
 RUN cargo build --release
 
 FROM alpine:3.15.0
+ARG TARGETARCH
+ARG TARGETOS
 ENV HELM_VERSION="3.7.2"
 ENV YQ_VERSION="3.4.1"
 ENV KUBECTL_VERSION="v1.22.4"
@@ -47,11 +49,11 @@ RUN set -ex \
         net-tools \
         vim \
         jq \
-    && curl https://get.helm.sh/helm-v${HELM_VERSION}-linux-amd64.tar.gz | tar -xzO linux-amd64/helm > /usr/local/bin/helm \
+    && curl https://get.helm.sh/helm-v${HELM_VERSION}-${TARGETOS}-${TARGETARCH}.tar.gz | tar -xzO ${TARGETOS}-${TARGETARCH}/helm > /usr/local/bin/helm \
     && chmod +x /usr/local/bin/helm \
-    && curl -LJ https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_linux_amd64 -o /usr/bin/yq \
+    && curl -LJ https://github.com/mikefarah/yq/releases/download/${YQ_VERSION}/yq_${TARGETOS}_${TARGETARCH} -o /usr/bin/yq \
     && chmod +x /usr/bin/yq \
-    && curl -LJ https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl -o /usr/bin/kubectl \
+    && curl -LJ https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/${TARGETOS}/${TARGETARCH}/kubectl -o /usr/bin/kubectl \
     && chmod +x /usr/bin/kubectl \
     && curl -LJ "${UPGRADE_2_0_SCRIPT_URL}" -o /usr/local/bin/upgrade-2.0.0.sh \
     && chmod +x /usr/local/bin/upgrade-2.0.0.sh \
