@@ -1,6 +1,6 @@
 # Receiver-mock
 
-receiver-mock is an small contenerised application written in rust which can be used for local testing of the [`kubernetes sumologic collection`](https://github.com/SumoLogic/sumologic-kubernetes-collection)
+receiver-mock is an small containerized application written in rust which can be used for local testing of the [`kubernetes sumologic collection`](https://github.com/SumoLogic/sumologic-kubernetes-collection)
 
 ## Running
 
@@ -12,9 +12,18 @@ cargo run
 
 List of arguments taken by receiver-mock:
 
-- `-l, --hostname <hostname>`- Hostname reported as the receiver.
-  For kubernetes it will be `<service name>.<namespace>` (`localhost` by default)
-- `-p, --port <port>` - Port to listen on (default is `3000`)
+| Long form                 | Short form       | Default value | Description                                                                                    |
+|---------------------------|------------------|:-------------:|------------------------------------------------------------------------------------------------|
+| `--drop-rate <drop_rate>` | `-d <drop_rate>` |       0       | Use to specify packet drop rate. This is number from 0 (do not drop) to 100 (drop all).        |
+| `--help`                  | `-h`             |      N/A      | Print help information                                                                         |
+| `--hostname <hostname>`   | `-l <hostname>`  |   localhost   | Hostname reported as the receiver. For Kubernetes it will be `<service name>.<namespace name>` |
+| `--port <port>`           | `-p <port>`      |     3000      | Port to listen on                                                                              |
+| `--print-headers`         |                  |      N/A      | Use to print received request's headers                                                        |
+| `--print-logs`            | `-r`             |      N/A      | Use to print received logs on stdout                                                           |
+| `--print-metrics`         | `-m`             |      N/A      | Use to print received metrics (with dimensions) on stdout                                      |
+| `--store-logs`            |                  |      N/A      | Use to store log data which can then be queried via `/logs/*` endpoints                        |
+| `--store-metrics`         |                  |      N/A      | Use to store metrics which can then be returned via `/metrics-samples` endpoint                |
+| `--version`               | `-V`             |      N/A      | Print version information                                                                      |
 
 ## Terraform mock
 
@@ -52,7 +61,14 @@ These are endpoints which provide information about received metrics:
   prometheus_remote_storage_succeeded_samples_total: 100
   ```
 
-- `/metrics-reset` - reset the metrics counter (zeroes `/metrics-list`)
+- `POST /metrics-reset` - reset the metrics counter (zeroes `/metrics-list`)
+
+  Example:
+
+  ```shell
+  $ curl -X POST http://localhost:3000/metrics-reset
+  All metrics were reset successfully
+  ```
 
 - `/metrics-samples` - return metrics samples (last data point for each time series)
 
