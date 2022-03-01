@@ -498,7 +498,23 @@ pub async fn handler_receiver(
         }
 
         &_ => {
-            println!("invalid header value");
+            #[derive(Serialize)]
+            struct ReceiverErrorErrorsField {
+                code: String,
+                message: String,
+            }
+            #[derive(Serialize)]
+            struct ReceiverError {
+                id: String,
+                errors: Vec<ReceiverErrorErrorsField>,
+            }
+            return HttpResponse::build(StatusCode::BAD_REQUEST).json(ReceiverError {
+                id: String::from("E40YU-CU3Q7-RQDM7"),
+                errors: vec![ReceiverErrorErrorsField {
+                    code: String::from("header:invalid"),
+                    message: format!("Invalid Content-Type header: {}", content_type),
+                }],
+            });
         }
     }
 
@@ -838,6 +854,21 @@ mod tests_metrics {
     use std::iter::FromIterator;
 
     #[actix_rt::test]
+    async fn default_handler_protobuf_unsupported_invalid_header() {
+        let mut app = test::init_service(App::new().default_service(web::get().to(handler_receiver))).await;
+
+        {
+            let req = test::TestRequest::post()
+                .uri("/")
+                .header("Content-Type", "application/x-protobuf")
+                .to_request();
+            let resp = test::call_service(&mut app, req).await;
+
+            assert_eq!(resp.status(), 500);
+        }
+    }
+
+    #[actix_rt::test]
     async fn test_handler_metrics_reset() {
         let mut metrics_list = HashMap::new();
         metrics_list.insert(String::from("mem_active"), 1000);
@@ -1107,6 +1138,21 @@ mod tests_logs {
     use super::*;
     use actix_rt;
     use actix_web::{test, web, App};
+
+    #[actix_rt::test]
+    async fn default_handler_protobuf_unsupported_invalid_header() {
+        let mut app = test::init_service(App::new().default_service(web::get().to(handler_receiver))).await;
+
+        {
+            let req = test::TestRequest::post()
+                .uri("/")
+                .header("Content-Type", "application/x-protobuf")
+                .to_request();
+            let resp = test::call_service(&mut app, req).await;
+
+            assert_eq!(resp.status(), 500);
+        }
+    }
 
     #[actix_rt::test]
     async fn test_handler_logs_count() {
