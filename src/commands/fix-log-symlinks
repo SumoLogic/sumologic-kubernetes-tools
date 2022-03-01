@@ -14,7 +14,7 @@ function fix_log_symlinks() {
   fi
 
   pushd /var/lib/docker/containers
-  for DOCKER_ID in *; do
+  for DOCKER_ID in $(ls); do
     CONTAINER="$(cat ${DOCKER_ID}/config.v2.json | jq '{Labels:.Config.Labels, LogPath, ID}')"
     CONTAINER_ID="$(echo ${CONTAINER} | jq -r .ID)"
     CONTAINER_NAME="$(echo ${CONTAINER} | jq -r '.Labels["io.kubernetes.container.name"]')"
