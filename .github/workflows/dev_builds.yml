@@ -12,7 +12,7 @@ jobs:
     outputs:
       build_tag: ${{ steps.extract_tag.outputs.tag }}
     steps:
-      - uses: actions/checkout@v2.4.0
+      - uses: actions/checkout@v3
       - name: Unshallow git repo
         run: git fetch -v --tags --unshallow origin "$(git rev-parse --abbrev-ref HEAD)"
       - name: Extract tag
