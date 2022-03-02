@@ -3,7 +3,7 @@ use std::iter::FromIterator;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::{Mutex, RwLock};
 
-use actix_http::http;
+use actix_http::header::HeaderValue;
 use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
@@ -380,15 +380,19 @@ pub async fn handler_terraform_fields_create(
 
     match exists {
         // Field with given ID already existed
-        Some(_) => HttpResponse::from(json_str!({
-            id: "E40YU-CU3Q7-RQDMO",
-            errors: [
-                {
-                    code: "field:already_exists",
-                    message: "Field with the given name already exists"
-                }
-            ]
-        })),
+        Some(_) => HttpResponse::with_body(
+            StatusCode::OK,
+            json_str!({
+                id: "E40YU-CU3Q7-RQDMO",
+                errors: [
+                    {
+                        code: "field:already_exists",
+                        message: "Field with the given name already exists"
+                    }
+                ]
+            }),
+        )
+        .map_into_boxed_body(),
 
         // New field can be inserted
         None => {
@@ -402,16 +406,20 @@ pub async fn handler_terraform_fields_create(
                 }),
 
                 // This theoretically shouldn't happen but just in case handle this
-                Some(_) => HttpResponse::from(json_str!({
-                    id: "E40YU-CU3Q7-RQDMO",
-                    errors: [
-                        {
-                            code: "field:already_exists",
-                            message: "Field with the given name already exists"
-                        }
-                    ]
+                Some(_) => HttpResponse::with_body(
+                    StatusCode::BAD_REQUEST,
+                    json_str!({
+                        id: "E40YU-CU3Q7-RQDMO",
+                        errors: [
+                            {
+                                code: "field:already_exists",
+                                message: "Field with the given name already exists"
+                            }
+                        ]
 
-                })),
+                    }),
+                )
+                .map_into_boxed_body(),
             }
         }
     }
@@ -433,7 +441,7 @@ pub async fn handler_receiver(
     let lines = string_body.trim().lines();
 
     let headers = req.headers();
-    let empty_header = http::HeaderValue::from_str("").unwrap();
+    let empty_header = HeaderValue::from_str("").unwrap();
     let content_type = headers
         .get("content-type")
         .unwrap_or(&empty_header)
@@ -573,7 +581,7 @@ pub fn print_request_headers(
     method: &http::Method,
     version: http::Version,
     uri: &http::Uri,
-    headers: &http::HeaderMap,
+    headers: &actix_http::header::HeaderMap,
 ) {
     let method = method.as_str();
     let uri = uri.path();
@@ -858,7 +866,7 @@ mod tests_metrics {
         {
             let req = test::TestRequest::post()
                 .uri("/")
-                .header("Content-Type", "application/x-protobuf")
+                .insert_header(("Content-Type", "application/x-protobuf"))
                 .to_request();
             let resp = test::call_service(&mut app, req).await;
 
@@ -979,7 +987,7 @@ mod tests_metrics {
 
         let mut app = test::init_service(
             actix_web::App::new()
-                .data(opts.clone())
+                .app_data(web::Data::new(opts.clone()))
                 .app_data(web_data_app_state.clone()) // Mutable shared state
                 .route("/metrics-samples", web::get().to(handler_metrics_samples))
                 .default_service(web::get().to(handler_receiver)),
@@ -989,11 +997,14 @@ mod tests_metrics {
         {
             let req = test::TestRequest::post().uri("/")
             .set_payload(r#"apiserver_request_total{cluster="microk8s",mock="yes",code="200",component="apiserver",endpoint="https",group="events.k8s.io",job="apiserver"} 123.12 1638873379541"#)
-            .header("Content-Type", "application/vnd.sumologic.prometheus")
+            .insert_header(("Content-Type", "application/vnd.sumologic.prometheus"))
             .to_request();
 
             let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
+
+            let body= test::read_body(resp).await;
+            assert_eq!(body, web::Bytes::from_static(b""));
         }
         {
             let req = test::TestRequest::get().uri("/metrics-samples").to_request();
@@ -1025,7 +1036,7 @@ mod tests_metrics {
             // should produce a different/new time series
             let req = test::TestRequest::post().uri("/")
             .set_payload(r#"apiserver_request_total{cluster="microk8s",code="200",component="apiserver",endpoint="https",group="events.k8s.io",job="apiserver",namespace="default",resource="events"} 128.12 1638873379541"#)
-            .header("Content-Type", "application/vnd.sumologic.prometheus")
+            .insert_header(("Content-Type", "application/vnd.sumologic.prometheus"))
             .to_request();
 
             let resp = test::call_service(&mut app, req).await;
@@ -1144,7 +1155,7 @@ mod tests_logs {
         {
             let req = test::TestRequest::post()
                 .uri("/")
-                .header("Content-Type", "application/x-protobuf")
+                .insert_header(("Content-Type", "application/x-protobuf"))
                 .to_request();
             let resp = test::call_service(&mut app, req).await;
 
@@ -1179,7 +1190,7 @@ mod tests_logs {
 
         let mut app = test::init_service(
             App::new()
-                .data(opts.clone())
+                .app_data(web::Data::new(opts.clone()))
                 .app_data(app_data.clone()) // Mutable shared state
                 .route("/logs/count", web::get().to(handler_logs_count))
                 .default_service(web::get().to(handler_receiver)),
@@ -1193,12 +1204,15 @@ mod tests_logs {
             let req = test::TestRequest::post()
                 .uri("/")
                 .set_payload(log_payload)
-                .header("Content-Type", "application/x-www-form-urlencoded")
-                .header("X-Sumo-Fields", x_sumo_fields_value)
+                .insert_header(("Content-Type", "application/x-www-form-urlencoded"))
+                .insert_header(("X-Sumo-Fields", x_sumo_fields_value))
                 .to_request();
 
             let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 400);
+
+            let body= test::read_body(resp).await;
+            assert_eq!(body, web::Bytes::from_static(b"Unable to parse X-Sumo-Fields header value"));
         }
 
         // add logs with metadata
@@ -1209,11 +1223,11 @@ mod tests_logs {
                 let req = test::TestRequest::post()
                     .uri("/")
                     .set_payload(log_payload)
-                    .header("Content-Type", "application/x-www-form-urlencoded")
-                    .header("X-Sumo-Fields", x_sumo_fields_value)
-                    .header("X-Sumo-Host", "localhost")
-                    .header("X-Sumo-Category", "category")
-                    .header("X-Sumo-Name", "name")
+                    .insert_header(("Content-Type", "application/x-www-form-urlencoded"))
+                    .insert_header(("X-Sumo-Fields", x_sumo_fields_value))
+                    .insert_header(("X-Sumo-Host", "localhost"))
+                    .insert_header(("X-Sumo-Category", "category"))
+                    .insert_header(("X-Sumo-Name", "name"))
                     .to_request();
 
                 let resp = test::call_service(&mut app, req).await;

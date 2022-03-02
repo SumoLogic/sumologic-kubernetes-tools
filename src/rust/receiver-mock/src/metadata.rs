@@ -58,7 +58,7 @@ pub fn parse_sumo_fields_header_value(header_value: &str) -> Result<Metadata, an
 #[cfg(test)]
 mod tests {
     use super::*;
-    use actix_web::http::{HeaderName, HeaderValue};
+    use actix_web::http::header::{HeaderName, HeaderValue};
 
     #[test]
     fn test_parse_sumo_fields_valid() {

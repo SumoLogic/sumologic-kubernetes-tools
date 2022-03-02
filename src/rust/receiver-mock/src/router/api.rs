@@ -1,6 +1,5 @@
 pub mod v1 {
-    use actix_http::body::Body;
-    use actix_web::{HttpRequest, Responder};
+    use actix_web::{HttpRequest, HttpResponse, Responder};
     use base64;
     use serde::{Deserialize, Serialize};
 
@@ -15,26 +14,28 @@ pub mod v1 {
     pub async fn handler_collector_register(req: HttpRequest) -> impl Responder {
         let header_value = match req.headers().get("Authorization") {
             Some(v) => v,
-            None => return actix_http::Response::BadRequest().body(Body::Empty),
+            None => return HttpResponse::BadRequest().finish(),
         };
 
         let val_str = match header_value.to_str() {
             Ok(v) => v,
-            Err(_) => return actix_http::Response::BadRequest().body(Body::Empty),
+            Err(_) => return HttpResponse::BadRequest().finish(),
         };
 
         let val = match val_str.strip_prefix("Basic ") {
             Some(v) => v,
-            None => return actix_http::Response::InternalServerError().body(Body::Empty),
+            None => return HttpResponse::Unauthorized().finish(),
         };
 
         // For now the token is only checked if it can be decoded successfully.
         let _decoded = match base64::decode(val) {
             Ok(v) => v,
-            Err(_) => return actix_http::Response::Unauthorized().body(Body::Empty),
+            Err(_) => {
+                return HttpResponse::Unauthorized().finish();
+            }
         };
 
-        actix_http::Response::Ok().json(CollectorRegisterRespone {
+        HttpResponse::Ok().json(CollectorRegisterRespone {
             collector_credential_id: String::from("eeeQShpym1Szkza33333"),
             collector_credential_key: String::from("eeef3dD3nBUorbP6s3NFTya0JwLZ0FosrIsRREumZoWXEt7szGoJViwbdc5lfHq73Slsv7OctRzlvTfMLyexLULI8mYe8gFhmUZS75BhgcvqFZEfWb2Z6OsFnOxmAAAA"),
             collector_id: String::from("000000000111AAA3"),
@@ -43,7 +44,7 @@ pub mod v1 {
     }
 
     pub async fn handler_collector_heartbeat() -> impl Responder {
-        actix_http::Response::NoContent().body(Body::Empty)
+        HttpResponse::NoContent().finish()
     }
 }
 
@@ -69,7 +70,7 @@ mod tests_api {
 
         let mut app = test::init_service(
             App::new()
-                .data(opts.clone())
+                .app_data(web::Data::new(opts.clone()))
                 .service(web::scope("/api/v1").route(
                     "/collector/register",
                     web::post().to(router::api::v1::handler_collector_register),
@@ -93,7 +94,7 @@ mod tests_api {
             // Invalid token in Authorization header returns a 401
             let req = test::TestRequest::post()
                 .uri("/api/v1/collector/register")
-                .header("Authorization", "Basic xyz")
+                .insert_header(("Authorization", "Basic xyz"))
                 .to_request();
 
             let resp = test::call_service(&mut app, req).await;
@@ -106,7 +107,7 @@ mod tests_api {
             // Decodable token returns a 204 with JSON payload
             let req = test::TestRequest::post()
                 .uri("/api/v1/collector/register")
-                .header("Authorization", "Basic ZHVtbXk6bXlwYXNzd29yZA==")
+                .insert_header(("Authorization", "Basic ZHVtbXk6bXlwYXNzd29yZA=="))
                 .to_request();
 
             let resp = test::call_service(&mut app, req).await;
@@ -132,7 +133,7 @@ mod tests_api {
 
         let mut app = test::init_service(
             App::new()
-                .data(opts.clone())
+                .app_data(web::Data::new(opts.clone()))
                 .app_data(app_data.clone()) // Mutable shared state
                 .service(web::scope("/api/v1").route(
                     "/collector/heartbeat",
