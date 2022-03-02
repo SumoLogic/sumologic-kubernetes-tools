@@ -1,4 +1,3 @@
-use std::array::IntoIter;
 use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 use std::net::{IpAddr, Ipv4Addr};
@@ -555,7 +554,7 @@ pub async fn handler_logs_count(
         return HttpResponse::NotImplemented().body("Use the --store-logs flag to enable this endpoint");
     }
     // all_params has all the parameters, so we need to remove the fixed ones
-    let fixed_params: HashSet<&str> = HashSet::from_iter(IntoIter::new(["from_ts", "to_ts"]));
+    let fixed_params: HashSet<&str> = HashSet::from_iter(vec!["from_ts", "to_ts"].into_iter());
     let metadata_params: HashMap<&str, &str> = all_params
         .iter()
         .filter(|(key, _)| !fixed_params.contains(key.as_str()))
@@ -850,7 +849,6 @@ mod tests_metrics {
     use super::*;
     use actix_rt;
     use actix_web::{test, web, App};
-    use std::array::IntoIter;
     use std::iter::FromIterator;
 
     #[actix_rt::test]
@@ -1011,7 +1009,7 @@ mod tests_metrics {
             assert_eq!(
                 result[0].labels,
                 // ref: https://stackoverflow.com/a/27582993
-                HashMap::<String, String>::from_iter(IntoIter::new([
+                HashMap::<String, String>::from_iter(vec![
                     ("mock".to_owned(), "yes".to_owned()),
                     ("group".to_owned(), "events.k8s.io".to_owned()),
                     ("code".to_owned(), "200".to_owned()),
@@ -1019,7 +1017,7 @@ mod tests_metrics {
                     ("cluster".to_owned(), "microk8s".to_owned()),
                     ("component".to_owned(), "apiserver".to_owned()),
                     ("endpoint".to_owned(), "https".to_owned()),
-                ]))
+                ].into_iter())
             );
         }
         {
@@ -1051,7 +1049,7 @@ mod tests_metrics {
             assert_eq!(result[0].timestamp, 1638873379541);
             assert_eq!(
                 result[0].labels,
-                HashMap::<String, String>::from_iter(IntoIter::new([
+                HashMap::<String, String>::from_iter(vec![
                     ("cluster".to_owned(), "microk8s".to_owned()),
                     ("code".to_owned(), "200".to_owned()),
                     ("component".to_owned(), "apiserver".to_owned()),
@@ -1060,7 +1058,7 @@ mod tests_metrics {
                     ("job".to_owned(), "apiserver".to_owned()),
                     ("namespace".to_owned(), "default".to_owned()),
                     ("resource".to_owned(), "events".to_owned()),
-                ]))
+                ].into_iter())
             );
         }
         {
@@ -1080,7 +1078,7 @@ mod tests_metrics {
             assert_eq!(result[0].timestamp, 1638873379541);
             assert_eq!(
                 result[0].labels,
-                HashMap::<String, String>::from_iter(IntoIter::new([
+                HashMap::<String, String>::from_iter(vec![
                     ("cluster".to_owned(), "microk8s".to_owned()),
                     ("code".to_owned(), "200".to_owned()),
                     ("component".to_owned(), "apiserver".to_owned()),
@@ -1089,7 +1087,7 @@ mod tests_metrics {
                     ("job".to_owned(), "apiserver".to_owned()),
                     ("namespace".to_owned(), "default".to_owned()),
                     ("resource".to_owned(), "events".to_owned()),
-                ]))
+                ].into_iter())
             );
         }
         {
@@ -1108,7 +1106,7 @@ mod tests_metrics {
             assert_eq!(result[0].timestamp, 1638873379541);
             assert_eq!(
                 result[0].labels,
-                HashMap::<String, String>::from_iter(IntoIter::new([
+                HashMap::<String, String>::from_iter(vec![
                     ("mock".to_owned(), "yes".to_owned()),
                     ("group".to_owned(), "events.k8s.io".to_owned()),
                     ("code".to_owned(), "200".to_owned()),
@@ -1116,7 +1114,7 @@ mod tests_metrics {
                     ("cluster".to_owned(), "microk8s".to_owned()),
                     ("component".to_owned(), "apiserver".to_owned()),
                     ("endpoint".to_owned(), "https".to_owned()),
-                ]))
+                ].into_iter())
             );
         }
         {

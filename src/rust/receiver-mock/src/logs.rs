@@ -147,7 +147,6 @@ fn get_timestamp_from_body(body: &str) -> Option<u64> {
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
-    use std::array::IntoIter;
     use std::iter::FromIterator;
     use std::net::{IpAddr, Ipv4Addr};
 
@@ -215,12 +214,15 @@ mod tests {
     #[test]
     fn test_repo_metadata_query() {
         let metadata = [
-            Metadata::from_iter(IntoIter::new([])),
-            Metadata::from_iter(IntoIter::new([("key".to_string(), "value".to_string())])),
-            Metadata::from_iter(IntoIter::new([
-                ("key".to_string(), "valueprime".to_string()),
-                ("key2".to_string(), "value2".to_string()),
-            ])),
+            Metadata::new(),
+            Metadata::from_iter(vec![("key".to_string(), "value".to_string())].into_iter()),
+            Metadata::from_iter(
+                vec![
+                    ("key".to_string(), "valueprime".to_string()),
+                    ("key2".to_string(), "value2".to_string()),
+                ]
+                .into_iter(),
+            ),
         ];
         let body = "{\"log\": \"Log message\", \"timestamp\": 1}";
         let raw_logs = metadata
@@ -230,18 +232,18 @@ mod tests {
         let repository = LogRepository::from_raw_logs(raw_logs).unwrap();
 
         assert_eq!(
-            repository.get_message_count(0, 100, HashMap::from_iter(IntoIter::new([("key", "value")]))),
+            repository.get_message_count(0, 100, HashMap::from_iter(vec![("key", "value")].into_iter())),
             1
         );
         assert_eq!(
-            repository.get_message_count(0, 100, HashMap::from_iter(IntoIter::new([("key", "")]))),
+            repository.get_message_count(0, 100, HashMap::from_iter(vec![("key", "")].into_iter())),
             2
         );
         assert_eq!(
             repository.get_message_count(
                 0,
                 100,
-                HashMap::from_iter(IntoIter::new([("key", "valueprime"), ("key2", "value2")]))
+                HashMap::from_iter(vec![("key", "valueprime"), ("key2", "value2")].into_iter())
             ),
             1
         );
