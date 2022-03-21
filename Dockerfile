@@ -29,7 +29,7 @@ WORKDIR /logs-generator
 COPY ./src/rust/logs-generator .
 RUN cargo build --release
 
-FROM alpine:3.15.0
+FROM alpine:3.15.1
 ARG TARGETARCH
 ARG TARGETOS
 ENV HELM_VERSION="3.7.2"
