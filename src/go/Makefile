@@ -9,4 +9,8 @@ build:
 
 	go build \
 		-ldflags '-w -extldflags "-static"' \
-		-o k8s-api-test cmd/customer-trace-tester/main.go
+		-o customer-trace-tester cmd/customer-trace-tester/main.go
+
+	go build \
+		-ldflags '-w -extldflags "-static"' \
+		-o update-collection-v3 ./cmd/update-collection-v3/
