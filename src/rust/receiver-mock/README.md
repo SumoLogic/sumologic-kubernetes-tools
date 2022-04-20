@@ -126,6 +126,10 @@ The following endpoints provide information about received logs:
   }
   ```
 
+## Dump message
+
+Receiver mock comes with special `/dump` endpoint, which is going to print message on stdout independently on the header value.
+
 ## Disclaimer
 
 This tool is not intended to be used by the 3rd party.
