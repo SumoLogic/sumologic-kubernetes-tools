@@ -12,18 +12,19 @@ cargo run
 
 List of arguments taken by receiver-mock:
 
-| Long form                 | Short form       | Default value | Description                                                                                    |
-|---------------------------|------------------|:-------------:|------------------------------------------------------------------------------------------------|
-| `--drop-rate <drop_rate>` | `-d <drop_rate>` |       0       | Use to specify packet drop rate. This is number from 0 (do not drop) to 100 (drop all).        |
-| `--help`                  | `-h`             |      N/A      | Print help information                                                                         |
-| `--hostname <hostname>`   | `-l <hostname>`  |   localhost   | Hostname reported as the receiver. For Kubernetes it will be `<service name>.<namespace name>` |
-| `--port <port>`           | `-p <port>`      |     3000      | Port to listen on                                                                              |
-| `--print-headers`         |                  |      N/A      | Use to print received request's headers                                                        |
-| `--print-logs`            | `-r`             |      N/A      | Use to print received logs on stdout                                                           |
-| `--print-metrics`         | `-m`             |      N/A      | Use to print received metrics (with dimensions) on stdout                                      |
-| `--store-logs`            |                  |      N/A      | Use to store log data which can then be queried via `/logs/*` endpoints                        |
-| `--store-metrics`         |                  |      N/A      | Use to store metrics which can then be returned via `/metrics-samples` endpoint                |
-| `--version`               | `-V`             |      N/A      | Print version information                                                                      |
+| Long form                   | Short form        | Default value | Description                                                                                    |
+|-----------------------------|-------------------|:-------------:|------------------------------------------------------------------------------------------------|
+| `--drop-rate <drop_rate>`   | `-d <drop_rate>`  |       0       | Use to specify packet drop rate. This is number from 0 (do not drop) to 100 (drop all).        |
+| `--help`                    | `-h`              |      N/A      | Print help information                                                                         |
+| `--hostname <hostname>`     | `-l <hostname>`   |   localhost   | Hostname reported as the receiver. For Kubernetes it will be `<service name>.<namespace name>` |
+| `--port <port>`             | `-p <port>`       |     3000      | Port to listen on                                                                              |
+| `--print-headers`           |                   |      N/A      | Use to print received request's headers                                                        |
+| `--print-logs`              | `-r`              |      N/A      | Use to print received logs on stdout                                                           |
+| `--print-metrics`           | `-m`              |      N/A      | Use to print received metrics (with dimensions) on stdout                                      |
+| `--store-logs`              |                   |      N/A      | Use to store log data which can then be queried via `/logs/*` endpoints                        |
+| `--store-metrics`           |                   |      N/A      | Use to store metrics which can then be returned via `/metrics-samples` endpoint                |
+| `--version`                 | `-V`              |      N/A      | Print version information                                                                      |
+| `--delay-time` <delay_time> | `-t <delay_time>` |       0       | Use to specify delay time. It mocks request processing time in milliseconds.                   |
 
 ## Terraform mock
 
