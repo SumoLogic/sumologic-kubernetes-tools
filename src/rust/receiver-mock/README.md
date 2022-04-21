@@ -24,7 +24,7 @@ List of arguments taken by receiver-mock:
 | `--store-logs`              |                   |      N/A      | Use to store log data which can then be queried via `/logs/*` endpoints                        |
 | `--store-metrics`           |                   |      N/A      | Use to store metrics which can then be returned via `/metrics-samples` endpoint                |
 | `--version`                 | `-V`              |      N/A      | Print version information                                                                      |
-| `--delay-time` <delay_time> | `-t <delay_time>` |       0       | Use to specify delay time. It mocks request processing time in milliseconds.                   |
+| `--delay-time` <delay_time> | `-t <delay_time>` |       0       | Use to specify processing delay in milliseconds which will be added to every handled request.      |
 
 ## Terraform mock
 
