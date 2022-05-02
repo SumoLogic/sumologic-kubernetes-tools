@@ -577,6 +577,12 @@ pub async fn handler_logs_count(
     HttpResponse::Ok().json(LogsCountResponse { count })
 }
 
+pub async fn handler_dump(body: web::Bytes) -> impl Responder {
+    let string_body = String::from_utf8(body.to_vec()).unwrap();
+    println!("dump: {}", string_body);
+    HttpResponse::Ok().body("")
+}
+
 pub fn print_request_headers(
     method: &http::Method,
     version: http::Version,
