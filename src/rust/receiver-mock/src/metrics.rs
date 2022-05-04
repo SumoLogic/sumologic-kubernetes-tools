@@ -310,6 +310,7 @@ mem_free{host="myhostname"} 1.190197248e+10"##
                 headers: false,
                 metrics: false,
             },
+            delay_time: std::time::Duration::from_secs(0),
             drop_rate: 0,
             store_metrics: false,
             store_logs: true,
