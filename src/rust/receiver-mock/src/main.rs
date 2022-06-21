@@ -8,6 +8,8 @@ use actix_web::{web};
 
 use chrono::Duration;
 use clap::{value_t, App, Arg};
+use std::thread;
+use std::time as stime;
 
 mod logs;
 mod metrics;
@@ -76,10 +78,18 @@ async fn main() -> std::io::Result<()> {
           .help("Use to specify packet drop rate. This is number from 0 (do not drop) to 100 (drop all).")
           .takes_value(true)
           .required(false))
+        .arg(Arg::with_name("delay_time")
+            .short("t")
+            .long("delay-time")
+            .value_name("delay_time")
+            .help("Use to specify delay time. It mocks request processing time in milliseconds.")
+            .takes_value(true)
+            .required(false))
       .get_matches();
 
     let port = value_t!(matches, "port", u16).unwrap_or(3000);
     let drop_rate = value_t!(matches, "drop_rate", i64).unwrap_or(0);
+    let delay_time = stime::Duration::from_millis(value_t!(matches, "delay_time", u64).unwrap_or(0));
     let hostname = value_t!(matches, "hostname", String).unwrap_or("localhost".to_string());
     let opts = Options {
         print: options::Print {
@@ -88,6 +98,7 @@ async fn main() -> std::io::Result<()> {
             metrics: matches.is_present("print_metrics"),
         },
         drop_rate: drop_rate,
+        delay_time: delay_time,
         store_metrics: matches.is_present("store_metrics"),
         store_logs: matches.is_present("store_logs"),
     };
@@ -123,6 +134,9 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
                     
                     router::print_request_headers(req.method(), req.version(), req.uri(), headers);
                 }
+
+                thread::sleep(opts.delay_time);
+                
                 actix_web::dev::Service::call(&srv, req)
             })
             .app_data(app_state.clone()) // Mutable shared state
