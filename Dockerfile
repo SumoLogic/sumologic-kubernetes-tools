@@ -19,7 +19,7 @@ RUN CGO_ENABLED=0 GOOS=linux \
         -o customer-trace-tester cmd/customer-trace-tester/main.go
 
 FROM rust:1.57.0-alpine3.13 as rust-builder
-RUN apk update && apk upgrade && apk add g++
+RUN apk update && apk upgrade && apk add g++ git
 
 WORKDIR /receiver-mock
 COPY ./src/rust/receiver-mock .

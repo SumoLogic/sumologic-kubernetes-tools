@@ -1,0 +1,4 @@
+[net]
+# use the `git` executable for git operations due to failing github actions
+# ref: https://users.rust-lang.org/t/cargo-uses-too-much-memory-being-run-in-qemu/76531
+git-fetch-with-cli = true
