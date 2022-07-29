@@ -23,11 +23,12 @@ func main() {
 		log.Fatalf("failed reading %s: %v", *inFileFlag, err)
 	}
 
-	if err := migrate(&valuesV2); err != nil {
+	valuesV3, err := migrate(&valuesV2)
+	if err != nil {
 		log.Fatalf("failed migrating %s: %v", *inFileFlag, err)
 	}
 
-	if err := toYaml(valuesV2, *outFileFlag); err != nil {
+	if err := toYaml(valuesV3, *outFileFlag); err != nil {
 		log.Fatalf("failed writing %s: %v", *outFileFlag, err)
 	}
 }
@@ -48,7 +49,7 @@ func parseValues(path string) (ValuesV2, error) {
 	return valuesV2, nil
 }
 
-func toYaml(valuesV2 ValuesV2, path string) error {
+func toYaml(valuesV3 ValuesV3, path string) error {
 	out, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
 	if err != nil {
 		return fmt.Errorf("cannot open new file for writing (%s): %v", path, err)
@@ -62,7 +63,7 @@ func toYaml(valuesV2 ValuesV2, path string) error {
 		}
 	}()
 
-	if err := enc.Encode(valuesV2); err != nil {
+	if err := enc.Encode(valuesV3); err != nil {
 		return fmt.Errorf("failed writing new values.yaml (%s): %v", path, err)
 	}
 
