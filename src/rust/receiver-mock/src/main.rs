@@ -4,7 +4,7 @@ extern crate json_str;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-use actix_web::{web};
+use actix_web::web;
 
 use chrono::Duration;
 use clap::{value_t, App, Arg};
@@ -131,12 +131,12 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
             .wrap_fn(move |req, srv| {
                 if opts.print.headers {
                     let headers = req.headers();
-                    
+
                     router::print_request_headers(req.method(), req.version(), req.uri(), headers);
                 }
 
                 thread::sleep(opts.delay_time);
-                
+
                 actix_web::dev::Service::call(&srv, req)
             })
             .app_data(app_state.clone()) // Mutable shared state
@@ -184,6 +184,8 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
                     .default_service(web::get().to(router::handler_terraform)),
             )
             .route("/dump", web::post().to(router::handler_dump))
+            // OTLP
+            .service(web::scope("/v1").route("/logs", web::post().to(router::handler_receiver_otlp_logs)))
             // Treat every other url as receiver endpoint
             .default_service(web::get().to(router::handler_receiver))
             // Set metrics payload limit to 100MB

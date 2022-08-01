@@ -1,13 +1,8 @@
 use std::collections::{HashMap, HashSet};
+use std::io::Cursor;
 use std::iter::FromIterator;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::{Mutex, RwLock};
-
-use actix_http::header::HeaderValue;
-use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
-use serde::{Deserialize, Serialize};
 
 use crate::logs;
 use crate::metadata::{get_common_metadata_from_headers, parse_sumo_fields_header_value, Metadata};
@@ -15,6 +10,14 @@ use crate::metrics;
 use crate::metrics::Sample;
 use crate::options;
 use crate::time::get_now;
+use actix_http::header::HeaderValue;
+use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
+use opentelemetry_proto::tonic::common::v1::{self as commonv1};
+use opentelemetry_proto::tonic::logs::v1 as logsv1;
+use prost::Message;
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
+use serde::{Deserialize, Serialize};
 
 pub mod api;
 
@@ -528,6 +531,113 @@ pub async fn handler_receiver(
     HttpResponse::Ok().body("")
 }
 
+pub async fn handler_receiver_otlp_logs(
+    req: HttpRequest,
+    body: web::Bytes,
+    app_state: web::Data<AppState>,
+    opts: web::Data<options::Options>,
+) -> impl Responder {
+    // Don't fail when we can't read remote address.
+    // Default to localhost and just ingest what was sent.
+    let localhost: std::net::SocketAddr = std::net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+    let remote_address = req.peer_addr().unwrap_or(localhost).ip();
+
+    let headers = req.headers();
+    let empty_header = HeaderValue::from_str("").unwrap();
+    let content_type = headers
+        .get("content-type")
+        .unwrap_or(&empty_header)
+        .to_str()
+        .unwrap();
+
+    let mut rng = rand::thread_rng();
+    let number: i64 = rng.gen_range(0..100);
+    if number < opts.drop_rate {
+        let msg = format!("Dropping data for {}", content_type);
+        println!("{}", msg);
+        return HttpResponse::InternalServerError().body(msg);
+    }
+
+    match content_type {
+        // OTLP Logs in protobuf format
+        "application/x-protobuf" => {
+            let log_data: logsv1::LogsData = match logsv1::LogsData::decode(&mut Cursor::new(body)) {
+                Ok(data) => data,
+                Err(_) => return HttpResponse::BadRequest().body("Unable to parse body"),
+            };
+            for resource_logs in log_data.resource_logs {
+                let metadata = match resource_logs.resource {
+                    None => Metadata::new(),
+                    Some(resource) => HashMap::from_iter(resource.attributes.iter().map(|kv| {
+                        (
+                            kv.key.clone(),
+                            match &kv.value {
+                                None => String::new(),
+                                Some(value) => otlp_anyvalue_to_string(value),
+                            },
+                        )
+                    })),
+                };
+                let mut lines = Vec::new();
+                for ill in resource_logs.instrumentation_library_logs {
+                    for log_record in ill.log_records {
+                        let log_line = match log_record.body {
+                            None => String::new(),
+                            Some(body) => otlp_anyvalue_to_string(&body),
+                        };
+                        lines.push(log_line);
+                    }
+                }
+                app_state.add_log_lines(
+                    lines.iter().map(|x| x.as_str()),
+                    metadata,
+                    remote_address,
+                    &opts,
+                );
+                if opts.print.logs {
+                    for line in lines.clone() {
+                        println!("log => {}", line);
+                    }
+                }
+            }
+        }
+        &_ => {
+            #[derive(Serialize)]
+            struct ReceiverErrorErrorsField {
+                code: String,
+                message: String,
+            }
+            #[derive(Serialize)]
+            struct ReceiverError {
+                id: String,
+                errors: Vec<ReceiverErrorErrorsField>,
+            }
+            return HttpResponse::build(StatusCode::BAD_REQUEST).json(ReceiverError {
+                id: String::from("E40YU-CU3Q7-RQDM7"),
+                errors: vec![ReceiverErrorErrorsField {
+                    code: String::from("header:invalid"),
+                    message: format!("Invalid Content-Type header: {}", content_type),
+                }],
+            });
+        }
+    }
+
+    HttpResponse::Ok().body("")
+}
+
+fn otlp_anyvalue_to_string(anyvalue: &commonv1::AnyValue) -> String {
+    let value = match &anyvalue.value {
+        None => return String::new(),
+        Some(v) => v,
+    };
+    let s = match value {
+        commonv1::any_value::Value::StringValue(inner) => inner.clone(),
+        _ => String::new(),
+    };
+
+    return s;
+}
+
 // Data structures and handlers for logs endpoints start here
 #[derive(Deserialize)]
 pub struct LogsParams {
@@ -1010,7 +1120,7 @@ mod tests_metrics {
             let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
-            let body= test::read_body(resp).await;
+            let body = test::read_body(resp).await;
             assert_eq!(body, web::Bytes::from_static(b""));
         }
         {
@@ -1027,15 +1137,18 @@ mod tests_metrics {
             assert_eq!(
                 result[0].labels,
                 // ref: https://stackoverflow.com/a/27582993
-                HashMap::<String, String>::from_iter(vec![
-                    ("mock".to_owned(), "yes".to_owned()),
-                    ("group".to_owned(), "events.k8s.io".to_owned()),
-                    ("code".to_owned(), "200".to_owned()),
-                    ("job".to_owned(), "apiserver".to_owned()),
-                    ("cluster".to_owned(), "microk8s".to_owned()),
-                    ("component".to_owned(), "apiserver".to_owned()),
-                    ("endpoint".to_owned(), "https".to_owned()),
-                ].into_iter())
+                HashMap::<String, String>::from_iter(
+                    vec![
+                        ("mock".to_owned(), "yes".to_owned()),
+                        ("group".to_owned(), "events.k8s.io".to_owned()),
+                        ("code".to_owned(), "200".to_owned()),
+                        ("job".to_owned(), "apiserver".to_owned()),
+                        ("cluster".to_owned(), "microk8s".to_owned()),
+                        ("component".to_owned(), "apiserver".to_owned()),
+                        ("endpoint".to_owned(), "https".to_owned()),
+                    ]
+                    .into_iter()
+                )
             );
         }
         {
@@ -1067,16 +1180,19 @@ mod tests_metrics {
             assert_eq!(result[0].timestamp, 1638873379541);
             assert_eq!(
                 result[0].labels,
-                HashMap::<String, String>::from_iter(vec![
-                    ("cluster".to_owned(), "microk8s".to_owned()),
-                    ("code".to_owned(), "200".to_owned()),
-                    ("component".to_owned(), "apiserver".to_owned()),
-                    ("endpoint".to_owned(), "https".to_owned()),
-                    ("group".to_owned(), "events.k8s.io".to_owned()),
-                    ("job".to_owned(), "apiserver".to_owned()),
-                    ("namespace".to_owned(), "default".to_owned()),
-                    ("resource".to_owned(), "events".to_owned()),
-                ].into_iter())
+                HashMap::<String, String>::from_iter(
+                    vec![
+                        ("cluster".to_owned(), "microk8s".to_owned()),
+                        ("code".to_owned(), "200".to_owned()),
+                        ("component".to_owned(), "apiserver".to_owned()),
+                        ("endpoint".to_owned(), "https".to_owned()),
+                        ("group".to_owned(), "events.k8s.io".to_owned()),
+                        ("job".to_owned(), "apiserver".to_owned()),
+                        ("namespace".to_owned(), "default".to_owned()),
+                        ("resource".to_owned(), "events".to_owned()),
+                    ]
+                    .into_iter()
+                )
             );
         }
         {
@@ -1096,16 +1212,19 @@ mod tests_metrics {
             assert_eq!(result[0].timestamp, 1638873379541);
             assert_eq!(
                 result[0].labels,
-                HashMap::<String, String>::from_iter(vec![
-                    ("cluster".to_owned(), "microk8s".to_owned()),
-                    ("code".to_owned(), "200".to_owned()),
-                    ("component".to_owned(), "apiserver".to_owned()),
-                    ("endpoint".to_owned(), "https".to_owned()),
-                    ("group".to_owned(), "events.k8s.io".to_owned()),
-                    ("job".to_owned(), "apiserver".to_owned()),
-                    ("namespace".to_owned(), "default".to_owned()),
-                    ("resource".to_owned(), "events".to_owned()),
-                ].into_iter())
+                HashMap::<String, String>::from_iter(
+                    vec![
+                        ("cluster".to_owned(), "microk8s".to_owned()),
+                        ("code".to_owned(), "200".to_owned()),
+                        ("component".to_owned(), "apiserver".to_owned()),
+                        ("endpoint".to_owned(), "https".to_owned()),
+                        ("group".to_owned(), "events.k8s.io".to_owned()),
+                        ("job".to_owned(), "apiserver".to_owned()),
+                        ("namespace".to_owned(), "default".to_owned()),
+                        ("resource".to_owned(), "events".to_owned()),
+                    ]
+                    .into_iter()
+                )
             );
         }
         {
@@ -1124,15 +1243,18 @@ mod tests_metrics {
             assert_eq!(result[0].timestamp, 1638873379541);
             assert_eq!(
                 result[0].labels,
-                HashMap::<String, String>::from_iter(vec![
-                    ("mock".to_owned(), "yes".to_owned()),
-                    ("group".to_owned(), "events.k8s.io".to_owned()),
-                    ("code".to_owned(), "200".to_owned()),
-                    ("job".to_owned(), "apiserver".to_owned()),
-                    ("cluster".to_owned(), "microk8s".to_owned()),
-                    ("component".to_owned(), "apiserver".to_owned()),
-                    ("endpoint".to_owned(), "https".to_owned()),
-                ].into_iter())
+                HashMap::<String, String>::from_iter(
+                    vec![
+                        ("mock".to_owned(), "yes".to_owned()),
+                        ("group".to_owned(), "events.k8s.io".to_owned()),
+                        ("code".to_owned(), "200".to_owned()),
+                        ("job".to_owned(), "apiserver".to_owned()),
+                        ("cluster".to_owned(), "microk8s".to_owned()),
+                        ("component".to_owned(), "apiserver".to_owned()),
+                        ("endpoint".to_owned(), "https".to_owned()),
+                    ]
+                    .into_iter()
+                )
             );
         }
         {
@@ -1219,8 +1341,11 @@ mod tests_logs {
             let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 400);
 
-            let body= test::read_body(resp).await;
-            assert_eq!(body, web::Bytes::from_static(b"Unable to parse X-Sumo-Fields header value"));
+            let body = test::read_body(resp).await;
+            assert_eq!(
+                body,
+                web::Bytes::from_static(b"Unable to parse X-Sumo-Fields header value")
+            );
         }
 
         // add logs with metadata
