@@ -69,14 +69,12 @@ mod tests_api {
             store_logs: false,
         };
 
-        let mut app = test::init_service(
-            App::new()
-                .app_data(web::Data::new(opts.clone()))
-                .service(web::scope("/api/v1").route(
-                    "/collector/register",
-                    web::post().to(router::api::v1::handler_collector_register),
-                )),
-        )
+        let mut app = test::init_service(App::new().app_data(web::Data::new(opts.clone())).service(
+            web::scope("/api/v1").route(
+                "/collector/register",
+                web::post().to(router::api::v1::handler_collector_register),
+            ),
+        ))
         .await;
 
         {

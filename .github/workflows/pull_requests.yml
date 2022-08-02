@@ -24,6 +24,9 @@ jobs:
       - uses: actions-rs/toolchain@v1.0.7
         with:
           toolchain: stable
+      - name: Check receiver-mock formatting
+        working-directory: src/rust/receiver-mock/
+        run: make check-rustfmt
       - name: Test receiver-mock
         working-directory: src/rust/receiver-mock/
         run: make test

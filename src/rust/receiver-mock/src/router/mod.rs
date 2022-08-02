@@ -1010,7 +1010,7 @@ mod tests_metrics {
             let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 200);
 
-            let body= test::read_body(resp).await;
+            let body = test::read_body(resp).await;
             assert_eq!(body, web::Bytes::from_static(b""));
         }
         {
@@ -1027,15 +1027,18 @@ mod tests_metrics {
             assert_eq!(
                 result[0].labels,
                 // ref: https://stackoverflow.com/a/27582993
-                HashMap::<String, String>::from_iter(vec![
-                    ("mock".to_owned(), "yes".to_owned()),
-                    ("group".to_owned(), "events.k8s.io".to_owned()),
-                    ("code".to_owned(), "200".to_owned()),
-                    ("job".to_owned(), "apiserver".to_owned()),
-                    ("cluster".to_owned(), "microk8s".to_owned()),
-                    ("component".to_owned(), "apiserver".to_owned()),
-                    ("endpoint".to_owned(), "https".to_owned()),
-                ].into_iter())
+                HashMap::<String, String>::from_iter(
+                    vec![
+                        ("mock".to_owned(), "yes".to_owned()),
+                        ("group".to_owned(), "events.k8s.io".to_owned()),
+                        ("code".to_owned(), "200".to_owned()),
+                        ("job".to_owned(), "apiserver".to_owned()),
+                        ("cluster".to_owned(), "microk8s".to_owned()),
+                        ("component".to_owned(), "apiserver".to_owned()),
+                        ("endpoint".to_owned(), "https".to_owned()),
+                    ]
+                    .into_iter()
+                )
             );
         }
         {
@@ -1067,16 +1070,19 @@ mod tests_metrics {
             assert_eq!(result[0].timestamp, 1638873379541);
             assert_eq!(
                 result[0].labels,
-                HashMap::<String, String>::from_iter(vec![
-                    ("cluster".to_owned(), "microk8s".to_owned()),
-                    ("code".to_owned(), "200".to_owned()),
-                    ("component".to_owned(), "apiserver".to_owned()),
-                    ("endpoint".to_owned(), "https".to_owned()),
-                    ("group".to_owned(), "events.k8s.io".to_owned()),
-                    ("job".to_owned(), "apiserver".to_owned()),
-                    ("namespace".to_owned(), "default".to_owned()),
-                    ("resource".to_owned(), "events".to_owned()),
-                ].into_iter())
+                HashMap::<String, String>::from_iter(
+                    vec![
+                        ("cluster".to_owned(), "microk8s".to_owned()),
+                        ("code".to_owned(), "200".to_owned()),
+                        ("component".to_owned(), "apiserver".to_owned()),
+                        ("endpoint".to_owned(), "https".to_owned()),
+                        ("group".to_owned(), "events.k8s.io".to_owned()),
+                        ("job".to_owned(), "apiserver".to_owned()),
+                        ("namespace".to_owned(), "default".to_owned()),
+                        ("resource".to_owned(), "events".to_owned()),
+                    ]
+                    .into_iter()
+                )
             );
         }
         {
@@ -1096,16 +1102,19 @@ mod tests_metrics {
             assert_eq!(result[0].timestamp, 1638873379541);
             assert_eq!(
                 result[0].labels,
-                HashMap::<String, String>::from_iter(vec![
-                    ("cluster".to_owned(), "microk8s".to_owned()),
-                    ("code".to_owned(), "200".to_owned()),
-                    ("component".to_owned(), "apiserver".to_owned()),
-                    ("endpoint".to_owned(), "https".to_owned()),
-                    ("group".to_owned(), "events.k8s.io".to_owned()),
-                    ("job".to_owned(), "apiserver".to_owned()),
-                    ("namespace".to_owned(), "default".to_owned()),
-                    ("resource".to_owned(), "events".to_owned()),
-                ].into_iter())
+                HashMap::<String, String>::from_iter(
+                    vec![
+                        ("cluster".to_owned(), "microk8s".to_owned()),
+                        ("code".to_owned(), "200".to_owned()),
+                        ("component".to_owned(), "apiserver".to_owned()),
+                        ("endpoint".to_owned(), "https".to_owned()),
+                        ("group".to_owned(), "events.k8s.io".to_owned()),
+                        ("job".to_owned(), "apiserver".to_owned()),
+                        ("namespace".to_owned(), "default".to_owned()),
+                        ("resource".to_owned(), "events".to_owned()),
+                    ]
+                    .into_iter()
+                )
             );
         }
         {
@@ -1124,15 +1133,18 @@ mod tests_metrics {
             assert_eq!(result[0].timestamp, 1638873379541);
             assert_eq!(
                 result[0].labels,
-                HashMap::<String, String>::from_iter(vec![
-                    ("mock".to_owned(), "yes".to_owned()),
-                    ("group".to_owned(), "events.k8s.io".to_owned()),
-                    ("code".to_owned(), "200".to_owned()),
-                    ("job".to_owned(), "apiserver".to_owned()),
-                    ("cluster".to_owned(), "microk8s".to_owned()),
-                    ("component".to_owned(), "apiserver".to_owned()),
-                    ("endpoint".to_owned(), "https".to_owned()),
-                ].into_iter())
+                HashMap::<String, String>::from_iter(
+                    vec![
+                        ("mock".to_owned(), "yes".to_owned()),
+                        ("group".to_owned(), "events.k8s.io".to_owned()),
+                        ("code".to_owned(), "200".to_owned()),
+                        ("job".to_owned(), "apiserver".to_owned()),
+                        ("cluster".to_owned(), "microk8s".to_owned()),
+                        ("component".to_owned(), "apiserver".to_owned()),
+                        ("endpoint".to_owned(), "https".to_owned()),
+                    ]
+                    .into_iter()
+                )
             );
         }
         {
@@ -1219,8 +1231,11 @@ mod tests_logs {
             let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 400);
 
-            let body= test::read_body(resp).await;
-            assert_eq!(body, web::Bytes::from_static(b"Unable to parse X-Sumo-Fields header value"));
+            let body = test::read_body(resp).await;
+            assert_eq!(
+                body,
+                web::Bytes::from_static(b"Unable to parse X-Sumo-Fields header value")
+            );
         }
 
         // add logs with metadata
