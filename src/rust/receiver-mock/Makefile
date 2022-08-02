@@ -1,4 +1,4 @@
-RUSTFMT_FLAGS = --config-path ../.rustfmt.toml --edition 2018
+RUSTFMT_FLAGS = --config-path ../.rustfmt.toml --edition 2021
 RUST_SOURCE_FILES = $(shell find . -name "*.rs" -not -path "./target/*")
 
 .PHONY: rustfmt
