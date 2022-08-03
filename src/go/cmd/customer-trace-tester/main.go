@@ -71,7 +71,7 @@ func createTraceTestConfig() traceTestConfig {
 
 	collectorHostName := os.Getenv(EnvCollectorHostName)
 	if collectorHostName == "" {
-		collectorHostName = "collection-sumologic-otelcol.sumologic"
+		collectorHostName = "collection-sumologic-otelagent.sumologic"
 	}
 
 	spansPerTrace, err := strconv.Atoi(os.Getenv(EnvSpansPerTrace))
