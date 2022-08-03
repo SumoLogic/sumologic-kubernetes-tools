@@ -66,7 +66,7 @@ pod "diag" deleted
 
 ### Trace stress-tester
 
-`stress-tester` is a simple tool that generates a desired number of spans per minute and sends them using Jaeger format
+`stress-tester` is a simple tool that generates a desired number of spans per minute and sends them using OpenTelemetry format
 
 ```
  kubectl run stress-tester \
@@ -74,8 +74,8 @@ pod "diag" deleted
   --restart=Never -n sumologic \
   --image sumologic/kubernetes-tools \
   --serviceaccount='collection-sumologic' \
-  --env JAEGER_AGENT_HOST=collection-sumologic-otelcol.sumologic \
-  --env JAEGER_AGENT_PORT=6831 \
+  --env COLLECTOR_HOSTNAME=collection-sumologic-otelagent.sumologic \
+  --env EXPORTER=http \
   --env TOTAL_SPANS=1000000 \
   --env SPANS_PER_MIN=6000 \
   -- stress-tester
@@ -83,10 +83,13 @@ pod "diag" deleted
 
 #### Configuration
 
-You can set Jaeger Go client env variables (such as `JAEGER_AGENT_HOST` or `JAEGER_COLLECTOR`) and stress-tester specific ones:
+You can set provide configuration to stress-tester by environment variables:
 
 - `TOTAL_SPANS` (default=10000000) - total number of spans to generate
 - `SPANS_PER_MIN` (required) - rate of spans per minute (the tester will adjust the delay between iterations to reach such rate)
+- `SPANS_PER_TRACE` (default=`100`) - number of spans generated for a single trace
+- `COLLECTOR_HOSTNAME` (default=`collection-sumologic-otelagent.sumologic`) - OpenTelemetry collector endpoint 
+- `EXPORTER` (default=`http`) - select which exporter is used,  OTLP `http` or `grpc`
 
 ### Customer Trace Tester
 
