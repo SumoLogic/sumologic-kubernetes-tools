@@ -13,6 +13,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -20,9 +21,18 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/opentracing/opentracing-go"
-	"github.com/uber/jaeger-client-go"
-	jaegercfg "github.com/uber/jaeger-client-go/config"
+	"google.golang.org/grpc"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type stressTestConfig struct {
@@ -39,6 +49,10 @@ type stressTestConfig struct {
 	lateTraceDelay int
 	// Each n-th trace will have the delay applied
 	lateTraceFrequency int
+	// OTC Collector Host Name
+	collectorHostName string
+	// Exporter - grpc or http
+	exporter string
 }
 
 const (
@@ -48,6 +62,8 @@ const (
 	EnvLateTraceDelayS         = "LATE_TRACE_DELAY_S"
 	EnvLateTraceFrequency      = "LATE_TRACE_FREQ"
 	EnvSpansCreatedImmediately = "LATE_TRACE_SPANS_CREATED_IMM"
+	EnvCollectorHostName       = "COLLECTOR_HOSTNAME"
+	EnvExporter                = "EXPORTER"
 )
 
 func (cfg *stressTestConfig) printConfig() {
@@ -57,6 +73,8 @@ func (cfg *stressTestConfig) printConfig() {
 	log.Printf("%s = %d\n", EnvSpansCreatedImmediately, cfg.spansCreatedImmediately)
 	log.Printf("%s = %d\n", EnvLateTraceDelayS, cfg.lateTraceDelay)
 	log.Printf("%s = %d\n", EnvLateTraceFrequency, cfg.lateTraceFrequency)
+	log.Printf("%s = %s\n", EnvCollectorHostName, cfg.collectorHostName)
+	log.Printf("%s = %s\n", EnvExporter, cfg.exporter)
 }
 
 func createStressTestConfig() stressTestConfig {
@@ -88,6 +106,16 @@ func createStressTestConfig() stressTestConfig {
 		spansCreatedImmediately = 50
 	}
 
+	collectorHostName := os.Getenv(EnvCollectorHostName)
+	if collectorHostName == "" {
+		collectorHostName = "collection-sumologic-otelagent.sumologic"
+	}
+
+	exporter := os.Getenv(EnvExporter)
+	if exporter == "" {
+		exporter = "http"
+	}
+
 	return stressTestConfig{
 		spansPerMinute:          spm,
 		spansPerTrace:           spansPerTrace,
@@ -95,57 +123,55 @@ func createStressTestConfig() stressTestConfig {
 		totalSpans:              totalSpans,
 		lateTraceDelay:          lateTraceDelay,
 		lateTraceFrequency:      lateTraceFrequency,
+		collectorHostName:       collectorHostName,
+		exporter:                exporter,
 	}
 }
 
 type traceToFinishLater struct {
-	rootSpan      *opentracing.Span
-	toFinishSpans []*opentracing.Span
+	rootSpan      *trace.Span
+	toFinishSpans []*trace.Span
 }
 
 func (ttfl *traceToFinishLater) finishAll() {
 	for _, s := range ttfl.toFinishSpans {
-		(*s).Finish()
+		(*s).End()
 	}
-	(*ttfl.rootSpan).Finish()
+	(*ttfl.rootSpan).End()
 }
 
 func (ttfl *traceToFinishLater) setMagicTag() {
 	for _, s := range ttfl.toFinishSpans {
-		(*s).SetTag("magicTag", "late")
+		(*s).SetAttributes(attribute.String("magicTag", "late"))
 	}
 }
 
-func buildSpan(tracer opentracing.Tracer, parentSpan *opentracing.Span, countNumber int, magicValue int, magicTag *string) opentracing.Span {
-	childSpan := tracer.StartSpan(
-		"child",
-		opentracing.ChildOf((*parentSpan).Context()),
-	)
-
-	childSpan.SetBaggageItem("baggageKey", "baggageValue")
-	childSpan.SetTag("tagKey", "tagValue")
-	childSpan.SetTag("countNumber", countNumber)
-	childSpan.SetTag("magicValue", magicValue)
+func buildChildSpan(parentCtx context.Context, tracer trace.Tracer, countNumber int, magicValue int, magicTag *string) (context.Context, trace.Span) {
+	ctx, childSpan := tracer.Start(
+		parentCtx,
+		fmt.Sprintf("ancestor-%d", countNumber+1),
+		trace.WithAttributes(
+			attribute.String("tagKey", "tagValue"),
+			attribute.Int("countNumber", countNumber),
+			attribute.Int("magicValue", magicValue),
+		))
 	if magicTag != nil {
-		childSpan.SetTag("magicTag", *magicTag)
+		childSpan.SetAttributes(attribute.String("magicTag", *magicTag))
 	}
-	childSpan.SetOperationName(fmt.Sprintf("ancestor-%d", countNumber+1))
 
-	return childSpan
+	return ctx, childSpan
 }
 
-func buildTrace(testConfig stressTestConfig, traceNumber int, isLate bool) traceToFinishLater {
-	tracer := opentracing.GlobalTracer()
-	parentSpan := tracer.StartSpan("parent")
-	parentSpan.SetOperationName("root-span")
-	parentSpan.SetTag("late", isLate)
+func buildTrace(ctx context.Context, tracer trace.Tracer, testCfg stressTestConfig, traceNumber int, isLate bool) traceToFinishLater {
+	ctx, parentSpan := tracer.Start(ctx, "root-span")
+	parentSpan.SetAttributes(attribute.Bool("late", isLate))
 
-	toFinishSpans := make([]*opentracing.Span, 0)
+	toFinishSpans := make([]*trace.Span, 0)
 	currentParent := &parentSpan
 
-	for i := 0; i < testConfig.spansPerTrace-1; i++ {
-		if i < testConfig.spansCreatedImmediately {
-			(*currentParent).Finish()
+	for i := 0; i < testCfg.spansPerTrace-1; i++ {
+		if i < testCfg.spansCreatedImmediately {
+			(*currentParent).End()
 		} else {
 			toFinishSpans = append(toFinishSpans, currentParent)
 		}
@@ -155,8 +181,8 @@ func buildTrace(testConfig stressTestConfig, traceNumber int, isLate bool) trace
 			val := "true"
 			magicTag = &val
 		}
-		childSpan := buildSpan(tracer, currentParent, i, traceNumber%100, magicTag)
-		childSpan.SetTag("late", isLate)
+		_, childSpan := buildChildSpan(ctx, tracer, i, traceNumber%100, magicTag)
+		childSpan.SetAttributes(attribute.Bool("late", isLate))
 		currentParent = &childSpan
 	}
 
@@ -166,7 +192,7 @@ func buildTrace(testConfig stressTestConfig, traceNumber int, isLate bool) trace
 	}
 }
 
-func runStressTest(testCfg stressTestConfig, jagerCfg *jaegercfg.Configuration) {
+func runStressTest(testCfg stressTestConfig, tracer trace.Tracer) {
 	totalCount := 0
 	lateTracesSent := 0
 
@@ -177,9 +203,10 @@ func runStressTest(testCfg stressTestConfig, jagerCfg *jaegercfg.Configuration) 
 	tracesCount := testCfg.totalSpans / testCfg.spansPerTrace
 	start := time.Now()
 	tracesToFinishLater := make([]traceToFinishLater, 0)
+	ctx := context.Background()
 	for i := 0; i < tracesCount; i++ {
 		isLate := i%testCfg.lateTraceFrequency == 0
-		trace := buildTrace(testCfg, i, isLate)
+		trace := buildTrace(ctx, tracer, testCfg, i, isLate)
 		if isLate {
 			trace.setMagicTag()
 			tracesToFinishLater = append(tracesToFinishLater, trace)
@@ -206,7 +233,7 @@ func runStressTest(testCfg stressTestConfig, jagerCfg *jaegercfg.Configuration) 
 			// Calculate again to take sleep into account
 			duration := time.Now().Sub(start)
 			rpm := (60 * 1000 * 1000 * float64(totalCount)) / float64(duration.Microseconds())
-			log.Printf("[Queue size: %d, Late traces queue: %d, Late traces sent: %d] ", jagerCfg.Reporter.QueueSize, len(tracesToFinishLater), lateTracesSent)
+			log.Printf("[Queue size: %d, Late traces queue: %d, Late traces sent: %d] ", sdktrace.DefaultMaxQueueSize, len(tracesToFinishLater), lateTracesSent)
 			log.Printf("Created %d spans in %.3f seconds, or %.1f spans/minute\n", totalCount, float64(duration.Milliseconds())/1000.0, rpm)
 		}
 	}
@@ -229,6 +256,65 @@ func init() {
 	flag.BoolVar(&help, "help", false, "show help")
 }
 
+func initProvider(ctx context.Context, spanProcessor sdktrace.SpanProcessor) func() {
+	res, err := resource.New(ctx,
+		resource.WithAttributes(
+			// the service name used to display traces in backends
+			semconv.ServiceNameKey.String("stress-tester"),
+		),
+	)
+	handleErr("failed to create resource", err)
+
+	// Register the trace exporter with a TracerProvider, using a batch
+	// span processor to aggregate spans before export.
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+		sdktrace.WithResource(res),
+		sdktrace.WithSpanProcessor(spanProcessor),
+	)
+	otel.SetTracerProvider(tracerProvider)
+
+	// set global propagator to tracecontext (the default is no-op).
+	otel.SetTextMapPropagator(propagation.TraceContext{})
+
+	return func() {
+		// Shutdown will flush any remaining spans and shut down the exporter.
+		handleErr("failed to shutdown TracerProvider", tracerProvider.Shutdown(ctx))
+	}
+}
+
+func configureOtlpHTTPExporter(ctx context.Context, collectorHostName string) sdktrace.SpanProcessor {
+	endpoint := fmt.Sprintf("%s:4318", collectorHostName)
+	log.Printf("OTLP HTTP Exporter endpoint: %s\n", endpoint)
+
+	opts := []otlptracehttp.Option{
+		otlptracehttp.WithInsecure(),
+		otlptracehttp.WithEndpoint(endpoint),
+	}
+	client := otlptracehttp.NewClient(opts...)
+	traceExporter, err := otlptrace.New(ctx, client)
+	handleErr("Failed to create OTLP HTTP exporter", err)
+
+	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
+
+	return bsp
+}
+
+func configureOtlpGrpcExporter(ctx context.Context, collectorHostName string) sdktrace.SpanProcessor {
+	endpoint := fmt.Sprintf("%s:4317", collectorHostName)
+	log.Printf("OTLP gRPC Exporter endpoint: %s\n", endpoint)
+
+	traceExporter, err := otlptracegrpc.New(ctx,
+		otlptracegrpc.WithInsecure(),
+		otlptracegrpc.WithEndpoint(endpoint),
+		otlptracegrpc.WithDialOption(grpc.WithBlock()),
+	)
+	handleErr("Failed to create OTLP gRPC exporter", err)
+
+	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
+	return bsp
+}
+
 func main() {
 	flag.Parse()
 	if help {
@@ -236,23 +322,21 @@ func main() {
 		os.Exit(0)
 	}
 
-	jagerCfg, err := jaegercfg.FromEnv()
-	handleErr("Could not parse Jaeger env", err)
-
-	jagerCfg.Sampler = &jaegercfg.SamplerConfig{Type: jaeger.SamplerTypeConst, Param: 1.0}
-	jagerCfg.ServiceName = "jaeger_stress_tester"
-	log.Printf("Sampler type: %s param: %.3f\n", jagerCfg.Sampler.Type, jagerCfg.Sampler.Param)
-
-	tracer, closer, err := jagerCfg.NewTracer()
-	handleErr("Could not initialize tracer", err)
-	log.Printf("CollectorEndpoint: %s\n", jagerCfg.Reporter.CollectorEndpoint)
-	log.Printf("LocalAgentHostPort: %s\n", jagerCfg.Reporter.LocalAgentHostPort)
-	defer closer.Close()
-
-	opentracing.SetGlobalTracer(tracer)
-
 	testCfg := createStressTestConfig()
 	testCfg.printConfig()
 
-	runStressTest(testCfg, jagerCfg)
+	var spanProcessor sdktrace.SpanProcessor
+	if testCfg.exporter == "http" {
+		spanProcessor = configureOtlpHTTPExporter(context.Background(), testCfg.collectorHostName)
+	} else if testCfg.exporter == "grpc" {
+		spanProcessor = configureOtlpGrpcExporter(context.Background(), testCfg.collectorHostName)
+	} else {
+		log.Fatalf(fmt.Sprintf("Unsupported exporter set %s", testCfg.exporter))
+	}
+
+	shutdown := initProvider(context.Background(), spanProcessor)
+	defer shutdown()
+
+	tracer := otel.Tracer(testCfg.exporter)
+	runStressTest(testCfg, tracer)
 }
