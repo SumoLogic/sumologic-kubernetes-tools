@@ -45,6 +45,8 @@ type traceTestConfig struct {
 	spansPerTrace int
 	// How many Traces should be generated
 	totalTraces int
+	// OTLP HTTP exporter port number
+	otlpHttpPort int
 }
 
 const (
@@ -54,12 +56,15 @@ const (
 	EnvSpansPerTrace = "SPANS_PER_TRACE"
 	// EnvTotalTraces Number of traces generated per exporter
 	EnvTotalTraces = "TOTAL_TRACES"
+	// EnvOTLPHttpPort OTLP HTTP exporter port number
+	EnvOTLPHttpPort = "OTLP_HTTP_PORT"
 )
 
 func (cfg *traceTestConfig) printConfig() {
 	log.Printf("%s = %s\n", EnvCollectorHostName, cfg.collectorHostName)
 	log.Printf("%s = %d\n", EnvTotalTraces, cfg.totalTraces)
 	log.Printf("%s = %d\n", EnvSpansPerTrace, cfg.spansPerTrace)
+	log.Printf("%s = %d\n", EnvOTLPHttpPort, cfg.spansPerTrace)
 }
 
 func createTraceTestConfig() traceTestConfig {
@@ -79,10 +84,16 @@ func createTraceTestConfig() traceTestConfig {
 		totalTraces = 1
 	}
 
+	otlpHttpPort, err := strconv.Atoi(os.Getenv(EnvOTLPHttpPort))
+	if err != nil {
+		otlpHttpPort = 4318
+	}
+
 	return traceTestConfig{
 		collectorHostName: collectorHostName,
 		spansPerTrace:     spansPerTrace,
 		totalTraces:       totalTraces,
+		otlpHttpPort:		otlpHttpPort,
 	}
 }
 
@@ -102,8 +113,8 @@ func configureOtlpGrpcExporter(ctx context.Context, collectorHostName string) sd
 	return bsp
 }
 
-func configureOtlpHTTPExporter(ctx context.Context, collectorHostName string) sdktrace.SpanProcessor {
-	endpoint := fmt.Sprintf("%s:55681", collectorHostName)
+func configureOtlpHTTPExporter(ctx context.Context, collectorHostName string, otlpHttpPort int) sdktrace.SpanProcessor {
+	endpoint := fmt.Sprintf("%s:%d", collectorHostName, otlpHttpPort)
 	log.Printf("OTLP HTTP Exporter endpoint: %s\n", endpoint)
 
 	opts := []otlptracehttp.Option{
@@ -123,10 +134,7 @@ func configureZipkinExporter(collectorHostName string) sdktrace.SpanProcessor {
 	url := fmt.Sprintf("http://%s:9411/api/v2/spans", collectorHostName)
 	log.Printf("Zipkin Exporter url: %s\n", url)
 
-	traceExporter, err := zipkin.New(
-		url,
-		zipkin.WithSDKOptions(sdktrace.WithSampler(sdktrace.AlwaysSample())),
-	)
+	traceExporter, err := zipkin.New(url)
 	handleErr("Failed to create Zipkin trace exporter", err)
 	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
 
@@ -245,7 +253,7 @@ func main() {
 	testCfg := createTraceTestConfig()
 
 	otlpGrpcExporter := configureOtlpGrpcExporter(context.Background(), testCfg.collectorHostName)
-	otlpHTTPExporter := configureOtlpHTTPExporter(context.Background(), testCfg.collectorHostName)
+	otlpHTTPExporter := configureOtlpHTTPExporter(context.Background(), testCfg.collectorHostName, testCfg.otlpHttpPort)
 	zipkinExporter := configureZipkinExporter(testCfg.collectorHostName)
 	jaegerThriftHTTPExporter := configureJaegerThriftHTTPExporter(testCfg.collectorHostName)
 	spanProcessors := map[string]sdktrace.SpanProcessor{
