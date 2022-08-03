@@ -99,7 +99,7 @@ Traces can be easily found with the `service=customer-trace-test-service` filter
   --restart=Never -n sumologic \
   --image sumologic/kubernetes-tools \
   --serviceaccount='collection-sumologic' \
-  --env COLLECTOR_HOSTNAME=collection-sumologic-otelcol.sumologic \
+  --env COLLECTOR_HOSTNAME=collection-sumologic-otelagent.sumologic \
   --env TOTAL_TRACES=1 \
   --env SPANS_PER_TRACE=10 \
   -- customer-trace-tester
@@ -109,37 +109,38 @@ Traces can be easily found with the `service=customer-trace-test-service` filter
 
 You can configure this tool by setting the following env variables:
 
-- `COLLECTOR_HOSTNAME` (default=`collection-sumologic-otelcol.sumologic`) - the hostname/service of OpenTelemetry Collector
+- `COLLECTOR_HOSTNAME` (default=`collection-sumologic-otelagent.sumologic`) - the hostname/service of OpenTelemetry Collector
 - `TOTAL_TRACES` (default=`1`) - total number of traces to generate
 - `SPANS_PER_TRACE` (default=`10`) - number of spans per trace
+- `OTLP_HTTP_PORT` (default=`4318`) - port number for OTLP HTTP exporter
 
 #### Example output
 
 ```
 ./customer-trace-tester
 
-2021/07/09 00:32:48 OTLP gRPC Exporter endpoint: collection-sumologic-otelcol.sumologic:4317
-2021/07/09 00:32:48 OTLP HTTP Exporter endpoint: collection-sumologic-otelcol.sumologic:4317
-2021/07/09 00:32:48 Zipkin Exporter url: http://collection-sumologic-otelcol.sumologic:9411/api/v2/spans
-2021/07/09 00:32:48 Jaeger Thrift HTTP Exporter url: http://collection-sumologic-otelcol.sumologic:14268/api/traces
+2021/07/09 00:32:48 OTLP gRPC Exporter endpoint: collection-sumologic-otelagent.sumologic:4317
+2021/07/09 00:32:48 OTLP HTTP Exporter endpoint: collection-sumologic-otelagent.sumologic:4317
+2021/07/09 00:32:48 Zipkin Exporter url: http://collection-sumologic-otelagent.sumologic:9411/api/v2/spans
+2021/07/09 00:32:48 Jaeger Thrift HTTP Exporter url: http://collection-sumologic-otelagent.sumologic:14268/api/traces
 2021/07/09 00:32:48 *******************************
 2021/07/09 00:32:48 Sending traces thru otlpHttp exporter
-2021/07/09 00:32:48 COLLECTOR_HOSTNAME = collection-sumologic-otelcol.sumologic:4317
+2021/07/09 00:32:48 COLLECTOR_HOSTNAME = collection-sumologic-otelagent.sumologic
 2021/07/09 00:32:48 TOTAL_TRACES = 1
 2021/07/09 00:32:48 SPANS_PER_TRACE = 10
 2021/07/09 00:32:54 *******************************
 2021/07/09 00:32:54 Sending traces thru otlpGrpc exporter
-2021/07/09 00:32:54 COLLECTOR_HOSTNAME = collection-sumologic-otelcol.sumologic:4317
+2021/07/09 00:32:54 COLLECTOR_HOSTNAME = collection-sumologic-otelagent.sumologic
 2021/07/09 00:32:54 TOTAL_TRACES = 1
 2021/07/09 00:32:54 SPANS_PER_TRACE = 10
 2021/07/09 00:32:59 *******************************
 2021/07/09 00:32:59 Sending traces thru zipkin exporter
-2021/07/09 00:32:59 COLLECTOR_HOSTNAME = collection-sumologic-otelcol.sumologic:4317
+2021/07/09 00:32:59 COLLECTOR_HOSTNAME = collection-sumologic-otelagent.sumologic
 2021/07/09 00:32:59 TOTAL_TRACES = 1
 2021/07/09 00:32:59 SPANS_PER_TRACE = 10
 2021/07/09 00:33:04 *******************************
 2021/07/09 00:33:04 Sending traces thru jaegerThriftHttp exporter
-2021/07/09 00:33:04 COLLECTOR_HOSTNAME = collection-sumologic-otelcol.sumologic:4317
+2021/07/09 00:33:04 COLLECTOR_HOSTNAME = collection-sumologic-otelagent.sumologic
 2021/07/09 00:33:04 TOTAL_TRACES = 1
 2021/07/09 00:33:04 SPANS_PER_TRACE = 10
 2021/07/09 00:33:10 *******************************
