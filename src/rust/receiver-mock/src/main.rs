@@ -184,6 +184,11 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
                     .default_service(web::get().to(router::handler_terraform)),
             )
             .route("/dump", web::post().to(router::handler_dump))
+            // OTLP
+            .service(web::scope("/v1").route(
+                "/logs",
+                web::post().to(router::otlp::handler_receiver_otlp_logs),
+            ))
             // Treat every other url as receiver endpoint
             .default_service(web::get().to(router::handler_receiver))
             // Set metrics payload limit to 100MB

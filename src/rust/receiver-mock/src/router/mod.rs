@@ -3,20 +3,22 @@ use std::iter::FromIterator;
 use std::net::{IpAddr, Ipv4Addr};
 use std::sync::{Mutex, RwLock};
 
-use actix_http::header::HeaderValue;
-use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
-use serde::{Deserialize, Serialize};
-
 use crate::logs;
 use crate::metadata::{get_common_metadata_from_headers, parse_sumo_fields_header_value, Metadata};
 use crate::metrics;
 use crate::metrics::Sample;
 use crate::options;
 use crate::time::get_now;
+use actix_http::header::HeaderValue;
+use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
+use rand::distributions::Alphanumeric;
+use rand::{thread_rng, Rng};
+use serde::{Deserialize, Serialize};
 
 pub mod api;
+pub mod otlp;
+
+const DUMMY_ERROR_ID: &str = "E40YU-CU3Q7-RQDM7";
 
 pub struct AppState {
     // Mutexes are necessary to mutate data safely across threads in handlers.
@@ -94,6 +96,17 @@ impl AppState {
         let mut log_stats = self.log_stats.write().unwrap();
         log_stats.update(message_count, byte_count, ipaddr);
     }
+}
+
+#[derive(Serialize)]
+struct ReceiverErrorErrorsField {
+    code: String,
+    message: String,
+}
+#[derive(Serialize)]
+struct ReceiverError {
+    id: String,
+    errors: Vec<ReceiverErrorErrorsField>,
 }
 
 pub struct AppMetadata {
@@ -455,12 +468,8 @@ pub async fn handler_receiver(
         Err(error) => return HttpResponse::BadRequest().body(error.to_string()),
     };
 
-    let mut rng = rand::thread_rng();
-    let number: i64 = rng.gen_range(0..100);
-    if number < opts.drop_rate {
-        let msg = format!("Dropping data for {}", content_type);
-        println!("{}", msg);
-        return HttpResponse::InternalServerError().body(msg);
+    if let Some(response) = try_dropping_data(&opts, content_type) {
+        return response;
     }
 
     match content_type {
@@ -505,18 +514,8 @@ pub async fn handler_receiver(
         }
 
         &_ => {
-            #[derive(Serialize)]
-            struct ReceiverErrorErrorsField {
-                code: String,
-                message: String,
-            }
-            #[derive(Serialize)]
-            struct ReceiverError {
-                id: String,
-                errors: Vec<ReceiverErrorErrorsField>,
-            }
             return HttpResponse::build(StatusCode::BAD_REQUEST).json(ReceiverError {
-                id: String::from("E40YU-CU3Q7-RQDM7"),
+                id: String::from(DUMMY_ERROR_ID),
                 errors: vec![ReceiverErrorErrorsField {
                     code: String::from("header:invalid"),
                     message: format!("Invalid Content-Type header: {}", content_type),
@@ -526,6 +525,18 @@ pub async fn handler_receiver(
     }
 
     HttpResponse::Ok().body("")
+}
+
+fn try_dropping_data(opts: &web::Data<options::Options>, content_type: &str) -> Option<HttpResponse> {
+    let mut rng = rand::thread_rng();
+    let number: i64 = rng.gen_range(0..100);
+    if number < opts.drop_rate {
+        let msg = format!("Dropping data for {}", content_type);
+        println!("{}", msg);
+        return Some(HttpResponse::InternalServerError().body(msg));
+    }
+
+    None
 }
 
 // Data structures and handlers for logs endpoints start here
