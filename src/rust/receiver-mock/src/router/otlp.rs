@@ -1,13 +1,11 @@
 use std::collections::HashMap;
 use std::io::Cursor;
 use std::iter::FromIterator;
-use std::net::{IpAddr, Ipv4Addr};
 
 use crate::metadata::Metadata;
 use crate::options;
 use crate::router::*;
-use actix_http::header::HeaderValue;
-use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
+use actix_web::{web, HttpRequest, HttpResponse, Responder};
 use opentelemetry_proto::tonic::common::v1::{self as commonv1};
 use opentelemetry_proto::tonic::logs::v1 as logsv1;
 use prost::Message;
@@ -20,24 +18,14 @@ pub async fn handler_receiver_otlp_logs(
     app_state: web::Data<AppState>,
     opts: web::Data<options::Options>,
 ) -> impl Responder {
-    // Don't fail when we can't read remote address.
-    // Default to localhost and just ingest what was sent.
-    let localhost: std::net::SocketAddr = std::net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let remote_address = req.peer_addr().unwrap_or(localhost).ip();
+    let remote_address = get_address(&req);
+    let content_type = get_content_type(&req);
 
-    let headers = req.headers();
-    let empty_header = HeaderValue::from_str("").unwrap();
-    let content_type = headers
-        .get("content-type")
-        .unwrap_or(&empty_header)
-        .to_str()
-        .unwrap();
-
-    if let Some(response) = try_dropping_data(&opts, content_type) {
+    if let Some(response) = try_dropping_data(&opts, &content_type) {
         return response;
     }
 
-    match content_type {
+    match content_type.as_str() {
         OTLP_PROTOBUF_FORMAT_CONTENT_TYPE => {
             let log_data: logsv1::LogsData = match logsv1::LogsData::decode(&mut Cursor::new(body)) {
                 Ok(data) => data,
@@ -62,13 +50,7 @@ pub async fn handler_receiver_otlp_logs(
             }
         }
         &_ => {
-            return HttpResponse::build(StatusCode::BAD_REQUEST).json(ReceiverError {
-                id: String::from(DUMMY_ERROR_ID),
-                errors: vec![ReceiverErrorErrorsField {
-                    code: String::from("header:invalid"),
-                    message: format!("Invalid Content-Type header: {}", content_type),
-                }],
-            })
+            return get_invalid_header_response(&content_type);
         }
     }
 
