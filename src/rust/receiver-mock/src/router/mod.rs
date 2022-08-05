@@ -444,35 +444,25 @@ pub async fn handler_receiver(
     app_state: web::Data<AppState>,
     opts: web::Data<options::Options>,
 ) -> impl Responder {
-    // Don't fail when we can't read remote address.
-    // Default to localhost and just ingest what was sent.
-    let localhost: std::net::SocketAddr = std::net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
-    let remote_address = req.peer_addr().unwrap_or(localhost).ip();
-
+    let remote_address = get_address(&req);
     // actix automatically decompresses body for us.
     let string_body = String::from_utf8(body.to_vec()).unwrap();
     let lines = string_body.trim().lines();
 
-    let headers = req.headers();
-    let empty_header = HeaderValue::from_str("").unwrap();
-    let content_type = headers
-        .get("content-type")
-        .unwrap_or(&empty_header)
-        .to_str()
-        .unwrap();
+    let content_type = get_content_type(&req);
 
     // parse the value of the X-Sumo-* headers, excluding X-Sumo-Fields, which is handled separately
     // TODO: use the metadata for metrics
-    let metadata = match get_common_metadata_from_headers(headers) {
+    let metadata = match get_common_metadata_from_headers(req.headers()) {
         Ok(metadata) => metadata,
         Err(error) => return HttpResponse::BadRequest().body(error.to_string()),
     };
 
-    if let Some(response) = try_dropping_data(&opts, content_type) {
+    if let Some(response) = try_dropping_data(&opts, &content_type) {
         return response;
     }
 
-    match content_type {
+    match content_type.as_str() {
         // Metrics in carbon2 format
         "application/vnd.sumologic.carbon2" => {
             let result = metrics::handle_carbon2(lines, remote_address, opts.print);
@@ -495,7 +485,7 @@ pub async fn handler_receiver(
         "application/x-www-form-urlencoded" => {
             // parse X-Sumo-Fields for metadata
             let mut metadata = metadata;
-            match headers.get("x-sumo-fields") {
+            match req.headers().get("x-sumo-fields") {
                 Some(header_value) => match header_value.to_str() {
                     Ok(header_value_str) => match parse_sumo_fields_header_value(header_value_str) {
                         Ok(fields_metadata) => metadata.extend(fields_metadata),
@@ -514,13 +504,7 @@ pub async fn handler_receiver(
         }
 
         &_ => {
-            return HttpResponse::build(StatusCode::BAD_REQUEST).json(ReceiverError {
-                id: String::from(DUMMY_ERROR_ID),
-                errors: vec![ReceiverErrorErrorsField {
-                    code: String::from("header:invalid"),
-                    message: format!("Invalid Content-Type header: {}", content_type),
-                }],
-            });
+            return get_invalid_header_response(&content_type);
         }
     }
 
@@ -537,6 +521,33 @@ fn try_dropping_data(opts: &web::Data<options::Options>, content_type: &str) -> 
     }
 
     None
+}
+
+fn get_address(req: &HttpRequest) -> IpAddr {
+    // Don't fail when we can't read remote address.
+    // Default to localhost and just ingest what was sent.
+    let localhost: std::net::SocketAddr = std::net::SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 0);
+    req.peer_addr().unwrap_or(localhost).ip()
+}
+
+fn get_content_type(req: &HttpRequest) -> String {
+    let empty_header = HeaderValue::from_str("").unwrap();
+    req.headers()
+        .get("content-type")
+        .unwrap_or(&empty_header)
+        .to_str()
+        .unwrap()
+        .to_string()
+}
+
+fn get_invalid_header_response(content_type: &str) -> HttpResponse {
+    HttpResponse::build(StatusCode::BAD_REQUEST).json(ReceiverError {
+        id: String::from(DUMMY_ERROR_ID),
+        errors: vec![ReceiverErrorErrorsField {
+            code: String::from("header:invalid"),
+            message: format!("Invalid Content-Type header: {}", content_type),
+        }],
+    })
 }
 
 // Data structures and handlers for logs endpoints start here
