@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::hash::{Hash, Hasher};
-use std::io;
 use std::net::IpAddr;
 
 use serde::{Deserialize, Serialize};
@@ -25,13 +24,13 @@ impl MetricsHandleResult {
         };
     }
 
-    fn handle_metric(&mut self, metric_name: String) {
+    pub fn handle_metric(&mut self, metric_name: String) {
         let saved_metric = self.metrics_list.entry(metric_name).or_insert(0);
         *saved_metric += 1;
         self.metrics_count += 1;
     }
 
-    fn handle_ip(&mut self, ip_address: IpAddr) {
+    pub fn handle_ip(&mut self, ip_address: IpAddr) {
         let metrics_ip_list = self.metrics_ip_list.entry(ip_address).or_insert(0);
         *metrics_ip_list += 1;
     }
@@ -139,7 +138,7 @@ pub fn handle_graphite(lines: std::str::Lines, address: IpAddr, print_opts: opti
 pub fn handle_prometheus(lines: std::str::Lines, address: IpAddr, opts: &options::Options) -> MetricsHandleResult {
     let mut result = MetricsHandleResult::new();
 
-    let mut lines_vec: Vec<io::Result<String>> = Vec::new();
+    let mut lines_vec = vec![];
     for l in lines {
         if l.starts_with("#") {
             continue;
@@ -154,41 +153,46 @@ pub fn handle_prometheus(lines: std::str::Lines, address: IpAddr, opts: &options
         result.handle_ip(address);
 
         if opts.store_metrics {
-            lines_vec.push(Ok(l.to_owned()));
+            lines_vec.push(l.to_owned());
         }
     }
 
     if opts.store_metrics {
-        let scrape = prometheus_parse::Scrape::parse(lines_vec.into_iter()).unwrap();
-        let samples = scrape.samples;
-        result.metrics_samples = samples
-            .iter()
-            .map(|sample| {
-                let n = sample.labels.len();
-                let mut labels: HashMap<String, String> = HashMap::with_capacity(n);
-                for s in sample.labels.iter() {
-                    labels.insert(s.0.to_owned(), s.1.to_owned());
-                }
-
-                let value = match sample.value {
-                    prometheus_parse::Value::Counter(v)
-                    | prometheus_parse::Value::Gauge(v)
-                    | prometheus_parse::Value::Untyped(v) => v,
-                    // Don't support summaries and histograms
-                    _ => 0.0,
-                };
-
-                Sample {
-                    metric: sample.metric.clone(),
-                    value: value,
-                    labels: labels,
-                    timestamp: sample.timestamp.timestamp_millis() as u64,
-                }
-            })
-            .collect();
+        result.metrics_samples = lines_to_samples(lines_vec);
     }
 
     result
+}
+
+pub fn lines_to_samples(lines: Vec<String>) -> HashSet<Sample> {
+    let scrape = prometheus_parse::Scrape::parse(lines.into_iter().map(|s| Ok(s))).unwrap();
+    let samples = scrape.samples;
+
+    samples
+        .iter()
+        .map(|sample| {
+            let n = sample.labels.len();
+            let mut labels: HashMap<String, String> = HashMap::with_capacity(n);
+            for s in sample.labels.iter() {
+                labels.insert(s.0.to_owned(), s.1.to_owned());
+            }
+
+            let value = match sample.value {
+                prometheus_parse::Value::Counter(v)
+                | prometheus_parse::Value::Gauge(v)
+                | prometheus_parse::Value::Untyped(v) => v,
+                // Don't support summaries and histograms
+                _ => 0.0,
+            };
+
+            Sample {
+                metric: sample.metric.clone(),
+                value: value,
+                labels: labels,
+                timestamp: sample.timestamp.timestamp_millis() as u64,
+            }
+        })
+        .collect()
 }
 
 // filter_samples filters the provided samples based on the provided labels.
