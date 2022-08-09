@@ -185,7 +185,7 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
             )
             .route("/dump", web::post().to(router::handler_dump))
             // OTLP
-            .service(web::scope("/v1").route(
+            .service(web::scope("/receiver/v1").route(
                 "/logs",
                 web::post().to(router::otlp::handler_receiver_otlp_logs),
             ))
