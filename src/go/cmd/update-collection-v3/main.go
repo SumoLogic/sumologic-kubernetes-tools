@@ -1,9 +1,10 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
+	"io/fs"
+	"io/ioutil"
 	"log"
 	"os"
 
@@ -18,54 +19,54 @@ var (
 func main() {
 	flag.Parse()
 
-	valuesV2, err := parseValues(*inFileFlag)
+	err := migrateYamlFile(*inFileFlag, *outFileFlag)
 	if err != nil {
-		log.Fatalf("failed reading %s: %v", *inFileFlag, err)
+		log.Fatal(err)
+	}
+	log.Println("Successfully migrated the configuration")
+}
+
+func migrateYamlFile(yamlV2FilePath string, yamlV3FilePath string) error {
+	f, err := os.Open(yamlV2FilePath)
+	if err != nil {
+		return fmt.Errorf("cannot open file %s: %v", *inFileFlag, err)
+	}
+	
+	yamlV2, err := ioutil.ReadAll(f)
+	if err != nil {
+		return fmt.Errorf("error reading from file %s: %v", yamlV2FilePath, err)
+	}
+
+	yamlV3, err := migrateYaml(string(yamlV2))
+	if err != nil {
+		return fmt.Errorf("error migrating values %v", err)
+	}
+
+	err = ioutil.WriteFile(yamlV3FilePath, []byte(yamlV3), fs.ModeType)
+	if err != nil {
+		return fmt.Errorf("failed writing %s: %v", *outFileFlag, err)
+	}
+
+	return nil
+}
+
+func migrateYaml(yamlV2 string) (yamlV3 string, err error) {
+	valuesV2, err := parseValues(yamlV2)
+	if err != nil {
+		return "", fmt.Errorf("failed reading %s: %v", *inFileFlag, err)
 	}
 
 	valuesV3, err := migrate(&valuesV2)
 	if err != nil {
-		log.Fatalf("failed migrating %s: %v", *inFileFlag, err)
+		return "", fmt.Errorf("failed migrating %s: %v", *inFileFlag, err)
 	}
 
-	if err := toYaml(valuesV3, *outFileFlag); err != nil {
-		log.Fatalf("failed writing %s: %v", *outFileFlag, err)
-	}
+	yamlV3Bytes, err := yaml.Marshal(valuesV3)
+	return string(yamlV3Bytes), err
 }
 
-func parseValues(path string) (ValuesV2, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return ValuesV2{}, fmt.Errorf("cannot open file %s: %w", path, err)
-	}
-
-	decoder := yaml.NewDecoder(bufio.NewReader(f))
-
+func parseValues(yamlV2 string) (ValuesV2, error) {
 	var valuesV2 ValuesV2
-	if err := decoder.Decode(&valuesV2); err != nil {
-		return ValuesV2{}, fmt.Errorf("cannot unmarshal data from %s: %w", path, err)
-	}
-
-	return valuesV2, nil
-}
-
-func toYaml(valuesV3 ValuesV3, path string) error {
-	out, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0o600)
-	if err != nil {
-		return fmt.Errorf("cannot open new file for writing (%s): %v", path, err)
-	}
-
-	enc := yaml.NewEncoder(out)
-	enc.SetIndent(2)
-	defer func() {
-		if errClose := enc.Close(); errClose != nil {
-			log.Fatalf("failed closing yaml encoder (%s): %v", path, err)
-		}
-	}()
-
-	if err := enc.Encode(valuesV3); err != nil {
-		return fmt.Errorf("failed writing new values.yaml (%s): %v", path, err)
-	}
-
-	return nil
+	err := yaml.Unmarshal([]byte(yamlV2), &valuesV2)
+	return valuesV2, err
 }

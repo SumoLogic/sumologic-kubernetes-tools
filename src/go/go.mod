@@ -3,9 +3,8 @@ module github.com/SumoLogic/sumologic-kubernetes-collection/tools
 go 1.18
 
 require (
-	github.com/NYTimes/gziphandler v1.1.1
 	github.com/opentracing/opentracing-go v1.2.0
-	github.com/sirupsen/logrus v1.8.1
+	github.com/stretchr/testify v1.8.0
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
 	go.opentelemetry.io/otel v1.0.0-RC1
 	go.opentelemetry.io/otel/exporters/jaeger v1.0.0-RC1
@@ -16,6 +15,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.0.0-RC1
 	go.opentelemetry.io/otel/trace v1.0.0-RC1
 	google.golang.org/grpc v1.45.0
+	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/apimachinery v0.17.12
 	k8s.io/client-go v0.17.12
 )
@@ -35,7 +35,6 @@ require (
 	github.com/openzipkin/zipkin-go v0.4.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/stretchr/testify v1.7.1 // indirect
 	github.com/uber/jaeger-lib v2.2.0+incompatible // indirect
 	go.opentelemetry.io/proto/otlp v0.12.1 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
@@ -51,7 +50,6 @@ require (
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 	k8s.io/api v0.17.12 // indirect
 	k8s.io/klog v1.0.0 // indirect
 	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f // indirect
