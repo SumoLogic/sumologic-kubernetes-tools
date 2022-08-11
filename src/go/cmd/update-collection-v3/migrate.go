@@ -6,7 +6,10 @@ func migrate(valuesV2 *ValuesV2) (ValuesV3, error) {
 		Rest:                valuesV2.Rest,
 		KubePrometheusStack: migrateKubePrometheusStack(valuesV2.KubePrometheusStack),
 	}
-
+	valuesV3.Sumologic.Rest = valuesV2.Sumologic.Rest
+	valuesV3.Fluentd.Rest = valuesV2.Fluentd.Rest
+	valuesV3.Fluentd.Persistence = valuesV2.Fluentd.Persistence
+	migrateEventsFull(&valuesV3, valuesV2)
 	return valuesV3, nil
 }
 
