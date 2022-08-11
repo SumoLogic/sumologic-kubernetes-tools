@@ -32,7 +32,7 @@ func migrateYamlFile(yamlV2FilePath string, yamlV3FilePath string) error {
 	if err != nil {
 		return fmt.Errorf("cannot open file %s: %v", *inFileFlag, err)
 	}
-	
+
 	yamlV2, err := ioutil.ReadAll(f)
 	if err != nil {
 		return fmt.Errorf("error reading from file %s: %v", yamlV2FilePath, err)
