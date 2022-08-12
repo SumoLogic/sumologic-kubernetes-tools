@@ -36,33 +36,33 @@ kube-prometheus-stack:
       persistentvolumes: false`,
 			outputYaml: `
 kube-prometheus-stack:
-    kube-state-metrics:
-        collectors:
-            - configmaps
-            - cronjobs
-            - daemonsets
-            - deployments
-            - endpoints
-            - horizontalpodautoscalers
-            - ingresses
-            - jobs
-            - limitranges
-            - mutatingwebhookconfigurations
-            - namespaces
-            - networkpolicies
-            - nodes
-            - persistentvolumeclaims
-            - poddisruptionbudgets
-            - pods
-            - replicasets
-            - replicationcontrollers
-            - resourcequotas
-            - secrets
-            - services
-            - statefulsets
-            - storageclasses
-            - validatingwebhookconfigurations
-            - volumeattachments
+  kube-state-metrics:
+    collectors:
+      - configmaps
+      - cronjobs
+      - daemonsets
+      - deployments
+      - endpoints
+      - horizontalpodautoscalers
+      - ingresses
+      - jobs
+      - limitranges
+      - mutatingwebhookconfigurations
+      - namespaces
+      - networkpolicies
+      - nodes
+      - persistentvolumeclaims
+      - poddisruptionbudgets
+      - pods
+      - replicasets
+      - replicationcontrollers
+      - resourcequotas
+      - secrets
+      - services
+      - statefulsets
+      - storageclasses
+      - validatingwebhookconfigurations
+      - volumeattachments
 `,
 			err:         nil,
 			description: "kube state metrics migration",

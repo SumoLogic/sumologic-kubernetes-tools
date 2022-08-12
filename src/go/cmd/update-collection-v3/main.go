@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -61,8 +62,11 @@ func migrateYaml(yamlV2 string) (yamlV3 string, err error) {
 		return "", fmt.Errorf("failed migrating %s: %v", *inFileFlag, err)
 	}
 
-	yamlV3Bytes, err := yaml.Marshal(valuesV3)
-	return string(yamlV3Bytes), err
+	buffer := bytes.Buffer{}
+	encoder := yaml.NewEncoder(&buffer)
+	encoder.SetIndent(2)
+	err = encoder.Encode(valuesV3)
+	return buffer.String(), err
 }
 
 func parseValues(yamlV2 string) (ValuesV2, error) {
