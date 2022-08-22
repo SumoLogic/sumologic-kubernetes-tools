@@ -23,7 +23,10 @@ pub async fn handler_receiver_otlp_logs(
     opts: web::Data<options::Options>,
 ) -> impl Responder {
     let remote_address = get_address(&req);
-    let content_type = get_content_type(&req);
+    let content_type = match get_content_type(&req) {
+        Ok(x) => x,
+        Err(e) => return HttpResponse::BadRequest().body(e.to_string()),
+    };
 
     if let Some(response) = try_dropping_data(&opts, &content_type) {
         return response;
@@ -113,7 +116,10 @@ pub async fn handler_receiver_otlp_metrics(
 ) -> impl Responder {
     let remote_address = get_address(&req);
 
-    let content_type = get_content_type(&req);
+    let content_type = match get_content_type(&req) {
+        Ok(x) => x,
+        Err(e) => return HttpResponse::BadRequest().body(e.to_string()),
+    };
 
     if let Some(response) = try_dropping_data(&opts, &content_type) {
         return response;
@@ -130,6 +136,12 @@ pub async fn handler_receiver_otlp_metrics(
             // TODO: Consider giving it some basic capacity to avoid too many allocations.
             let mut samples = vec![];
             for resource_metrics in metrics_data.resource_metrics {
+                if resource_metrics.resource.is_none() {
+                    // TODO: Replace printing with logging
+                    println!("WARN: resource is none for resource metrics");
+                    continue;
+                }
+
                 let resource_attributes = &resource_metrics.resource.unwrap().attributes;
                 for instrumentation_lib_metrics in resource_metrics.instrumentation_library_metrics {
                     for metric in instrumentation_lib_metrics.metrics {
@@ -243,7 +255,10 @@ mod sample {
             .map(|kv| {
                 (
                     kv.key.clone(),
-                    super::anyvalue_to_string(kv.value.as_ref().unwrap()),
+                    // FIXME: An empty string is passed instead of panicking. Some custom error could be better for debug purposes.
+                    super::anyvalue_to_string(kv.value.as_ref().unwrap_or(&commonv1::AnyValue {
+                        value: Some(commonv1::any_value::Value::StringValue("".to_string())),
+                    })),
                 )
             })
             .collect()

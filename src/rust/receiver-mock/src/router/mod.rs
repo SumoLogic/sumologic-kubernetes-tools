@@ -11,6 +11,7 @@ use crate::options;
 use crate::time::get_now;
 use actix_http::header::HeaderValue;
 use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
+use anyhow::anyhow;
 use rand::distributions::Alphanumeric;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
@@ -445,17 +446,22 @@ pub async fn handler_receiver(
     opts: web::Data<options::Options>,
 ) -> impl Responder {
     let remote_address = get_address(&req);
-    // actix automatically decompresses body for us.
-    let string_body = String::from_utf8(body.to_vec()).unwrap();
+    let string_body = match String::from_utf8(body.to_vec()) {
+        Ok(x) => x,
+        Err(e) => return HttpResponse::BadRequest().body(e.to_string()),
+    };
     let lines = string_body.trim().lines();
 
-    let content_type = get_content_type(&req);
+    let content_type = match get_content_type(&req) {
+        Ok(x) => x,
+        Err(e) => return HttpResponse::BadRequest().body(e.to_string()),
+    };
 
     // parse the value of the X-Sumo-* headers, excluding X-Sumo-Fields, which is handled separately
     // TODO: use the metadata for metrics
     let metadata = match get_common_metadata_from_headers(req.headers()) {
         Ok(metadata) => metadata,
-        Err(error) => return HttpResponse::BadRequest().body(error.to_string()),
+        Err(e) => return HttpResponse::BadRequest().body(e.to_string()),
     };
 
     if let Some(response) = try_dropping_data(&opts, &content_type) {
@@ -530,14 +536,17 @@ fn get_address(req: &HttpRequest) -> IpAddr {
     req.peer_addr().unwrap_or(localhost).ip()
 }
 
-fn get_content_type(req: &HttpRequest) -> String {
+fn get_content_type(req: &HttpRequest) -> anyhow::Result<String> {
     let empty_header = HeaderValue::from_str("").unwrap();
-    req.headers()
+    match req
+        .headers()
         .get("content-type")
         .unwrap_or(&empty_header)
         .to_str()
-        .unwrap()
-        .to_string()
+    {
+        Ok(x) => Ok(x.to_string()),
+        Err(e) => Err(anyhow!(e)),
+    }
 }
 
 fn get_invalid_header_response(content_type: &str) -> HttpResponse {
@@ -600,7 +609,7 @@ pub async fn handler_logs_count(
 }
 
 pub async fn handler_dump(body: web::Bytes) -> impl Responder {
-    let string_body = String::from_utf8(body.to_vec()).unwrap();
+    let string_body = String::from_utf8(body.to_vec()).unwrap_or("not an utf-8 string".to_string());
     println!("dump: {}", string_body);
     HttpResponse::Ok().body("")
 }
