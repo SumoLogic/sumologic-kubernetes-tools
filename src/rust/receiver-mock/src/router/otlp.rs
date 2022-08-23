@@ -183,7 +183,7 @@ mod sample {
     use opentelemetry_proto::tonic::metrics::v1 as metricsv1;
     use std::collections::HashMap;
 
-    use crate::metrics::Sample;
+    use crate::metrics::sample::Sample;
 
     type Attributes = [commonv1::KeyValue];
 
@@ -273,7 +273,7 @@ mod sample {
         use opentelemetry_proto::tonic::common::v1 as commonv1;
         use opentelemetry_proto::tonic::metrics::v1 as metricsv1;
 
-        use crate::metrics::Sample;
+        use crate::metrics::sample::Sample;
 
         fn get_string_anyvalue(string: &str) -> AnyValue {
             AnyValue {
@@ -412,6 +412,7 @@ mod sample {
 }
 #[cfg(test)]
 mod test {
+    use crate::metrics::sample::Sample;
     use crate::router::otlp::*;
     use actix_http::body::{BoxBody, MessageBody};
     use actix_web::test as actix_test;
