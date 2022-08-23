@@ -6,7 +6,6 @@ use std::sync::{Mutex, RwLock};
 use crate::logs;
 use crate::metadata::{get_common_metadata_from_headers, parse_sumo_fields_header_value, Metadata};
 use crate::metrics;
-use crate::metrics::Sample;
 use crate::options;
 use crate::time::get_now;
 use actix_http::header::HeaderValue;
@@ -28,7 +27,7 @@ pub struct AppState {
     pub log_messages: RwLock<logs::LogRepository>,
 
     pub metrics: RwLock<u64>,
-    pub metrics_samples: RwLock<HashSet<Sample>>,
+    pub metrics_samples: RwLock<HashSet<metrics::sample::Sample>>,
     pub metrics_list: RwLock<HashMap<String, u64>>,
     pub metrics_ip_list: RwLock<HashMap<IpAddr, u64>>,
 }
@@ -194,7 +193,7 @@ pub async fn handler_metrics_samples(
     }
 
     let samples = &*app_state.metrics_samples.read().unwrap();
-    let response = metrics::filter_samples(samples, params);
+    let response = metrics::sample::filter_samples(samples, params);
 
     HttpResponse::Ok().json(response)
 }
@@ -891,6 +890,7 @@ mod tests_terraform {
 
 #[cfg(test)]
 mod tests_metrics {
+    use super::metrics::sample::Sample;
     use super::*;
     use actix_rt;
     use actix_web::{test, web, App};
