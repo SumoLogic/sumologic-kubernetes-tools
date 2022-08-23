@@ -463,18 +463,6 @@ pub async fn handler_receiver(
     }
 
     match content_type.as_str() {
-        // Metrics in carbon2 format
-        "application/vnd.sumologic.carbon2" => {
-            let result = metrics::handle_carbon2(lines, remote_address, opts.print);
-            app_state.add_metrics_result(result, opts.get_ref());
-        }
-
-        // Metrics in graphite format
-        "application/vnd.sumologic.graphite" => {
-            let result = metrics::handle_graphite(lines, remote_address, opts.print);
-            app_state.add_metrics_result(result, opts.get_ref());
-        }
-
         // Metrics in prometheus format
         "application/vnd.sumologic.prometheus" => {
             let result = metrics::handle_prometheus(lines, remote_address, opts.get_ref());

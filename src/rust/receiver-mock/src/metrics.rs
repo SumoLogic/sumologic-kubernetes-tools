@@ -75,64 +75,6 @@ impl Hash for Sample {
     }
 }
 
-// Handle metrics in Carbon2.0 format
-// Reference: https://help.sumologic.com/Metrics/Introduction-to-Metrics/Metric-Formats#carbon-2-0
-pub fn handle_carbon2(lines: std::str::Lines, address: IpAddr, print_opts: options::Print) -> MetricsHandleResult {
-    let mut result = MetricsHandleResult::new();
-
-    for line in lines {
-        if print_opts.metrics {
-            println!("metric => {}", line);
-        }
-        let mut split = line.split("  ");
-        let intrinsic_metrics = split.nth(0).unwrap();
-        for metric in intrinsic_metrics.split(" ") {
-            let mut split = metric.split("=");
-            let field_name = split.nth(0).unwrap().to_string();
-            if field_name == "metric" {
-                // nth() consumes elements hence nth(0) again
-                let metric_name = split.nth(0).unwrap().to_string();
-                result.handle_metric(metric_name);
-                break;
-            }
-        }
-
-        result.handle_ip(address);
-    }
-
-    result
-}
-
-// Handle metrics in Graphite format
-// Reference: https://help.sumologic.com/Metrics/Introduction-to-Metrics/Metric-Formats#graphite
-pub fn handle_graphite(lines: std::str::Lines, address: IpAddr, print_opts: options::Print) -> MetricsHandleResult {
-    let mut result = MetricsHandleResult::new();
-
-    for line in lines {
-        if print_opts.metrics {
-            println!("metric => {}", line);
-        }
-        let split_line = line.split(' ').collect::<Vec<_>>();
-        if split_line.len() != 3 {
-            println!("Incorrect graphite metric line: {}", line);
-            continue;
-        }
-
-        let split_metric = split_line[0].split('.').collect::<Vec<_>>();
-        if split_metric.len() != 3 {
-            println!("Incorrect graphite metric name: {}", split_line[0]);
-            continue;
-        }
-
-        let metric_name = split_metric[1];
-        let metric_field = split_metric[2];
-        result.handle_metric(format!("{}_{}", metric_name, metric_field));
-        result.handle_ip(address);
-    }
-
-    result
-}
-
 // Handle metrics in Prometheus format
 // Reference: https://help.sumologic.com/Metrics/Introduction-to-Metrics/Metric-Formats#prometheus
 pub fn handle_prometheus(lines: std::str::Lines, address: IpAddr, opts: &options::Options) -> MetricsHandleResult {
@@ -255,46 +197,6 @@ mod tests {
     use std::net::{IpAddr, Ipv4Addr};
 
     #[test]
-    fn test_carbon_basic() {
-        let lines = "metric=mem_available_percent host=myhostname  50.430792570114136 1601906858
-metric=mem_free host=myhostname  12677414912 1601906858
-metric=mem_total host=myhostname  68719476736 1601906858
-metric=mem_used host=myhostname  34063699968 1601906858
-metric=mem_used_percent host=myhostname  49.569207429885864 1601906858
-metric=mem_active host=myhostname  25058705408 1601906858
-metric=mem_inactive host=myhostname  21978361856 1601906858
-metric=mem_wired host=myhostname  5661790208 1601906858
-metric=mem_available host=myhostname  34655776768 1601906858"
-            .lines();
-
-        let ip_address = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
-        let print_opts = options::Print {
-            logs: false,
-            headers: false,
-            metrics: false,
-        };
-        let result = handle_carbon2(lines, ip_address, print_opts);
-
-        assert_eq!(result.metrics_count, 9);
-
-        let mut metrics_list: HashMap<String, u64> = HashMap::new();
-        metrics_list.insert(String::from("mem_available_percent"), 1);
-        metrics_list.insert(String::from("mem_free"), 1);
-        metrics_list.insert(String::from("mem_total"), 1);
-        metrics_list.insert(String::from("mem_used"), 1);
-        metrics_list.insert(String::from("mem_used_percent"), 1);
-        metrics_list.insert(String::from("mem_active"), 1);
-        metrics_list.insert(String::from("mem_inactive"), 1);
-        metrics_list.insert(String::from("mem_wired"), 1);
-        metrics_list.insert(String::from("mem_available"), 1);
-
-        assert_eq!(result.metrics_list, metrics_list);
-
-        assert_eq!(result.metrics_ip_list.contains_key(&ip_address), true);
-        assert_eq!(*result.metrics_ip_list.get(&ip_address).unwrap(), 9);
-    }
-
-    #[test]
     fn test_prometheus_basic() {
         let lines = r##"mem_available_percent{host="myhostname"} 49.59816932678223
 mem_active{host="myhostname"} 2.56055296e+10
@@ -320,46 +222,6 @@ mem_free{host="myhostname"} 1.190197248e+10"##
             store_logs: true,
         };
         let result = handle_prometheus(lines, ip_address, &opts);
-
-        assert_eq!(result.metrics_count, 9);
-
-        let mut metrics_list: HashMap<String, u64> = HashMap::new();
-        metrics_list.insert(String::from("mem_available_percent"), 1);
-        metrics_list.insert(String::from("mem_free"), 1);
-        metrics_list.insert(String::from("mem_total"), 1);
-        metrics_list.insert(String::from("mem_used"), 1);
-        metrics_list.insert(String::from("mem_used_percent"), 1);
-        metrics_list.insert(String::from("mem_active"), 1);
-        metrics_list.insert(String::from("mem_inactive"), 1);
-        metrics_list.insert(String::from("mem_wired"), 1);
-        metrics_list.insert(String::from("mem_available"), 1);
-
-        assert_eq!(result.metrics_list, metrics_list);
-
-        assert_eq!(result.metrics_ip_list.contains_key(&ip_address), true);
-        assert_eq!(*result.metrics_ip_list.get(&ip_address).unwrap(), 9);
-    }
-
-    #[test]
-    fn test_graphite_basic() {
-        let lines = "myhostname.mem.available 33310904320 1601909210
-myhostname.mem.used_percent 51.526254415512085 1601909210
-myhostname.mem.available_percent 48.473745584487915 1601909210
-myhostname.mem.active 26373685248 1601909210
-myhostname.mem.total 68719476736 1601909210
-myhostname.mem.used 35408572416 1601909210
-myhostname.mem.inactive 22692282368 1601909210
-myhostname.mem.free 10618621952 1601909210
-myhostname.mem.wired 5680394240 1601909210"
-            .lines();
-
-        let ip_address = IpAddr::V4(Ipv4Addr::new(1, 2, 3, 4));
-        let print_opts = options::Print {
-            logs: false,
-            headers: false,
-            metrics: false,
-        };
-        let result = handle_graphite(lines, ip_address, print_opts);
 
         assert_eq!(result.metrics_count, 9);
 
