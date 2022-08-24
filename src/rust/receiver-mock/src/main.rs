@@ -118,7 +118,7 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
         url: format!("http://{}:{}/receiver", hostname, port),
     });
 
-    let terraform_state = web::Data::new(router::TerraformState {
+    let terraform_state = web::Data::new(router::terraform::TerraformState {
         fields: Mutex::new(HashMap::new()),
     });
 
@@ -167,21 +167,21 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
                     .app_data(terraform_state.clone())
                     .route(
                         "/api/v1/fields/quota",
-                        web::get().to(router::handler_terraform_fields_quota),
+                        web::get().to(router::terraform::handler_terraform_fields_quota),
                     )
                     .route(
                         "/api/v1/fields/{field}",
-                        web::get().to(router::handler_terraform_field),
+                        web::get().to(router::terraform::handler_terraform_field),
                     )
                     .route(
                         "/api/v1/fields",
-                        web::get().to(router::handler_terraform_fields),
+                        web::get().to(router::terraform::handler_terraform_fields),
                     )
                     .route(
                         "/api/v1/fields",
-                        web::post().to(router::handler_terraform_fields_create),
+                        web::post().to(router::terraform::handler_terraform_fields_create),
                     )
-                    .default_service(web::get().to(router::handler_terraform)),
+                    .default_service(web::get().to(router::terraform::handler_terraform)),
             )
             .route("/dump", web::post().to(router::handler_dump))
             // OTLP
