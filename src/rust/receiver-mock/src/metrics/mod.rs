@@ -1,3 +1,4 @@
+use log::debug;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::net::IpAddr;
@@ -44,7 +45,7 @@ pub fn handle_carbon2(lines: std::str::Lines, address: IpAddr, print_opts: optio
 
     for line in lines {
         if print_opts.metrics {
-            println!("metric => {}", line);
+            debug!("metric => {}", line);
         }
         let mut split = line.split("  ");
         let intrinsic_metrics = split.nth(0).unwrap();
@@ -72,17 +73,17 @@ pub fn handle_graphite(lines: std::str::Lines, address: IpAddr, print_opts: opti
 
     for line in lines {
         if print_opts.metrics {
-            println!("metric => {}", line);
+            debug!("metric => {}", line);
         }
         let split_line = line.split(' ').collect::<Vec<_>>();
         if split_line.len() != 3 {
-            println!("Incorrect graphite metric line: {}", line);
+            debug!("Incorrect graphite metric line: {}", line);
             continue;
         }
 
         let split_metric = split_line[0].split('.').collect::<Vec<_>>();
         if split_metric.len() != 3 {
-            println!("Incorrect graphite metric name: {}", split_line[0]);
+            debug!("Incorrect graphite metric name: {}", split_line[0]);
             continue;
         }
 
@@ -107,7 +108,7 @@ pub fn handle_prometheus(lines: std::str::Lines, address: IpAddr, opts: &options
         }
 
         if opts.print.metrics {
-            println!("metric => {}", l);
+            debug!("metric => {}", l);
         }
         // This should also be implemented in terms of parsed metrics, see below.
         let metric_name = l.split("{").nth(0).unwrap().to_string();

@@ -11,6 +11,7 @@ use crate::time::get_now;
 use actix_http::header::HeaderValue;
 use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
 use anyhow::anyhow;
+use log::debug;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -231,7 +232,7 @@ pub async fn handler_receiver(
             app_state.add_log_lines(lines.clone(), metadata, remote_address, &opts);
             if opts.print.logs {
                 for line in lines.clone() {
-                    println!("log => {}", line);
+                    debug!("log => {}", line);
                 }
             }
         }
@@ -249,7 +250,7 @@ fn try_dropping_data(opts: &web::Data<options::Options>, content_type: &str) -> 
     let number: i64 = rng.gen_range(0..100);
     if number < opts.drop_rate {
         let msg = format!("Dropping data for {}", content_type);
-        println!("{}", msg);
+        debug!("{}", msg);
         return Some(HttpResponse::InternalServerError().body(msg));
     }
 
@@ -337,7 +338,7 @@ pub async fn handler_logs_count(
 
 pub async fn handler_dump(body: web::Bytes) -> impl Responder {
     let string_body = String::from_utf8(body.to_vec()).unwrap_or("not an utf-8 string".to_string());
-    println!("dump: {}", string_body);
+    debug!("dump: {}", string_body);
     HttpResponse::Ok().body("")
 }
 
@@ -350,11 +351,11 @@ pub fn print_request_headers(
     let method = method.as_str();
     let uri = uri.path();
 
-    println!("--> {} {} {:?}", method, uri, version);
+    let mut output = format!("--> {} {} {:?}", method, uri, version);
     for (key, value) in headers {
-        println!("--> {}: {}", key, value.to_str().unwrap());
+        output += &format!("--> {}: {}", key, value.to_str().unwrap());
     }
-    println!();
+    debug!("{}\n", output);
 }
 
 // TODO: extract stdout as parameter to make testing easier.
@@ -377,7 +378,7 @@ pub fn start_print_stats_timer(
         // TODO: make this print metrics per minute (as DPM) and logs
         // per second, regardless of used interval
         // ref: https://github.com/SumoLogic/sumologic-kubernetes-tools/issues/57
-        println!(
+        debug!(
             "{} Metrics: {:10.} Logs: {:10.}; {:6.6} MB/s",
             now,
             *metrics - p_metrics,
