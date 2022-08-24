@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 use std::net::{IpAddr, Ipv4Addr};
+use std::sync::atomic::AtomicU64;
 use std::sync::RwLock;
 
 use crate::logs;
@@ -32,6 +33,8 @@ pub struct AppState {
     pub metrics_samples: RwLock<HashSet<metrics::sample::Sample>>,
     pub metrics_list: RwLock<HashMap<String, u64>>,
     pub metrics_ip_list: RwLock<HashMap<IpAddr, u64>>,
+
+    pub spans: AtomicU64,
 }
 
 impl AppState {
@@ -44,6 +47,8 @@ impl AppState {
             metrics_list: RwLock::new(HashMap::new()),
             metrics_ip_list: RwLock::new(HashMap::new()),
             metrics_samples: RwLock::new(HashSet::new()),
+
+            spans: AtomicU64::new(0),
         };
     }
 }
@@ -368,28 +373,32 @@ pub fn start_print_stats_timer(
     let mut p_metrics: u64 = 0;
     let mut p_logs: u64 = 0;
     let mut p_logs_bytes: u64 = 0;
+    let mut p_spans: u64 = 0;
     let mut ts = get_now();
 
     t.schedule_repeating(interval, move || {
         let now = get_now();
         let metrics = app_state.metrics.read().unwrap();
         let log_stats = app_state.log_stats.read().unwrap();
+        let spans = app_state.spans.load(std::sync::atomic::Ordering::SeqCst);
 
         // TODO: make this print metrics per minute (as DPM) and logs
         // per second, regardless of used interval
         // ref: https://github.com/SumoLogic/sumologic-kubernetes-tools/issues/57
         debug!(
-            "{} Metrics: {:10.} Logs: {:10.}; {:6.6} MB/s",
+            "{} Metrics: {:10.} Logs: {:10.}; {:6.6} MB/s Spans: {:10.};",
             now,
             *metrics - p_metrics,
             log_stats.total.message_count - p_logs,
-            ((log_stats.total.byte_count - p_logs_bytes) as f64) / ((now - ts) as f64) / (1e6 as f64)
+            ((log_stats.total.byte_count - p_logs_bytes) as f64) / ((now - ts) as f64) / (1e6 as f64),
+            spans - p_spans,
         );
 
         ts = now;
         p_metrics = *metrics;
         p_logs = log_stats.total.message_count;
         p_logs_bytes = log_stats.total.byte_count;
+        p_spans = spans;
     })
 }
 

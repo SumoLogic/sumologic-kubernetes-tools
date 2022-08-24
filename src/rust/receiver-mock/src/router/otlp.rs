@@ -12,6 +12,7 @@ use log::warn;
 use opentelemetry_proto::tonic::common::v1 as commonv1;
 use opentelemetry_proto::tonic::logs::v1 as logsv1;
 use opentelemetry_proto::tonic::metrics::v1 as metricsv1;
+use opentelemetry_proto::tonic::trace::v1 as tracev1;
 use prost::Message;
 
 const OTLP_PROTOBUF_FORMAT_CONTENT_TYPE: &str = "application/x-protobuf";
@@ -117,7 +118,6 @@ pub async fn handler_receiver_otlp_metrics(
     opts: web::Data<options::Options>,
 ) -> impl Responder {
     let remote_address = get_address(&req);
-
     let content_type = match get_content_type(&req) {
         Ok(x) => x,
         Err(e) => return HttpResponse::BadRequest().body(e.to_string()),
@@ -169,6 +169,49 @@ pub async fn handler_receiver_otlp_metrics(
             }
 
             app_state.add_metrics_result(result, &opts);
+        }
+        &_ => {
+            return get_invalid_header_response(&content_type);
+        }
+    }
+
+    HttpResponse::Ok().body("")
+}
+
+pub async fn handler_receiver_otlp_traces(
+    req: HttpRequest,
+    body: web::Bytes,
+    app_state: web::Data<AppState>,
+    opts: web::Data<options::Options>,
+) -> impl Responder {
+    let _remote_address = get_address(&req);
+    let content_type = match get_content_type(&req) {
+        Ok(x) => x,
+        Err(e) => return HttpResponse::BadRequest().body(e.to_string()),
+    };
+
+    if let Some(response) = try_dropping_data(&opts, &content_type) {
+        return response;
+    }
+
+    match content_type.as_str() {
+        OTLP_PROTOBUF_FORMAT_CONTENT_TYPE => {
+            let traces_data = match tracev1::TracesData::decode(&mut Cursor::new(body)) {
+                Ok(data) => data,
+                Err(_) => return HttpResponse::BadRequest().body("Unable to parse body"),
+            };
+
+            for resource_spans in traces_data.resource_spans {
+                for instrumentation_lib_spans in resource_spans.instrumentation_library_spans {
+                    for span in instrumentation_lib_spans.spans {
+                        // TODO: Add pretty printing
+                        debug!("Span => {:?}", span);
+                        app_state
+                            .spans
+                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                    }
+                }
+            }
         }
         &_ => {
             return get_invalid_header_response(&content_type);
