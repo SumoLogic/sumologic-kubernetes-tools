@@ -207,6 +207,10 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
                     .route(
                         "/metrics",
                         web::post().to(router::otlp::handler_receiver_otlp_metrics),
+                    )
+                    .route(
+                        "/traces",
+                        web::post().to(router::otlp::handler_receiver_otlp_traces),
                     ),
             )
             // Treat every other url as receiver endpoint
