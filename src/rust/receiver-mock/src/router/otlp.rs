@@ -7,6 +7,8 @@ use crate::metrics::MetricsHandleResult;
 use crate::options;
 use crate::router::*;
 use actix_web::{web, HttpRequest, HttpResponse, Responder};
+use log::debug;
+use log::warn;
 use opentelemetry_proto::tonic::common::v1 as commonv1;
 use opentelemetry_proto::tonic::logs::v1 as logsv1;
 use opentelemetry_proto::tonic::metrics::v1 as metricsv1;
@@ -51,7 +53,7 @@ pub async fn handler_receiver_otlp_logs(
 
                 if opts.print.logs {
                     for line in lines {
-                        println!("log => {}", line);
+                        debug!("log => {}", line);
                     }
                 }
             }
@@ -138,7 +140,7 @@ pub async fn handler_receiver_otlp_metrics(
             for resource_metrics in metrics_data.resource_metrics {
                 if resource_metrics.resource.is_none() {
                     // TODO: Replace printing with logging
-                    println!("WARN: resource is none for resource metrics");
+                    warn!("resource is none for resource metrics");
                     continue;
                 }
 
@@ -147,9 +149,9 @@ pub async fn handler_receiver_otlp_metrics(
                     for metric in instrumentation_lib_metrics.metrics {
                         let metric_sample_vec = sample::otlp_metric_to_samples(&metric, resource_attributes);
 
-                        for m in &metric_sample_vec {
-                            if opts.print.metrics {
-                                println!("metrics => {:?}", m);
+                        if opts.print.metrics {
+                            for m in &metric_sample_vec {
+                                debug!("metrics => {:?}", m);
                             }
                         }
                         if opts.store_metrics {

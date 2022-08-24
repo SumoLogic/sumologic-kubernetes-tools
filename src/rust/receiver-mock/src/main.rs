@@ -8,6 +8,8 @@ use actix_web::web;
 
 use chrono::Duration;
 use clap::{value_t, App, Arg};
+use log::error;
+use log::info;
 use std::thread;
 use std::time as stime;
 
@@ -21,6 +23,8 @@ mod time;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    simple_logger::init_with_level(log::Level::Debug).unwrap();
+
     let matches = App::new("Receiver mock")
       .version("0.0")
       .author("Sumo Logic <collection@sumologic.com>")
@@ -122,7 +126,7 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
         fields: Mutex::new(HashMap::new()),
     });
 
-    println!("Receiver mock is waiting for enemy on 0.0.0.0:{}!", port);
+    info!("Receiver mock is waiting for enemy on 0.0.0.0:{}!", port);
     let result = actix_web::HttpServer::new(move || {
         actix_web::App::new()
             // Middleware printing headers for all handlers.
@@ -217,7 +221,7 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
     match result {
         Ok(result) => Ok(result),
         Err(e) => {
-            eprintln!("server error: {}", e);
+            error!("server error: {}", e);
             Err(e)
         }
     }

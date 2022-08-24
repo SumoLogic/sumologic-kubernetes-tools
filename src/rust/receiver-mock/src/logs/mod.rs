@@ -1,4 +1,5 @@
 use crate::time;
+use log::warn;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::net::IpAddr;
@@ -87,7 +88,7 @@ impl LogRepository {
         let timestamp = match get_timestamp_from_body(&body) {
             Some(ts) => ts,
             None => {
-                eprintln!("Couldn't find timestamp in log line {}", body);
+                warn!("Couldn't find timestamp in log line {}", body);
                 time::get_now_ms() // use current system time if no timestamp found
             }
         };

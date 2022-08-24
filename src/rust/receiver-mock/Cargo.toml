@@ -26,3 +26,5 @@ http = "0.2"
 opentelemetry-proto = { git = "https://github.com/open-telemetry/opentelemetry-rust", features = ["gen-tonic", "build-server", "logs", "metrics"] }
 prost = "0.10.4"
 itertools = "0.10.3"
+log = "0.4.17"
+simple_logger = "2.3.0"
