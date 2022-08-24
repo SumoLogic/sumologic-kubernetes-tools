@@ -750,7 +750,10 @@ mod test {
                 .app_data(web::Data::new(opts.clone()))
                 .app_data(get_default_app_data())
                 .service(web::scope("/v1").route("/metrics", web::post().to(handler_receiver_otlp_metrics)))
-                .route("/metrics-list", web::get().to(handler_metrics_list))
+                .route(
+                    "/metrics-list",
+                    web::get().to(metrics_data::handler_metrics_list),
+                )
                 .default_service(web::get().to(handler_receiver)),
         )
         .await;
@@ -786,7 +789,10 @@ mod test {
                 .app_data(web::Data::new(opts.clone()))
                 .app_data(get_default_app_data())
                 .service(web::scope("/v1").route("/metrics", web::post().to(handler_receiver_otlp_metrics)))
-                .route("/metrics-samples", web::get().to(handler_metrics_samples))
+                .route(
+                    "/metrics-samples",
+                    web::get().to(metrics_data::handler_metrics_samples),
+                )
                 .default_service(web::get().to(handler_receiver)),
         )
         .await;

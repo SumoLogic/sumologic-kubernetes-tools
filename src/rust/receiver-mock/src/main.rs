@@ -141,12 +141,21 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
             })
             .app_data(app_state.clone()) // Mutable shared state
             .app_data(web::Data::new(opts.clone()))
-            .route("/metrics-reset", web::post().to(router::handler_metrics_reset))
-            .route("/metrics-list", web::get().to(router::handler_metrics_list))
-            .route("/metrics-ips", web::get().to(router::handler_metrics_ips))
+            .route(
+                "/metrics-reset",
+                web::post().to(router::metrics_data::handler_metrics_reset),
+            )
+            .route(
+                "/metrics-list",
+                web::get().to(router::metrics_data::handler_metrics_list),
+            )
+            .route(
+                "/metrics-ips",
+                web::get().to(router::metrics_data::handler_metrics_ips),
+            )
             .route(
                 "/metrics-samples",
-                web::get().to(router::handler_metrics_samples),
+                web::get().to(router::metrics_data::handler_metrics_samples),
             )
             .route("/metrics", web::get().to(router::handler_metrics))
             .route("/logs/count", web::get().to(router::handler_logs_count))
