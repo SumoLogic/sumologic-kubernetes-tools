@@ -139,7 +139,6 @@ pub async fn handler_receiver_otlp_metrics(
             let mut samples = vec![];
             for resource_metrics in metrics_data.resource_metrics {
                 if resource_metrics.resource.is_none() {
-                    // TODO: Replace printing with logging
                     warn!("resource is none for resource metrics");
                     continue;
                 }
@@ -200,18 +199,26 @@ pub async fn handler_receiver_otlp_traces(
                 Ok(data) => data,
                 Err(_) => return HttpResponse::BadRequest().body("Unable to parse body"),
             };
+            let mut result = traces::TracesHandleResult::new();
 
             for resource_spans in traces_data.resource_spans {
+                if resource_spans.resource.is_none() {
+                    warn!("resource is none for resource spans");
+                    continue;
+                }
+
+                let resource_attrs = resource_spans.resource.unwrap().attributes;
                 for instrumentation_lib_spans in resource_spans.instrumentation_library_spans {
                     for span in instrumentation_lib_spans.spans {
-                        // TODO: Add pretty printing
-                        debug!("Span => {:?}", span);
-                        app_state
-                            .spans
-                            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                        let storage_span = otlp_span_to_span(&span, &resource_attrs);
+                        debug!("Span => {}", storage_span);
+
+                        result.handle_span(storage_span);
                     }
                 }
             }
+
+            app_state.add_traces_result(result, &opts);
         }
         &_ => {
             return get_invalid_header_response(&content_type);
@@ -219,6 +226,19 @@ pub async fn handler_receiver_otlp_traces(
     }
 
     HttpResponse::Ok().body("")
+}
+
+// TODO: Move this to Sample module and rename that module.
+pub fn otlp_span_to_span(otlp_span: &tracev1::Span, resource_attrs: &[commonv1::KeyValue]) -> traces::Span {
+    let attributes = sample::tags_to_map(&otlp_span.attributes, resource_attrs);
+
+    traces::Span {
+        name: otlp_span.name.clone(),
+        id: hex::encode(&otlp_span.span_id),
+        trace_id: hex::encode(&otlp_span.trace_id),
+        parent_span_id: hex::encode(&otlp_span.parent_span_id),
+        attributes,
+    }
 }
 
 mod sample {
@@ -293,7 +313,7 @@ mod sample {
         }
     }
 
-    fn tags_to_map(attrs: &Attributes, labels: &Attributes) -> HashMap<String, String> {
+    pub fn tags_to_map(attrs: &Attributes, labels: &Attributes) -> HashMap<String, String> {
         attrs
             .iter()
             .chain(labels.iter())
