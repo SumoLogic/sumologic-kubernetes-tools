@@ -65,6 +65,19 @@ async fn main() -> std::io::Result<()> {
           .help("Use to print received metrics (with dimensions) on stdout")
           .takes_value(false)
           .required(false))
+        .arg(Arg::with_name("print_spans")
+          .short("s")
+          .long("print-spans")
+          .value_name("print_spans")
+          .help("Use to print received spans on stdout")
+          .takes_value(false)
+          .required(false))
+        .arg(Arg::with_name("store_traces")
+          .long("store-traces")
+          .value_name("store_traces")
+          .help("Use to store traces")
+          .takes_value(false)
+          .required(false))
       .arg(Arg::with_name("store_metrics")
           .long("store-metrics")
           .value_name("store_metrics")
@@ -102,9 +115,11 @@ async fn main() -> std::io::Result<()> {
             logs: matches.is_present("print_logs"),
             headers: matches.is_present("print_headers"),
             metrics: matches.is_present("print_metrics"),
+            spans: matches.is_present("print_spans"),
         },
         drop_rate: drop_rate,
         delay_time: delay_time,
+        store_traces: matches.is_present("store_traces"),
         store_metrics: matches.is_present("store_metrics"),
         store_logs: matches.is_present("store_logs"),
     };
