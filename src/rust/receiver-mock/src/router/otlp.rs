@@ -211,7 +211,9 @@ pub async fn handler_receiver_otlp_traces(
                 for instrumentation_lib_spans in resource_spans.instrumentation_library_spans {
                     for span in instrumentation_lib_spans.spans {
                         let storage_span = otlp_span_to_span(&span, &resource_attrs);
-                        debug!("Span => {}", storage_span);
+                        if opts.print.spans {
+                            debug!("Span => {}", storage_span);
+                        }
 
                         result.handle_span(storage_span);
                     }
@@ -498,9 +500,11 @@ mod test {
                 logs: false,
                 headers: false,
                 metrics: false,
+                spans: false,
             },
             delay_time: std::time::Duration::from_secs(0),
             drop_rate: 0,
+            store_traces: true,
             store_metrics: true,
             store_logs: true,
         }

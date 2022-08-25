@@ -62,9 +62,11 @@ mod tests_api {
                 logs: false,
                 headers: false,
                 metrics: false,
+                spans: false,
             },
             delay_time: std::time::Duration::from_secs(0),
             drop_rate: 0,
+            store_traces: false,
             store_metrics: false,
             store_logs: false,
         };
@@ -124,9 +126,11 @@ mod tests_api {
                 logs: false,
                 headers: false,
                 metrics: false,
+                spans: false,
             },
             delay_time: std::time::Duration::from_secs(0),
             drop_rate: 0,
+            store_traces: false,
             store_metrics: false,
             store_logs: false,
         };

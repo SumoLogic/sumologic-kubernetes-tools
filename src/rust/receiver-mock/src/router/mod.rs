@@ -59,20 +59,22 @@ impl AppState {
 }
 
 impl AppState {
-    pub fn add_traces_result(&self, result: traces::TracesHandleResult, _opts: &options::Options) {
+    pub fn add_traces_result(&self, result: traces::TracesHandleResult, opts: &options::Options) {
         self.spans
             .fetch_add(result.spans_count, std::sync::atomic::Ordering::Relaxed);
 
-        {
-            let mut spans = self.spans_list.write().unwrap();
-            let mut traces = self.traces_list.write().unwrap();
-            for span in result.spans {
-                traces
-                    .entry(span.trace_id.clone())
-                    .or_insert(traces::Trace::new())
-                    .span_ids
-                    .push(span.id.clone());
-                spans.insert(span.id.clone(), span);
+        if opts.store_traces {
+            {
+                let mut spans = self.spans_list.write().unwrap();
+                let mut traces = self.traces_list.write().unwrap();
+                for span in result.spans {
+                    traces
+                        .entry(span.trace_id.clone())
+                        .or_insert(traces::Trace::new())
+                        .span_ids
+                        .push(span.id.clone());
+                    spans.insert(span.id.clone(), span);
+                }
             }
         }
     }
@@ -560,9 +562,11 @@ mod tests_metrics {
                 logs: false,
                 headers: false,
                 metrics: false,
+                spans: false,
             },
             delay_time: std::time::Duration::from_secs(0),
             drop_rate: 0,
+            store_traces: false,
             store_metrics: true,
             store_logs: true,
         };
@@ -779,9 +783,11 @@ mod tests_logs {
                 logs: false,
                 headers: false,
                 metrics: false,
+                spans: false,
             },
             delay_time: std::time::Duration::from_secs(0),
             drop_rate: 0,
+            store_traces: true,
             store_metrics: true,
             store_logs: true,
         };

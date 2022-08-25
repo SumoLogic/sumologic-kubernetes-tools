@@ -151,6 +151,7 @@ metric=mem_available host=myhostname  34655776768 1601906858"
             logs: false,
             headers: false,
             metrics: false,
+            spans: false,
         };
         let result = handle_carbon2(lines, ip_address, print_opts);
 
@@ -192,9 +193,11 @@ mem_free{host="myhostname"} 1.190197248e+10"##
                 logs: false,
                 headers: false,
                 metrics: false,
+                spans: false,
             },
             delay_time: std::time::Duration::from_secs(0),
             drop_rate: 0,
+            store_traces: false,
             store_metrics: false,
             store_logs: true,
         };
@@ -237,6 +240,7 @@ myhostname.mem.wired 5680394240 1601909210"
             logs: false,
             headers: false,
             metrics: false,
+            spans: false,
         };
         let result = handle_graphite(lines, ip_address, print_opts);
 
