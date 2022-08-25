@@ -9,6 +9,7 @@ use crate::metadata::{get_common_metadata_from_headers, parse_sumo_fields_header
 use crate::metrics;
 use crate::options;
 use crate::time::get_now;
+use crate::traces;
 use actix_http::header::HeaderValue;
 use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
 use anyhow::anyhow;
@@ -35,6 +36,8 @@ pub struct AppState {
     pub metrics_ip_list: RwLock<HashMap<IpAddr, u64>>,
 
     pub spans: AtomicU64,
+    pub spans_list: RwLock<HashMap<traces::SpanId, traces::Span>>,
+    pub traces_list: RwLock<HashMap<traces::TraceId, traces::Trace>>,
 }
 
 impl AppState {
@@ -49,11 +52,31 @@ impl AppState {
             metrics_samples: RwLock::new(HashSet::new()),
 
             spans: AtomicU64::new(0),
+            spans_list: RwLock::new(HashMap::new()),
+            traces_list: RwLock::new(HashMap::new()),
         };
     }
 }
 
 impl AppState {
+    pub fn add_traces_result(&self, result: traces::TracesHandleResult, _opts: &options::Options) {
+        self.spans
+            .fetch_add(result.spans_count, std::sync::atomic::Ordering::Relaxed);
+
+        {
+            let mut spans = self.spans_list.write().unwrap();
+            let mut traces = self.traces_list.write().unwrap();
+            for span in result.spans {
+                traces
+                    .entry(span.trace_id.clone())
+                    .or_insert(traces::Trace::new())
+                    .span_ids
+                    .push(span.id.clone());
+                spans.insert(span.id.clone(), span);
+            }
+        }
+    }
+
     pub fn add_metrics_result(&self, result: metrics::MetricsHandleResult, opts: &options::Options) {
         {
             let mut metrics = self.metrics.write().unwrap();
@@ -83,6 +106,7 @@ impl AppState {
             }
         }
     }
+
     pub fn add_log_lines<'a>(
         &self,
         lines: impl Iterator<Item = &'a str>,

@@ -15,6 +15,8 @@ use std::time as stime;
 
 mod logs;
 mod metrics;
+mod traces;
+
 mod options;
 use options::Options;
 mod metadata;
