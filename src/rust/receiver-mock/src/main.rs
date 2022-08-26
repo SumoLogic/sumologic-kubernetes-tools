@@ -163,6 +163,10 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
             .app_data(app_state.clone()) // Mutable shared state
             .app_data(web::Data::new(opts.clone()))
             .route(
+                "/spans-list",
+                web::get().to(router::traces_data::handler_get_spans),
+            )
+            .route(
                 "/metrics-reset",
                 web::post().to(router::metrics_data::handler_metrics_reset),
             )

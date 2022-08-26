@@ -486,6 +486,7 @@ mod test {
     use actix_web::{web, App};
     use bytes::Bytes;
     use opentelemetry_proto::tonic::metrics::v1::{InstrumentationLibraryMetrics, Metric, ResourceMetrics};
+    use opentelemetry_proto::tonic::trace::v1::{InstrumentationLibrarySpans, ResourceSpans};
     use opentelemetry_proto::tonic::{
         common::v1::{any_value::Value, AnyValue, InstrumentationLibrary, KeyValue},
         logs::v1::{InstrumentationLibraryLogs, LogRecord},
@@ -888,6 +889,104 @@ mod test {
 
             let result: Vec<Sample> = actix_test::read_body_json(response).await;
             assert_eq!(result.len(), 2);
+        }
+    }
+
+    fn get_sample_span(name: &str, span_id: &str, parent_id: &str, trace_id: &str) -> tracev1::Span {
+        tracev1::Span {
+            trace_id: hex::decode(trace_id).unwrap(),
+            span_id: hex::decode(span_id).unwrap(),
+            trace_state: String::new(),
+            parent_span_id: hex::decode(parent_id).unwrap(),
+            name: name.to_string(),
+            kind: 42,
+            start_time_unix_nano: 12,
+            end_time_unix_nano: 73,
+            attributes: pairs_to_keyvalue(vec![
+                ("common", get_string_anyvalue("value")),
+                ("unique", get_string_anyvalue(&(name.to_string() + span_id))),
+            ]),
+            dropped_attributes_count: 0,
+            events: vec![],
+            dropped_events_count: 0,
+            links: vec![],
+            dropped_links_count: 0,
+            status: None,
+        }
+    }
+
+    fn get_sample_spans_data() -> tracev1::TracesData {
+        let resource = get_sample_resource();
+        let instr = vec![InstrumentationLibrarySpans {
+            instrumentation_library: Some(get_sample_instr_library()),
+            spans: vec![
+                get_sample_span("parent", "aaaa", "", "bbbb"),
+                get_sample_span("child", "cccc", "aaaa", "bbbb"),
+            ],
+            schema_url: "".to_string(),
+        }];
+        let resource_spans_1 = ResourceSpans {
+            resource: Some(resource),
+            instrumentation_library_spans: instr,
+            schema_url: "".to_string(),
+        };
+        tracev1::TracesData {
+            resource_spans: vec![resource_spans_1],
+        }
+    }
+
+    fn get_sample_spans_request_body() -> impl Into<web::Bytes> {
+        let spans = get_sample_spans_data();
+        spans.encode_to_vec()
+    }
+
+    #[actix_rt::test]
+    async fn otlp_traces_store_spans_test() {
+        let opts = get_default_options();
+        let mut app = actix_test::init_service(
+            App::new()
+                .app_data(web::Data::new(opts.clone()))
+                .app_data(get_default_app_data())
+                .service(web::scope("/v1").route("/traces", web::post().to(handler_receiver_otlp_traces)))
+                .route("/spans-list", web::get().to(traces_data::handler_get_spans))
+                .default_service(web::get().to(handler_receiver)),
+        )
+        .await;
+
+        {
+            let request = actix_test::TestRequest::post()
+                .uri("/v1/traces")
+                .insert_header(("Content-Type", OTLP_PROTOBUF_FORMAT_CONTENT_TYPE))
+                .set_payload(get_sample_spans_request_body())
+                .to_request();
+
+            let response = actix_test::call_service(&mut app, request).await;
+            assert_eq!(response.status(), StatusCode::OK);
+        }
+
+        {
+            let request = actix_test::TestRequest::get()
+                .uri("/spans-list?common=value")
+                .insert_header(("Content-Type", OTLP_PROTOBUF_FORMAT_CONTENT_TYPE))
+                .to_request();
+
+            let response = actix_test::call_service(&mut app, request).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            let result: Vec<traces::Span> = actix_test::read_body_json(response).await;
+            assert_eq!(2, result.len());
+        }
+
+        {
+            let request = actix_test::TestRequest::get()
+                .uri("/spans-list?unique=childcccc")
+                .insert_header(("Content-Type", OTLP_PROTOBUF_FORMAT_CONTENT_TYPE))
+                .to_request();
+
+            let response = actix_test::call_service(&mut app, request).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            let result: Vec<traces::Span> = actix_test::read_body_json(response).await;
+            assert_eq!(1, result.len());
+            assert_eq!("bbbb".to_string(), result[0].trace_id)
         }
     }
 }

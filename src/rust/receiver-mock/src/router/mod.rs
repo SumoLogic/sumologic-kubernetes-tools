@@ -18,9 +18,11 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 pub mod api;
-pub mod metrics_data;
 pub mod otlp;
 pub mod terraform;
+
+pub mod metrics_data;
+pub mod traces_data;
 
 const DUMMY_ERROR_ID: &str = "E40YU-CU3Q7-RQDM7";
 
