@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
+
 pub struct TracesHandleResult {
     pub spans_count: u64,
     pub spans: Vec<Span>,
@@ -22,7 +24,7 @@ impl TracesHandleResult {
 pub type TraceId = String;
 pub type SpanId = String;
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Span {
     pub name: String,
     pub id: SpanId,
@@ -37,12 +39,30 @@ impl std::fmt::Display for Span {
         write!(
             f,
             "name: {}, span_id: {}, parent_span_id: {}, trace_id: {}",
-            self.name,
-            self.id,
-            self.parent_span_id,
-            self.trace_id,
+            self.name, self.id, self.parent_span_id, self.trace_id,
         )
     }
+}
+
+pub fn filter_spans<'a>(spans: impl Iterator<Item = &'a Span>, params: HashMap<String, String>) -> Vec<&'a Span> {
+    spans
+        .filter(|span| {
+            // TODO: This can be expanded to query by other parameters. As for now, it only filters by label.
+            for (key, value) in params.iter() {
+                if let Some(val) = span.attributes.get(key) {
+                    if val.eq(value) {
+                        continue;
+                    }
+
+                    return false;
+                } else {
+                    return false;
+                }
+            }
+
+            true
+        })
+        .collect()
 }
 
 pub struct Trace {

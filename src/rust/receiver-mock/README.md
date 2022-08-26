@@ -21,8 +21,10 @@ List of arguments taken by receiver-mock:
 | `--print-headers`           |                   |      N/A      | Use to print received request's headers                                                        |
 | `--print-logs`              | `-r`              |      N/A      | Use to print received logs on stdout                                                           |
 | `--print-metrics`           | `-m`              |      N/A      | Use to print received metrics (with dimensions) on stdout                                      |
+| `--print-spans`             | `-s`              |      N/A      | Use to print received spans on stdout                                                          |
 | `--store-logs`              |                   |      N/A      | Use to store log data which can then be queried via `/logs/*` endpoints                        |
 | `--store-metrics`           |                   |      N/A      | Use to store metrics which can then be returned via `/metrics-samples` endpoint                |
+| `--store-traces`            |                   |      N/A      | Use to store traces data. As for now, spans can be queried via `/spans=list` endpoint.         |
 | `--version`                 | `-V`              |      N/A      | Print version information                                                                      |
 | `--delay-time` <delay_time> | `-t <delay_time>` |       0       | Use to specify processing delay in milliseconds which will be added to every handled request.      |
 
@@ -35,6 +37,65 @@ Example output:
 ```json
 {"source":{"url":"http://localhost:3333/receiver"}}
 ```
+
+## Traces
+
+The following endpoints provide information about received traces:
+
+- `/spans-list` - returns list of collected spans
+
+  It accepts a list of key value pairs being an attribute set that the span will
+  have to fullfil in order to be returned.
+  Attribute values can be omitted in which case only presence of a particular attribute
+  will be checked.
+
+  Exemplary output:
+
+  ```shell
+  $ curl -s localhost:3000/spans-list\?application=petclinic-app | jq .
+  [
+  {
+    "name": "/**",
+    "id": "cb9c07fd1c7c77f7",
+    "trace_id": "17b14f4cb48d007be8e169d56ae6a8c5",
+    "parent_span_id": "",
+    "attributes": {
+      "process.runtime.name": "OpenJDK Runtime Environment",
+      "process.runtime.description": "Oracle Corporation OpenJDK 64-Bit Server VM 25.272-b10",
+      "http.status_code": "404",
+      "thread.name": "qtp1687702287-20",
+      "http.flavor": "1.1",
+      "os.type": "linux",
+      "telemetry.sdk.version": "1.11.0",
+      "net.peer.port": "60484",
+      "application": "petclinic-app",
+      "http.scheme": "http",
+      "http.route": "/**",
+      "process.runtime.version": "1.8.0_272-8u272-b10-0+deb9u1-b10",
+      "container.id": "173db7eb967f0673e62e3460bc733fb6d979ec041ac375e75c6c5bdac4d907c9",
+      "http.method": "GET",
+      "net.transport": "ip_tcp",
+      "http.server_name": "localhost",
+      "http.user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.0.0 Safari/537.36",
+      "host.name": "colima",
+      "process.executable.path": "/usr/lib/jvm/java-8-openjdk-amd64/jre:bin:java",
+      "net.peer.ip": "0:0:0:0:0:0:0:1",
+      "service.name": "petclinic-svc",
+      "telemetry.auto.version": "1.11.1",
+      "telemetry.sdk.language": "java",
+      "http.host": "localhost:8080",
+      "process.command_line": "/usr/lib/jvm/java-8-openjdk-amd64/jre:bin:java -javaagent:/agent/opentelemetry-javaagent.jar",
+      "process.pid": "1",
+      "thread.id": "20",
+      "host.arch": "amd64",
+      "os.description": "Linux 5.10.109-0-virt",
+      "telemetry.sdk.name": "opentelemetry",
+      "http.target": "/images/spring-logo-dataflow.png"
+    }
+  },
+  # ...
+  ]
+  ```
 
 ## Metrics
 
@@ -75,7 +136,7 @@ These are endpoints which provide information about received metrics:
 
   It accepts a list of key value pairs being a label set that the metric sample will
   have to fullfil in order to be returned.
-  Label values can be ommitted in which case only presence of a particular label
+  Label values can be omitted in which case only presence of a particular label
   will be checked.
   `__name__` is handled specially as it will be matched against the metric name.
 
