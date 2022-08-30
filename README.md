@@ -102,6 +102,10 @@ Traces can be easily found with the `service=customer-trace-test-service` filter
   --env COLLECTOR_HOSTNAME=collection-sumologic-otelcol.sumologic \
   --env TOTAL_TRACES=1 \
   --env SPANS_PER_TRACE=10 \
+  --env OTLP_HTTP=true \
+  --env OTLP_GRPC=true \
+  --env ZIPKIN=true \
+  --env JAEGER_THRIFT_HTTP=true \
   -- customer-trace-tester
 ```
 
@@ -112,6 +116,10 @@ You can configure this tool by setting the following env variables:
 - `COLLECTOR_HOSTNAME` (default=`collection-sumologic-otelcol.sumologic`) - the hostname/service of OpenTelemetry Collector
 - `TOTAL_TRACES` (default=`1`) - total number of traces to generate
 - `SPANS_PER_TRACE` (default=`10`) - number of spans per trace
+- `OTLP_HTTP` (default=`true`) - should the traces be sent using OTLP HTTP format
+- `OTLP_GRPC` (default=`true`) - should the traces be sent using OTLP gRPC format
+- `ZIPKIN` (default=`true`) - should the traces be sent using Zipkin format
+- `JAEGER_THRIFT_HTTP` (default=`true`) - should the traces be sent using Jaeger Thrift HTTP format
 
 #### Example output
 
