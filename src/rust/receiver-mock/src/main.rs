@@ -167,6 +167,10 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
                 web::get().to(router::traces_data::handler_get_spans),
             )
             .route(
+                "/traces-list",
+                web::get().to(router::traces_data::handler_get_traces),
+            )
+            .route(
                 "/metrics-reset",
                 web::post().to(router::metrics_data::handler_metrics_reset),
             )
