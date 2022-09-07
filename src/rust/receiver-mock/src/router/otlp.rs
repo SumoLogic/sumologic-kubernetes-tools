@@ -989,4 +989,56 @@ mod test {
             assert_eq!("bbbb".to_string(), result[0].trace_id)
         }
     }
+
+    #[actix_rt::test]
+    async fn otlp_trace_store_traces_test() {
+        let opts = get_default_options();
+        let mut app = actix_test::init_service(
+            App::new()
+                .app_data(web::Data::new(opts.clone()))
+                .app_data(get_default_app_data())
+                .service(web::scope("/v1").route("/traces", web::post().to(handler_receiver_otlp_traces)))
+                .route("/traces-list", web::get().to(traces_data::handler_get_traces))
+                .default_service(web::get().to(handler_receiver)),
+        )
+        .await;
+
+        {
+            let request = actix_test::TestRequest::post()
+                .uri("/v1/traces")
+                .insert_header(("Content-Type", OTLP_PROTOBUF_FORMAT_CONTENT_TYPE))
+                .set_payload(get_sample_spans_request_body())
+                .to_request();
+
+            let response = actix_test::call_service(&mut app, request).await;
+            assert_eq!(response.status(), StatusCode::OK);
+        }
+
+        {
+            let request = actix_test::TestRequest::get()
+                .uri("/traces-list?common=value")
+                .insert_header(("Content-Type", OTLP_PROTOBUF_FORMAT_CONTENT_TYPE))
+                .to_request();
+
+            let response = actix_test::call_service(&mut app, request).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            let result: Vec<Vec<traces::Span>> = actix_test::read_body_json(response).await;
+            assert_eq!(1, result.len());
+            assert_eq!(2, result[0].len())
+        }
+
+        {
+            // Current behavior is that a trace is returned if any span matches.
+            let request = actix_test::TestRequest::get()
+                .uri("/traces-list?unique=childcccc")
+                .insert_header(("Content-Type", OTLP_PROTOBUF_FORMAT_CONTENT_TYPE))
+                .to_request();
+
+            let response = actix_test::call_service(&mut app, request).await;
+            assert_eq!(response.status(), StatusCode::OK);
+            let result: Vec<Vec<traces::Span>> = actix_test::read_body_json(response).await;
+            assert_eq!(1, result.len());
+            assert_eq!(2, result[0].len())
+        }
+    }
 }

@@ -24,7 +24,7 @@ List of arguments taken by receiver-mock:
 | `--print-spans`             | `-s`              |      N/A      | Use to print received spans on stdout                                                          |
 | `--store-logs`              |                   |      N/A      | Use to store log data which can then be queried via `/logs/*` endpoints                        |
 | `--store-metrics`           |                   |      N/A      | Use to store metrics which can then be returned via `/metrics-samples` endpoint                |
-| `--store-traces`            |                   |      N/A      | Use to store traces data. As for now, spans can be queried via `/spans=list` endpoint.         |
+| `--store-traces`            |                   |      N/A      | Use to store traces data. Spans can be queried via `/spans-list` endpoint and whole traces can be queries via `/traces-list` endpoint         |
 | `--version`                 | `-V`              |      N/A      | Print version information                                                                      |
 | `--delay-time` <delay_time> | `-t <delay_time>` |       0       | Use to specify processing delay in milliseconds which will be added to every handled request.      |
 
@@ -94,6 +94,91 @@ The following endpoints provide information about received traces:
     }
   },
   # ...
+  ]
+  ```
+
+  - `/traces-list` - returns list of collected traces
+
+  It accepts a list of key value pairs being an attribute set.
+  If any span in a trace contains all of these attributes, this trace will be in the list.
+  Attribute values can be omitted in which case only presence of a particular attribute
+  will be checked.
+
+  Exemplary output:
+
+  ```shell
+  $ curl -s localhost:3000/traces-list\?application=petclinic-app | jq .
+  [
+    [
+      {
+        "name": "/resources/**",
+        "id": "cf5774ea55249a12",
+        "trace_id": "f49cc41476d899cd5372ba38acd3e44b",
+        "parent_span_id": "",
+        "attributes": {
+          "host.name": "colima",
+          "http.target": "/resources/images/pets.png",
+          "net.peer.port": "51064",
+          "process.command_line": "/usr/lib/jvm/java-8-openjdk-amd64/jre:bin:java -javaagent:/agent/opentelemetry-javaagent.jar",
+          "thread.name": "qtp1687702287-13",
+          "net.peer.ip": "0:0:0:0:0:0:0:1",
+          "net.transport": "ip_tcp",
+          "http.method": "GET",
+          "thread.id": "13",
+          "http.route": "/resources/**",
+          "process.runtime.description": "Oracle Corporation OpenJDK 64-Bit Server VM 25.272-b10",
+          "http.server_name": "localhost",
+          "telemetry.auto.version": "1.11.1",
+          "telemetry.sdk.language": "java",
+          "process.pid": "1",
+          "process.runtime.version": "1.8.0_272-8u272-b10-0+deb9u1-b10",
+          "process.runtime.name": "OpenJDK Runtime Environment",
+          "http.host": "localhost:8080",
+          "os.type": "linux",
+          "process.executable.path": "/usr/lib/jvm/java-8-openjdk-amd64/jre:bin:java",
+          "http.response_content_length": "67721",
+          "http.user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/105.0.0.0 Safari/537.36",
+          "container.id": "5817c3b8c3815151e0a4dfdb5adf415e383f0aa0cd5ea979f75579c54bca5614",
+          "http.flavor": "1.1",
+          "application": "petclinic-app",
+          "http.status_code": "200",
+          "os.description": "Linux 5.10.109-0-virt",
+          "host.arch": "amd64",
+          "telemetry.sdk.version": "1.11.0",
+          "http.scheme": "http",
+          "service.name": "petclinic-svc",
+          "telemetry.sdk.name": "opentelemetry"
+        }
+      },
+      {
+        "name": "ResourceHttpRequestHandler.handleRequest",
+        "id": "6640bee2c5f4048a",
+        "trace_id": "f49cc41476d899cd5372ba38acd3e44b",
+        "parent_span_id": "cf5774ea55249a12",
+        "attributes": {
+          "process.command_line": "/usr/lib/jvm/java-8-openjdk-amd64/jre:bin:java -javaagent:/agent/opentelemetry-javaagent.jar",
+          "process.runtime.name": "OpenJDK Runtime Environment",
+          "service.name": "petclinic-svc",
+          "telemetry.sdk.version": "1.11.0",
+          "os.description": "Linux 5.10.109-0-virt",
+          "process.pid": "1",
+          "thread.name": "qtp1687702287-13",
+          "process.runtime.description": "Oracle Corporation OpenJDK 64-Bit Server VM 25.272-b10",
+          "process.executable.path": "/usr/lib/jvm/java-8-openjdk-amd64/jre:bin:java",
+          "telemetry.sdk.language": "java",
+          "thread.id": "13",
+          "host.arch": "amd64",
+          "os.type": "linux",
+          "telemetry.sdk.name": "opentelemetry",
+          "process.runtime.version": "1.8.0_272-8u272-b10-0+deb9u1-b10",
+          "telemetry.auto.version": "1.11.1",
+          "container.id": "5817c3b8c3815151e0a4dfdb5adf415e383f0aa0cd5ea979f75579c54bca5614",
+          "host.name": "colima",
+          "application": "petclinic-app"
+        }
+      }
+    ],
+    # ...
   ]
   ```
 

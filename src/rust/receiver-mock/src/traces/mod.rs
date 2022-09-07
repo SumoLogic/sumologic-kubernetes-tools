@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use log::warn;
 use serde::{Deserialize, Serialize};
 
 pub struct TracesHandleResult {
@@ -24,7 +25,7 @@ impl TracesHandleResult {
 pub type TraceId = String;
 pub type SpanId = String;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Span {
     pub name: String,
     pub id: SpanId,
@@ -44,24 +45,46 @@ impl std::fmt::Display for Span {
     }
 }
 
-pub fn filter_spans<'a>(spans: impl Iterator<Item = &'a Span>, params: HashMap<String, String>) -> Vec<&'a Span> {
-    spans
-        .filter(|span| {
-            // TODO: This can be expanded to query by other parameters. As for now, it only filters by label.
-            for (key, value) in params.iter() {
-                if let Some(val) = span.attributes.get(key) {
-                    if val.eq(value) {
-                        continue;
-                    }
-
-                    return false;
-                } else {
-                    return false;
-                }
+fn is_span_ok(span: &Span, params: &HashMap<String, String>) -> bool {
+    // TODO: This can be expanded to query by other parameters. As for now, it only filters by label.
+    for (key, value) in params.iter() {
+        if let Some(val) = span.attributes.get(key) {
+            if val.eq(value) {
+                continue;
             }
 
-            true
+            return false;
+        } else {
+            return false;
+        }
+    }
+
+    true
+}
+
+pub fn filter_spans<'a>(spans: impl Iterator<Item = &'a Span>, params: HashMap<String, String>) -> Vec<&'a Span> {
+    spans.filter(|span| is_span_ok(span, &params)).collect()
+}
+
+pub fn filter_traces<'a>(
+    traces: impl Iterator<Item = &'a Trace>,
+    spans: &'a HashMap<SpanId, Span>,
+    params: HashMap<String, String>,
+) -> Vec<Vec<&'a Span>> {
+    traces
+        .map(|trace| {
+            // Doing this functionally would be a mess if we want to handle bugs without panicking.
+            let mut spans_vec = Vec::with_capacity(trace.span_ids.len());
+            for span_id in &trace.span_ids {
+                if let Some(span) = spans.get(span_id) {
+                    spans_vec.push(span);
+                } else {
+                    warn!("Span with id {} not found", span_id);
+                }
+            }
+            spans_vec
         })
+        .filter(|spans_vec| spans_vec.iter().any(|&span| is_span_ok(span, &params)))
         .collect()
 }
 
