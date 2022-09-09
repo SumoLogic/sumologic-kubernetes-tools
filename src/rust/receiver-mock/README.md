@@ -48,6 +48,7 @@ The following endpoints provide information about received traces:
   have to fullfil in order to be returned.
   Attribute values can be omitted in which case only presence of a particular attribute
   will be checked.
+  `__name__` is handled specially as it will be matched against the span name.
 
   Exemplary output:
 
@@ -103,6 +104,7 @@ The following endpoints provide information about received traces:
   If any span in a trace contains all of these attributes, this trace will be in the list.
   Attribute values can be omitted in which case only presence of a particular attribute
   will be checked.
+  Similarly as in `/spans-list`, `__name__` is handled specially as it will be matched against the name of any span.
 
   Exemplary output:
 
