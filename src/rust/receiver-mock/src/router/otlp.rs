@@ -978,7 +978,7 @@ mod test {
 
         {
             let request = actix_test::TestRequest::get()
-                .uri("/spans-list?unique=childcccc")
+                .uri("/spans-list?unique=childcccc&__name__=child")
                 .insert_header(("Content-Type", OTLP_PROTOBUF_FORMAT_CONTENT_TYPE))
                 .to_request();
 

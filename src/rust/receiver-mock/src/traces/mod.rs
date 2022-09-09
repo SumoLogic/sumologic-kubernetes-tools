@@ -46,8 +46,17 @@ impl std::fmt::Display for Span {
 }
 
 fn is_span_ok(span: &Span, params: &HashMap<String, String>) -> bool {
-    // TODO: This can be expanded to query by other parameters. As for now, it only filters by label.
     for (key, value) in params.iter() {
+        // Identically as in the metric's case,
+        // we use "__name__" as key for span's name
+        // to keep the querying simple.
+        if key == "__name__" {
+            if value.is_empty() || span.name == *value {
+                continue;
+            }
+            return false;
+        }
+
         if let Some(val) = span.attributes.get(key) {
             if val.eq(value) {
                 continue;
