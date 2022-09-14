@@ -1,4 +1,4 @@
-package main
+package kubeprometheusstackandevents
 
 import (
 	"testing"

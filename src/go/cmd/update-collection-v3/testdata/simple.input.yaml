@@ -1,0 +1,6 @@
+fluentd:
+  events:
+    enabled: false
+sumologic:
+  accessId: xxx
+  accessKey: yyy

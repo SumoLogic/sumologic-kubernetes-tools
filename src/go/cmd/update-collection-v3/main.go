@@ -1,15 +1,13 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
-	"io/fs"
 	"io/ioutil"
 	"log"
 	"os"
 
-	"gopkg.in/yaml.v3"
+	kubeprometheusstackandevents "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/kube-prometheus-stack-and-events"
 )
 
 var (
@@ -43,7 +41,7 @@ func migrateYamlFile(yamlV2FilePath string, yamlV3FilePath string) error {
 		return fmt.Errorf("error migrating values %v", err)
 	}
 
-	err = ioutil.WriteFile(yamlV3FilePath, []byte(yamlV3), fs.ModeType)
+	err = ioutil.WriteFile(yamlV3FilePath, []byte(yamlV3), 0666)
 	if err != nil {
 		return fmt.Errorf("failed writing %s: %v", *outFileFlag, err)
 	}
@@ -51,26 +49,11 @@ func migrateYamlFile(yamlV2FilePath string, yamlV3FilePath string) error {
 	return nil
 }
 
-func migrateYaml(yamlV2 string) (yamlV3 string, err error) {
-	valuesV2, err := parseValues(yamlV2)
+func migrateYaml(input string) (string, error) {
+	values, err := kubeprometheusstackandevents.Migrate(string(input))
 	if err != nil {
-		return "", fmt.Errorf("failed reading %s: %v", *inFileFlag, err)
+		return "", fmt.Errorf("error running migration 'kube-prometheus-stack-and-events': %v", err)
 	}
 
-	valuesV3, err := migrate(&valuesV2)
-	if err != nil {
-		return "", fmt.Errorf("failed migrating %s: %v", *inFileFlag, err)
-	}
-
-	buffer := bytes.Buffer{}
-	encoder := yaml.NewEncoder(&buffer)
-	encoder.SetIndent(2)
-	err = encoder.Encode(valuesV3)
-	return buffer.String(), err
-}
-
-func parseValues(yamlV2 string) (ValuesV2, error) {
-	var valuesV2 ValuesV2
-	err := yaml.Unmarshal([]byte(yamlV2), &valuesV2)
-	return valuesV2, err
+	return values, nil
 }

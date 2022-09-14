@@ -17,6 +17,27 @@ make build
 ./update-collection-v3 -in values.yaml -out my_new_values.yaml
 ```
 
+## How to add a new migration
+
+1. Create a new directory in the `migrations` directory, e.g.:
+
+   ```bash
+   mkdir migrations/encapsulate-otellogs-config
+   ```
+
+1. Create a `migrate.go` file in the directory and in it create an exported function `func Migrate(string) (string, error)`.
+
+1. Call the `Migrate` function in the `migrateYaml` function in the [main.go](main.go) file.
+
+1. Implement the migration in the function as desired.
+
+1. Create input and output test files in `testdata` subdirectory of your migration directory.
+   These should act as unit tests for your migration.
+
+1. Add `migrate_test.go` file that will run will check those test files.
+
+1. Add or update the integration test files in the root [testdata](testdata/) directory to take your migration into account.
+
 ## `values.yaml` schema
 
 [`valuesV2`][valuesV2] structure was generated using [yaml-to-go][yaml-to-go].
