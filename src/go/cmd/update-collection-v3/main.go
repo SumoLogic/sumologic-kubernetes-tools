@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 
+	disablethanos "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/disable-thanos"
 	kubeprometheusstackandevents "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/kube-prometheus-stack-and-events"
 )
 
@@ -53,6 +54,11 @@ func migrateYaml(input string) (string, error) {
 	values, err := kubeprometheusstackandevents.Migrate(string(input))
 	if err != nil {
 		return "", fmt.Errorf("error running migration 'kube-prometheus-stack-and-events': %v", err)
+	}
+
+	values, err = disablethanos.Migrate(values)
+	if err != nil {
+		return "", fmt.Errorf("error running migration 'disable-thanos': %v", err)
 	}
 
 	return values, nil
