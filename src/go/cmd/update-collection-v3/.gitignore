@@ -1,1 +1,2 @@
-update-collection-v3
+# Ignore the binary created by `make build`.
+/update-collection-v3
