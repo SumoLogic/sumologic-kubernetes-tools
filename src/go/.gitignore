@@ -1,4 +1,5 @@
-stress-tester
-k8s-api-test
-customer-trace-tester
-update-collection-v3
+# Ignore the binaries created in this directory by `make build`.
+/customer-trace-tester
+/k8s-api-test
+/stress-tester
+/update-collection-v3
