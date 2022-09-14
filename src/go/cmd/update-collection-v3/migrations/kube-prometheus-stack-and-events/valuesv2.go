@@ -1,4 +1,4 @@
-package main
+package kubeprometheusstackandevents
 
 type ValuesV2 struct {
 	Sumologic struct {

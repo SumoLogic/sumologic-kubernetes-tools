@@ -1,75 +1,34 @@
 package main
 
 import (
+	"io/ioutil"
+	"path"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-type TestCase struct {
-	inputYaml   string
-	outputYaml  string
-	err         error
-	description string
-}
+func TestYamlFiles(t *testing.T) {
+	_, testFileName, _, _ := runtime.Caller(0)
+	testDir := path.Dir(testFileName)
+	inputFileNames, err := filepath.Glob(path.Join(testDir, "testdata", "*.input.yaml"))
+	require.NoError(t, err)
+	for _, inputFileName := range inputFileNames {
+		t.Run(path.Base(inputFileName), func(t *testing.T) {
+			outputFileName := strings.TrimSuffix(inputFileName, ".input.yaml")
+			outputFileName = outputFileName + ".output.yaml"
+			inputFileContents, err := ioutil.ReadFile(inputFileName)
+			require.NoError(t, err)
 
-func runYamlTest(t *testing.T, testCase TestCase) {
-	actualOutput, err := migrateYaml(testCase.inputYaml)
-	if testCase.err == nil {
-		require.NoError(t, err, testCase.description)
-	} else {
-		require.Equal(t, err, testCase.err, testCase.description)
-	}
-	require.Equal(t, strings.Trim(testCase.outputYaml, "\n "), strings.Trim(actualOutput, "\n "), testCase.description)
-}
+			outputFileContents, err := migrateYaml(string(inputFileContents))
 
-func TestYaml(t *testing.T) {
-	for _, tt := range []TestCase{
-		{
-			inputYaml: `
-kube-prometheus-stack:
-  kube-state-metrics:
-    collectors:
-      certificatesigningrequests: false
-      configmaps: true
-      persistentvolumes: false`,
-			outputYaml: `
-kube-prometheus-stack:
-  kube-state-metrics:
-    collectors:
-      - configmaps
-      - cronjobs
-      - daemonsets
-      - deployments
-      - endpoints
-      - horizontalpodautoscalers
-      - ingresses
-      - jobs
-      - limitranges
-      - mutatingwebhookconfigurations
-      - namespaces
-      - networkpolicies
-      - nodes
-      - persistentvolumeclaims
-      - poddisruptionbudgets
-      - pods
-      - replicasets
-      - replicationcontrollers
-      - resourcequotas
-      - secrets
-      - services
-      - statefulsets
-      - storageclasses
-      - validatingwebhookconfigurations
-      - volumeattachments
-`,
-			err:         nil,
-			description: "kube state metrics migration",
-		},
-	} {
-		t.Run(tt.description, func(t *testing.T) {
-			runYamlTest(t, tt)
+			expectedOutputFileContents, err := ioutil.ReadFile(outputFileName)
+			require.NoError(t, err)
+			assert.Equal(t, string(expectedOutputFileContents), outputFileContents)
 		})
 	}
 }

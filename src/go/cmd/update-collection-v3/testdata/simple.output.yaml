@@ -1,0 +1,5 @@
+sumologic:
+  events:
+    enabled: false
+  accessId: xxx
+  accessKey: yyy
