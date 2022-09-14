@@ -1,0 +1,7 @@
+kube-prometheus-stack:
+  prometheus:
+    prometheusSpec:
+      scrapeInterval: 1m
+sumologic:
+  accessId: xxx
+  accessKey: yyy

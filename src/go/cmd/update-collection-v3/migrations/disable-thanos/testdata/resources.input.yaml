@@ -1,6 +1,3 @@
-fluentd:
-  events:
-    enabled: false
 kube-prometheus-stack:
   prometheus:
     prometheusSpec:

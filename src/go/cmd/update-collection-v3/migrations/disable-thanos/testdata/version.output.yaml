@@ -1,5 +1,3 @@
 sumologic:
   accessId: xxx
   accessKey: yyy
-  events:
-    enabled: false

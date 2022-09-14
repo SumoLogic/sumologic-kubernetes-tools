@@ -1,13 +1,8 @@
-fluentd:
-  events:
-    enabled: false
 kube-prometheus-stack:
   prometheus:
     prometheusSpec:
       thanos:
-        resources:
-          limits:
-            cpu: 20m
+        version: v0.28.0
 sumologic:
   accessId: xxx
   accessKey: yyy

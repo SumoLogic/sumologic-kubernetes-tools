@@ -1,13 +1,9 @@
-fluentd:
-  events:
-    enabled: false
 kube-prometheus-stack:
   prometheus:
     prometheusSpec:
+      scrapeInterval: 1m
       thanos:
-        resources:
-          limits:
-            cpu: 20m
+        image: custom.registry.com/custom-repository/thanos:v0.25.2
 sumologic:
   accessId: xxx
   accessKey: yyy
