@@ -23,7 +23,9 @@ RUN apk update \
     && apk upgrade \
     && apk add g++ git \
 # Cmake and make are needed to build proto-build Rust dependency.
-    && apk add cmake make
+    && apk add cmake make \
+# Protoc is needed to build opentelemetry-proto Rust dependency. 
+    && apk add protoc
 
 WORKDIR /receiver-mock
 COPY ./src/rust/receiver-mock .
