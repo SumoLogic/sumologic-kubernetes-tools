@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use actix_web::web;
 
 use chrono::Duration;
-use clap::{value_t, App, Arg};
+use clap::{Arg, ArgAction, Command};
 use log::error;
 use log::info;
 use std::thread;
@@ -27,101 +27,105 @@ mod time;
 async fn main() -> std::io::Result<()> {
     simple_logger::init_with_level(log::Level::Debug).unwrap();
 
-    let matches = App::new("Receiver mock")
+    let matches = Command::new("Receiver mock")
       .version("0.0")
       .author("Sumo Logic <collection@sumologic.com>")
       .about("Receiver mock can be used for testing performance or functionality of kubernetes collection without sending data to sumologic")
-      .arg(Arg::with_name("port")
-          .short("p")
+      .arg(Arg::new("port")
+          .short('p')
           .long("port")
           .value_name("port")
           .help("Port to listen on")
-          .takes_value(true)
+          .action(ArgAction::Set)
           .required(false))
-      .arg(Arg::with_name("hostname")
-          .short("l")
+      .arg(Arg::new("hostname")
+          .short('l')
           .long("hostname")
           .value_name("hostname")
           .help("Hostname reported as the receiver. For kubernetes it will be '<service name>.<namespace>'")
-          .takes_value(true)
+          .action(ArgAction::Set)
           .required(false))
-      .arg(Arg::with_name("print_logs")
-          .short("r")
+      .arg(Arg::new("print_logs")
+          .short('r')
           .long("print-logs")
           .value_name("print_logs")
           .help("Use to print received logs on stdout")
-          .takes_value(false)
+          .action(ArgAction::SetTrue)
           .required(false))
-      .arg(Arg::with_name("print_headers")
+      .arg(Arg::new("print_headers")
           .long("print-headers")
           .value_name("print_headers")
           .help("Use to print received requests' headers")
-          .takes_value(false)
+          .action(ArgAction::SetTrue)
           .required(false))
-      .arg(Arg::with_name("print_metrics")
-          .short("m")
+      .arg(Arg::new("print_metrics")
+          .short('m')
           .long("print-metrics")
           .value_name("print_metrics")
           .help("Use to print received metrics (with dimensions) on stdout")
-          .takes_value(false)
+          .action(ArgAction::SetTrue)
           .required(false))
-        .arg(Arg::with_name("print_spans")
-          .short("s")
+        .arg(Arg::new("print_spans")
+          .short('s')
           .long("print-spans")
           .value_name("print_spans")
           .help("Use to print received spans on stdout")
-          .takes_value(false)
+          .action(ArgAction::SetTrue)
           .required(false))
-        .arg(Arg::with_name("store_traces")
+        .arg(Arg::new("store_traces")
           .long("store-traces")
           .value_name("store_traces")
           .help("Use to store traces")
-          .takes_value(false)
+          .action(ArgAction::SetTrue)
           .required(false))
-      .arg(Arg::with_name("store_metrics")
+      .arg(Arg::new("store_metrics")
           .long("store-metrics")
           .value_name("store_metrics")
           .help("Use to store metrics which will then be returned via /metrics-samples")
-          .takes_value(false)
+          .action(ArgAction::SetTrue)
           .required(false))
-      .arg(Arg::with_name("store_logs")
+      .arg(Arg::new("store_logs")
           .long("store-logs")
           .value_name("store_logs")
           .help("Use to store log data which can then be queried via /logs/* endpoints")
-          .takes_value(false)
+          .action(ArgAction::SetTrue)
           .required(false))
-      .arg(Arg::with_name("drop_rate")
-          .short("d")
+      .arg(Arg::new("drop_rate")
+          .short('d')
           .long("drop-rate")
           .value_name("drop_rate")
           .help("Use to specify packet drop rate. This is number from 0 (do not drop) to 100 (drop all).")
-          .takes_value(true)
+          .action(ArgAction::Set)
           .required(false))
-        .arg(Arg::with_name("delay_time")
-            .short("t")
+        .arg(Arg::new("delay_time")
+            .short('t')
             .long("delay-time")
             .value_name("delay_time")
             .help("Use to specify delay time. It mocks request processing time in milliseconds.")
-            .takes_value(true)
+            .action(ArgAction::Set)
             .required(false))
       .get_matches();
 
-    let port = value_t!(matches, "port", u16).unwrap_or(3000);
-    let drop_rate = value_t!(matches, "drop_rate", i64).unwrap_or(0);
-    let delay_time = stime::Duration::from_millis(value_t!(matches, "delay_time", u64).unwrap_or(0));
-    let hostname = value_t!(matches, "hostname", String).unwrap_or("localhost".to_string());
+    let port = *matches.get_one::<u16>("port").unwrap_or(&3000);
+    let drop_rate = *matches.get_one::<i64>("drop_rate").unwrap_or(&0);
+    let delay_time = stime::Duration::from_millis(*matches.get_one::<u64>("drop_rate").unwrap_or(&0));
+    let hostname = matches
+        .get_one::<String>("hostname")
+        .unwrap_or(&"localhost".to_string())
+        .to_string();
+
     let opts = Options {
         print: options::Print {
-            logs: matches.is_present("print_logs"),
-            headers: matches.is_present("print_headers"),
-            metrics: matches.is_present("print_metrics"),
-            spans: matches.is_present("print_spans"),
+            logs: matches.contains_id("print_logs"),
+            headers: matches.contains_id("print_headers"),
+            metrics: matches.contains_id("print_metrics"),
+            spans: matches.contains_id("print_spans"),
         },
         drop_rate: drop_rate,
         delay_time: delay_time,
-        store_traces: matches.is_present("store_traces"),
-        store_metrics: matches.is_present("store_metrics"),
-        store_logs: matches.is_present("store_logs"),
+        store_traces: matches.contains_id("store_traces"),
+        store_metrics: matches.contains_id("store_metrics"),
+        store_logs: matches.contains_id("store_logs"),
     };
 
     run_app(hostname, port, opts).await
