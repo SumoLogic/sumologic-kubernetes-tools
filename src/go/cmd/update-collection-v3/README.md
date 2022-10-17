@@ -27,16 +27,16 @@ make build
 
 1. Create a `migrate.go` file in the directory and in it create an exported function `func Migrate(string) (string, error)`.
 
-1. Call the `Migrate` function in the `migrateYaml` function in the [main.go](main.go) file.
-
-1. Implement the migration in the function as desired.
+1. Add the name of the directory and the created migration function to the `migrationDirectoriesAndFunctions` variable
+   in [main.go](main.go) file.
 
 1. Create input and output test files in `testdata` subdirectory of your migration directory.
    These should act as unit tests for your migration.
 
-1. Add `migrate_test.go` file that will run will check those test files.
-
 1. Add or update the integration test files in the root [testdata](testdata/) directory to take your migration into account.
+   These tests act as integration tests for all migrations together.
+
+1. Implement the migration in the function as desired.
 
 ## `values.yaml` schema
 

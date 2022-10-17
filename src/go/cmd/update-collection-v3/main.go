@@ -50,16 +50,23 @@ func migrateYamlFile(yamlV2FilePath string, yamlV3FilePath string) error {
 	return nil
 }
 
-func migrateYaml(input string) (string, error) {
-	values, err := kubeprometheusstackandevents.Migrate(string(input))
-	if err != nil {
-		return "", fmt.Errorf("error running migration 'kube-prometheus-stack-and-events': %v", err)
-	}
-
-	values, err = disablethanos.Migrate(values)
-	if err != nil {
-		return "", fmt.Errorf("error running migration 'disable-thanos': %v", err)
-	}
-
-	return values, nil
+var migrationDirectoriesAndFunctions = map[string]migrateFunc{
+	"kube-prometheus-stack-and-events": kubeprometheusstackandevents.Migrate,
+	"disable-thanos":                   disablethanos.Migrate,
 }
+
+func migrateYaml(input string) (string, error) {
+	output := input
+
+	for migrationDir, migrate := range migrationDirectoriesAndFunctions {
+		var err error
+		output, err = migrate(output)
+		if err != nil {
+			return "", fmt.Errorf("error running migration '%s': %v", migrationDir, err)
+		}
+	}
+
+	return output, nil
+}
+
+type migrateFunc func(string) (string, error)

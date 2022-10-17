@@ -20,6 +20,8 @@ require (
 	k8s.io/client-go v0.17.12
 )
 
+require github.com/google/go-cmp v0.5.6 // indirect
+
 require (
 	github.com/cenkalti/backoff/v4 v4.1.2 // indirect
 	github.com/codahale/hdrhistogram v0.0.0-20161010025455-3a0bb77429bd // indirect
@@ -50,6 +52,7 @@ require (
 	google.golang.org/protobuf v1.28.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gotest.tools v2.2.0+incompatible
 	k8s.io/api v0.17.12 // indirect
 	k8s.io/klog v1.0.0 // indirect
 	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f // indirect
