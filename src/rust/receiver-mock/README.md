@@ -98,7 +98,7 @@ The following endpoints provide information about received traces:
   ]
   ```
 
-  - `/traces-list` - returns list of collected traces
+- `/traces-list` - returns list of collected traces
 
   It accepts a list of key value pairs being an attribute set.
   If any span in a trace contains all of these attributes, this trace will be in the list.
