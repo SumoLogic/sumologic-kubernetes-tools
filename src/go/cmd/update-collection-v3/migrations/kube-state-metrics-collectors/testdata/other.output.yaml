@@ -1,0 +1,4 @@
+kube-prometheus-stack:
+  kube-state-metrics:
+    other: value
+other: value

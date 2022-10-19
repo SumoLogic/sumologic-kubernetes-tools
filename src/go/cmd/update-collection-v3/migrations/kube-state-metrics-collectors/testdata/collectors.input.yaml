@@ -1,0 +1,9 @@
+kube-prometheus-stack:
+  kube-state-metrics:
+    collectors:
+      certificatesigningrequests: false
+      ingresses: true
+      mutatingwebhookconfigurations: false
+      resourcequotas: true
+
+other: value

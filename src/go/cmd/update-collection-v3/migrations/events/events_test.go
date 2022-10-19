@@ -1,4 +1,4 @@
-package kubeprometheusstackandevents
+package events
 
 import (
 	"strings"

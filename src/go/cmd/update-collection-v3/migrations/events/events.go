@@ -1,4 +1,4 @@
-package kubeprometheusstackandevents
+package events
 
 func migrateEvents(
 	commonV2 CommonEventsV2,

@@ -1,4 +1,4 @@
-package kubeprometheusstackandevents
+package kubestatemetricscollectors
 
 import (
 	"testing"
