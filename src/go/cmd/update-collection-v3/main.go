@@ -8,7 +8,8 @@ import (
 	"os"
 
 	disablethanos "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/disable-thanos"
-	kubeprometheusstackandevents "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/kube-prometheus-stack-and-events"
+	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/events"
+	kubeprometheusstack "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/kube-prometheus-stack"
 )
 
 var (
@@ -51,8 +52,9 @@ func migrateYamlFile(yamlV2FilePath string, yamlV3FilePath string) error {
 }
 
 var migrationDirectoriesAndFunctions = map[string]migrateFunc{
-	"kube-prometheus-stack-and-events": kubeprometheusstackandevents.Migrate,
-	"disable-thanos":                   disablethanos.Migrate,
+	"kube-prometheus-stack": kubeprometheusstack.Migrate,
+	"events":                events.Migrate,
+	"disable-thanos":        disablethanos.Migrate,
 }
 
 func migrateYaml(input string) (string, error) {
