@@ -1,4 +1,4 @@
-package kubeprometheusstackandevents
+package events
 
 type ValuesV3 struct {
 	Sumologic struct {
@@ -10,19 +10,8 @@ type ValuesV3 struct {
 		Persistence FluentDPersistenceV2   `yaml:"persistence,omitempty"`
 		Rest        map[string]interface{} `yaml:",inline"`
 	} `yaml:"fluentd,omitempty"`
-	Otelevents          OteleventsV3           `yaml:"otelevents,omitempty"`
-	KubePrometheusStack *KubePrometheusStackV3 `yaml:"kube-prometheus-stack,omitempty"`
-	Rest                map[string]interface{} `yaml:",inline"`
-}
-
-type KubeStateMetricsV3 struct {
-	Collectors *[]string              `yaml:"collectors,omitempty"`
+	Otelevents OteleventsV3           `yaml:"otelevents,omitempty"`
 	Rest       map[string]interface{} `yaml:",inline"`
-}
-
-type KubePrometheusStackV3 struct {
-	KubeStateMetrics *KubeStateMetricsV3    `yaml:"kube-state-metrics,omitempty"`
-	Rest             map[string]interface{} `yaml:",inline"`
 }
 
 type FluentDEventsV3 struct{}

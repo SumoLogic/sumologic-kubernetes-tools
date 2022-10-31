@@ -1,0 +1,7 @@
+kube-prometheus-stack:
+  kube-state-metrics:
+    collectors:
+      daemonsets: true
+    other: value
+
+other: value
