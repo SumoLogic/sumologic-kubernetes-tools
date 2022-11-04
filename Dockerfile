@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOOS=linux \
         -ldflags '-w -extldflags "-static"' \
         -o customer-trace-tester cmd/customer-trace-tester/main.go
 
-FROM rust:1.64.0-alpine3.16 as rust-builder
+FROM rust:1.65.0-alpine3.16 as rust-builder
 RUN apk update \
     && apk upgrade \
     && apk add g++ git \
