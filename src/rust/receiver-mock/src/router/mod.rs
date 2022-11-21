@@ -360,13 +360,17 @@ pub async fn handler_logs_count(
         .filter(|(key, _)| !fixed_params.contains(key.as_str()))
         .map(|(key, value)| (key.as_str(), value.as_str()))
         .collect();
-    let count = app_state
-        .log_messages
-        .read()
-        .unwrap()
-        .get_message_count(params.from_ts, params.to_ts, metadata_params);
+    let count_res =
+        app_state
+            .log_messages
+            .read()
+            .unwrap()
+            .get_message_count(params.from_ts, params.to_ts, metadata_params);
 
-    HttpResponse::Ok().json(LogsCountResponse { count })
+    match count_res {
+        Ok(count) => HttpResponse::Ok().json(LogsCountResponse { count }),
+        Err(e) => HttpResponse::BadRequest().json(e.to_string()),
+    }
 }
 
 pub async fn handler_dump(body: web::Bytes) -> impl Responder {

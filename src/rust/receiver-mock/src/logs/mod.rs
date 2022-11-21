@@ -1,4 +1,6 @@
 use crate::time;
+use anyhow::Result;
+use fancy_regex::Regex;
 use log::warn;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
@@ -98,37 +100,45 @@ impl LogRepository {
 
     // Count logs with timestamps in the provided range, with the provided metadata. Empty values
     // in the metadata map mean we just check if the key is there.
-    pub fn get_message_count(&self, from_ts: u64, to_ts: u64, metadata_query: HashMap<&str, &str>) -> usize {
+    pub fn get_message_count(&self, from_ts: u64, to_ts: u64, metadata_query: HashMap<&str, &str>) -> Result<usize> {
         let mut count = 0;
         let entries = self.messages_by_ts.range(from_ts..to_ts);
         for (_, messages) in entries {
             for message in messages {
-                if Self::metadata_matches(&metadata_query, &message.metadata) {
+                if Self::metadata_matches(&metadata_query, &message.metadata)? {
                     count += 1
                 }
             }
         }
-        return count;
+        return Ok(count);
     }
 
     // Check if log metadata matches a query in the form of a map of string to string.
     // There's a match if the metadata contains the same keys and values as the query.
     // The query value of an empty string has special meaning, it matches anything.
-    fn metadata_matches(query: &HashMap<&str, &str>, target: &Metadata) -> bool {
+    fn metadata_matches(query: &HashMap<&str, &str>, target: &Metadata) -> Result<bool> {
         for (key, value) in query.iter() {
             let target_value = match target.get(*key) {
                 // get the value from the target
                 Some(v) => v,
-                None => return false, // key not present, no match
+                None => return Ok(false), // key not present, no match
             };
             if value.len() > 0 {
+                // TODO: regex support is available, so we can remove support for "", but it will break the API
                 // always match if query value is ""
-                if value != target_value {
-                    return false; // different values, no match
+
+                // TODO: add caching the regexes
+                // To keep backward compatibility, by default match only when whole string is the match.
+                let re = Regex::new(&format!("^{}$", value))?;
+
+                let match_res = re.is_match(target_value)?;
+
+                if !match_res {
+                    return Ok(false);
                 }
             }
         }
-        return true;
+        return Ok(true);
     }
 }
 
@@ -207,9 +217,9 @@ mod tests {
             .collect();
         let repository = LogRepository::from_raw_logs(raw_logs).unwrap();
 
-        assert_eq!(repository.get_message_count(1, 6, HashMap::new()), 2);
-        assert_eq!(repository.get_message_count(0, 10, HashMap::new()), 3);
-        assert_eq!(repository.get_message_count(2, 3, HashMap::new()), 0);
+        assert_eq!(repository.get_message_count(1, 6, HashMap::new()).unwrap(), 2);
+        assert_eq!(repository.get_message_count(0, 10, HashMap::new()).unwrap(), 3);
+        assert_eq!(repository.get_message_count(2, 3, HashMap::new()).unwrap(), 0);
     }
 
     #[test]
@@ -233,20 +243,89 @@ mod tests {
         let repository = LogRepository::from_raw_logs(raw_logs).unwrap();
 
         assert_eq!(
-            repository.get_message_count(0, 100, HashMap::from_iter(vec![("key", "value")].into_iter())),
+            repository
+                .get_message_count(0, 100, HashMap::from_iter(vec![("key", "value")].into_iter()))
+                .unwrap(),
             1
         );
         assert_eq!(
-            repository.get_message_count(0, 100, HashMap::from_iter(vec![("key", "")].into_iter())),
+            repository
+                .get_message_count(0, 100, HashMap::from_iter(vec![("key", "")].into_iter()))
+                .unwrap(),
             2
         );
         assert_eq!(
-            repository.get_message_count(
-                0,
-                100,
-                HashMap::from_iter(vec![("key", "valueprime"), ("key2", "value2")].into_iter())
-            ),
+            repository
+                .get_message_count(
+                    0,
+                    100,
+                    HashMap::from_iter(vec![("key", "valueprime"), ("key2", "value2")].into_iter())
+                )
+                .unwrap(),
             1
+        );
+    }
+
+    #[test]
+    fn test_repo_metadata_query_regex() {
+        let metadata = [
+            Metadata::from_iter(vec![("key".to_string(), "value".to_string())].into_iter()),
+            Metadata::from_iter(vec![("key".to_string(), "valueSUFFIX".to_string())].into_iter()),
+            Metadata::from_iter(vec![("key".to_string(), "PREFIXvalue".to_string())].into_iter()),
+            Metadata::from_iter(vec![("key".to_string(), "PREFIXvalueSUFFIX".to_string())].into_iter()),
+            Metadata::from_iter(vec![("key".to_string(), "undefined".to_string())].into_iter()),
+            Metadata::from_iter(vec![("key".to_string(), "not undefined".to_string())].into_iter()),
+        ];
+        let body = "{\"log\": \"Log message\", \"timestamp\": 1}";
+        let raw_logs = metadata
+            .iter()
+            .map(|mt| (body.to_string(), mt.to_owned()))
+            .collect();
+        let repository = LogRepository::from_raw_logs(raw_logs).unwrap();
+
+        // Check backward compatibility (match only exact matches)
+        assert_eq!(
+            repository
+                .get_message_count(0, 100, HashMap::from_iter(vec![("key", "value")].into_iter()))
+                .unwrap(),
+            1
+        );
+
+        // Check backward compatibility (empty matches all)
+        assert_eq!(
+            repository
+                .get_message_count(0, 100, HashMap::from_iter(vec![("key", "")].into_iter()))
+                .unwrap(),
+            6
+        );
+
+        assert_eq!(
+            repository
+                .get_message_count(0, 100, HashMap::from_iter(vec![("key", "value.*")].into_iter()))
+                .unwrap(),
+            2
+        );
+
+        assert_eq!(
+            repository
+                .get_message_count(
+                    0,
+                    100,
+                    HashMap::from_iter(vec![("key", ".*value.*")].into_iter())
+                )
+                .unwrap(),
+            4
+        );
+
+        assert_eq!(
+            repository
+                .get_message_count(
+                    0,
+                    100,
+                    HashMap::from_iter(vec![("key", "(?!undefined$).*")].into_iter())
+                )
+                .unwrap(),
+            5
         );
     }
 
