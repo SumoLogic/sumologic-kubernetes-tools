@@ -15,7 +15,10 @@ otelevents:
 metadata:
   logs:
     config:
-      key: value
+      keylogs: valuelogs
+  metrics:
+    config:
+      keymetrics: valuemetrics
 sumologic:
   accessId: xxx
   accessKey: yyy

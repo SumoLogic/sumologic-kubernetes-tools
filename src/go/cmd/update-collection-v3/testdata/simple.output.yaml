@@ -2,7 +2,11 @@ metadata:
   logs:
     config:
       merge:
-        key: value
+        keylogs: valuelogs
+  metrics:
+    config:
+      merge:
+        keymetrics: valuemetrics
 otelevents:
   config:
     merge:
