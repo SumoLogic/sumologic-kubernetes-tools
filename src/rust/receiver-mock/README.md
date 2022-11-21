@@ -267,13 +267,22 @@ The following endpoints provide information about received logs:
   Returns the number of logs received between `from_ts` and `to_ts`. The values are epoch timestamps in milliseconds, and the range represented by them is inclusive at the start and exclusive at the end. Both values are optional.
 
   It's also possible to filter by log metadata. Any query parameter without a fixed meaning (such as `from_ts`) will be treated
-  as a key-value pair of metadata, and only logs containing that pair will be counted. Similarly to the metrics samples endpoint, an empty value is treated as a wildcard.
+  as a key-value pair of metadata. Logs are the only data that can be queried using regexes.
+  To achieve backward compatibility, there are two exceptions to the regexes:
+  - an empty value is treated as a wildcard
+  - only exact matches are matched, for example regex `foo` will match only string `foo` and nothing else
+
+  In case of any doubt regarding the regexes, please refer to the documentation of [fancy-regex] crate.
+
+  Sample response:
 
   ```json
   {
     "count": 7
   }
   ```
+
+[fancy-regex]: https://docs.rs/fancy-regex/0.10.0/fancy_regex/index.html
 
 ## Dump message
 
