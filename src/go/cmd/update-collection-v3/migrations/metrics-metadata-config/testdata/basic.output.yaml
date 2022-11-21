@@ -1,0 +1,8 @@
+metadata:
+  metrics:
+    config:
+      merge:
+        keymetrics: valuemetrics
+  logs:
+    config:
+      keylogs: valuelogs

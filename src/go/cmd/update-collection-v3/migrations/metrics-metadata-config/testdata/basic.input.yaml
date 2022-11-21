@@ -4,5 +4,5 @@ metadata:
       keymetrics: valuemetrics
   logs:
     config:
-      merge:
-        keylogs: valuelogs
+      keylogs: valuelogs
+

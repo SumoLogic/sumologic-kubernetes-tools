@@ -1,4 +1,7 @@
 metadata:
   logs:
     config:
-      key: value
+      keylogs: valuelogs
+  metrics:
+    config:
+      keymetrics: valuemetrics

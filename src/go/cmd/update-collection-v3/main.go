@@ -13,6 +13,7 @@ import (
 	eventsconfigmerge "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/events-config-merge"
 	kubestatemetricscollectors "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/kube-state-metrics-collectors"
 	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/logsmetadataconfig"
+	metricsmetadataconfig "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/metrics-metadata-config"
 	tracingreplaces "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tracing-replaces"
 	"gopkg.in/yaml.v3"
 )
@@ -85,6 +86,10 @@ var migrations = []Migration{
 	{
 		directory: "logs-metadata-config",
 		action:    logsmetadataconfig.Migrate,
+	},
+	{
+		directory: "metrics-metadata-config",
+		action:    metricsmetadataconfig.Migrate,
 	},
 }
 

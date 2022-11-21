@@ -1,4 +1,4 @@
-package logsmetadataconfig
+package metricsmetadataconfig
 
 import (
 	"bytes"
@@ -9,33 +9,32 @@ import (
 
 type InputValues struct {
 	Metadata struct {
-		Logs LogsMetadataInput         `yaml:"logs,omitempty"`
-		Rest map[string]interface{} `yaml:",inline"`
+		Metrics MetricsMetadataInput   `yaml:"metrics,omitempty"`
+		Rest    map[string]interface{} `yaml:",inline"`
 	} `yaml:"metadata,omitempty"`
 	Rest map[string]interface{} `yaml:",inline"`
 }
 
-type LogsMetadataInput struct {
+type MetricsMetadataInput struct {
 	Config map[string]interface{} `yaml:"config,omitempty"`
 	Rest   map[string]interface{} `yaml:",inline"`
 }
 
 type OutputValues struct {
 	Metadata struct {
-		Logs LogsMetadataOutput         `yaml:"logs,omitempty"`
-		Rest map[string]interface{} `yaml:",inline"`
+		Metrics MetricsMetadataOutput  `yaml:"metrics,omitempty"`
+		Rest    map[string]interface{} `yaml:",inline"`
 	} `yaml:"metadata,omitempty"`
 	Rest map[string]interface{} `yaml:",inline"`
 }
 
-type LogsMetadataOutput struct {
+type MetricsMetadataOutput struct {
 	Config struct {
 		Merge    map[string]interface{} `yaml:"merge,omitempty"`
 		Override map[string]interface{} `yaml:"override,omitempty"`
 	} `yaml:"config,omitempty"`
 	Rest map[string]interface{} `yaml:",inline"`
 }
-
 
 func Migrate(inputYaml string) (outputYaml string, err error) {
 	inputValues, err := parseValues(inputYaml)
@@ -66,6 +65,6 @@ func migrate(inputValues *InputValues) (OutputValues, error) {
 		Rest: inputValues.Rest,
 	}
 	outputValues.Metadata.Rest = inputValues.Metadata.Rest
-	outputValues.Metadata.Logs.Config.Merge = inputValues.Metadata.Logs.Config
+	outputValues.Metadata.Metrics.Config.Merge = inputValues.Metadata.Metrics.Config
 	return outputValues, nil
 }
