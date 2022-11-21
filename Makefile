@@ -42,3 +42,9 @@ login:
 login-ecr:
 	aws ecr-public get-login-password --region us-east-1 \
 	| docker login --username AWS --password-stdin $(ECR_URL)
+
+build-update-collection-v3:
+	make build -C src/go/cmd/update-collection-v3
+
+test-update-collection-v3:
+	make test -C src/go/cmd/update-collection-v3

@@ -44,3 +44,15 @@ jobs:
         run: make build-image
       - name: Test kubernetes-tools image
         run: make test-image
+
+  test-update-collection-v3:
+    runs-on: ubuntu-20.04
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-go@v3
+        with:
+          go-version: '1.18'
+      - name: Build update-collection-v3
+        run: make build-update-collection-v3
+      - name: Test update-collection-v3
+        run: make test-update-collection-v3
