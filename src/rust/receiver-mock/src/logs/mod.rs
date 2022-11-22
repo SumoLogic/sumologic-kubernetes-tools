@@ -5,6 +5,7 @@ use log::warn;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::net::IpAddr;
+use std::sync::{Arc, RwLock};
 
 use crate::metadata::Metadata;
 
@@ -63,15 +64,43 @@ pub struct LogMessage {
     metadata: Metadata,
 }
 
+
+struct RegexCache {
+    cache: RwLock<HashMap<String, Arc<Regex>>>,
+}
+
+impl RegexCache {
+    pub fn new() -> RegexCache {
+        RegexCache {
+            cache: RwLock::new(HashMap::new()),
+        }
+    }
+
+    pub fn get(&self, value: &str) -> Result<Arc<Regex>> {
+        let map = self.cache.read().unwrap();
+        if let Some(regex) = map.get(value) {
+            return Ok(regex.clone());
+        }
+        // Drop the read lock manually to avoid deadlocks when accessing the write lock.
+        drop(map);
+        let regex = Arc::new(Regex::new(&format!("^{}$", value))?);
+        let mut map = self.cache.write().unwrap();
+        map.insert(value.to_string(), regex.clone());
+        Ok(regex)
+    }
+}
+
 #[derive(Clone)]
 pub struct LogRepository {
     pub messages_by_ts: BTreeMap<u64, Vec<LogMessage>>, // indexed by timestamp to make range queries possible
+    regex_cache: Arc<RegexCache>,
 }
 
 impl LogRepository {
     pub fn new() -> Self {
         return Self {
             messages_by_ts: BTreeMap::new(),
+            regex_cache: Arc::new(RegexCache::new()),
         };
     }
 
@@ -105,7 +134,7 @@ impl LogRepository {
         let entries = self.messages_by_ts.range(from_ts..to_ts);
         for (_, messages) in entries {
             for message in messages {
-                if Self::metadata_matches(&metadata_query, &message.metadata)? {
+                if self.metadata_matches(&metadata_query, &message.metadata)? {
                     count += 1
                 }
             }
@@ -116,7 +145,7 @@ impl LogRepository {
     // Check if log metadata matches a query in the form of a map of string to string.
     // There's a match if the metadata contains the same keys and values as the query.
     // The query value of an empty string has special meaning, it matches anything.
-    fn metadata_matches(query: &HashMap<&str, &str>, target: &Metadata) -> Result<bool> {
+    fn metadata_matches(&self, query: &HashMap<&str, &str>, target: &Metadata) -> Result<bool> {
         for (key, value) in query.iter() {
             let target_value = match target.get(*key) {
                 // get the value from the target
@@ -129,7 +158,7 @@ impl LogRepository {
 
                 // TODO: add caching the regexes
                 // To keep backward compatibility, by default match only when whole string is the match.
-                let re = Regex::new(&format!("^{}$", value))?;
+                let re = self.regex_cache.get(*value)?;
 
                 let match_res = re.is_match(target_value)?;
 
@@ -327,6 +356,68 @@ mod tests {
                 .unwrap(),
             5
         );
+    }
+
+    #[test]
+    fn test_repo_metadata_regex_cache() {
+        let metadata = [
+            Metadata::from_iter(
+                vec![
+                    ("key".to_string(), "value1".to_string()),
+                    ("key2".to_string(), "value2".to_string()),
+                    ("key3".to_string(), "thirdvalue".to_string()),
+                ]
+                .into_iter(),
+            ),
+        ];
+        let body = "{\"log\": \"Log message\", \"timestamp\": 1}";
+        let raw_logs = metadata
+            .iter()
+            .map(|mt| (body.to_string(), mt.to_owned()))
+            .collect();
+        let repository = LogRepository::from_raw_logs(raw_logs).unwrap();
+
+        // No query done yet, confirm that cache is empty.
+        assert_eq!(repository.regex_cache.cache.read().unwrap().len(), 0);
+
+        // Do a query
+        assert_eq!(
+            repository
+                .get_message_count(
+                    0,
+                    100,
+                    HashMap::from_iter(vec![("key", "value.*"), ("key3", "third.*")].into_iter())
+                )
+                .unwrap(),
+            1
+        );
+
+        // Confirm that cache has increased size
+        assert_eq!(repository.regex_cache.cache.read().unwrap().len(), 2);
+        
+        // Get the regexes.
+        let first = repository.regex_cache.cache.read().unwrap().get("value.*").unwrap().clone();
+        let third = repository.regex_cache.cache.read().unwrap().get("third.*").unwrap().clone();
+
+        assert_eq!(Arc::strong_count(&first), 2);
+        assert_eq!(Arc::strong_count(&third), 2);
+
+        // Do another query
+        assert_eq!(
+            repository
+                .get_message_count(
+                    0,
+                    100,
+                    HashMap::from_iter(vec![("key", "value.*"), ("key2", "value.*"), ("key3", "third.*")].into_iter())
+                )
+                .unwrap(),
+            1
+        );
+
+        // Confirm that the cache hasn't changed: the size is the same and the same references are used.
+        assert_eq!(repository.regex_cache.cache.read().unwrap().len(), 2);
+        assert_eq!(Arc::strong_count(&first), 2);
+        assert_eq!(Arc::strong_count(&third), 2);
     }
 
     #[test]
