@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"os"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -33,14 +33,14 @@ func testMigrationsInDirectory(t *testing.T, migrate migrateFunc, directory stri
 	require.NoError(t, err)
 	for _, inputFileName := range inputFileNames {
 		t.Run(path.Join(path.Base(path.Dir(directory)), path.Base(directory), path.Base(inputFileName)), func(t *testing.T) {
-			inputFileContents, err := ioutil.ReadFile(inputFileName)
+			inputFileContents, err := os.ReadFile(inputFileName)
 			require.NoError(t, err)
 
 			actualOutput, err := migrate(string(inputFileContents))
 			require.NoError(t, err)
 
 			outputFileName := strings.TrimSuffix(inputFileName, ".input.yaml") + ".output.yaml"
-			expectedOutput, err := ioutil.ReadFile(outputFileName)
+			expectedOutput, err := os.ReadFile(outputFileName)
 			require.NoError(t, err)
 			assert.Equal(t, string(expectedOutput), actualOutput)
 		})

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"os"
 
@@ -44,7 +44,7 @@ func migrateYamlFile(yamlV2FilePath string, yamlV3FilePath string) error {
 		return fmt.Errorf("cannot open file %s: %v", *inFileFlag, err)
 	}
 
-	yamlV2, err := ioutil.ReadAll(f)
+	yamlV2, err := io.ReadAll(f)
 	if err != nil {
 		return fmt.Errorf("error reading from file %s: %v", yamlV2FilePath, err)
 	}
@@ -54,7 +54,7 @@ func migrateYamlFile(yamlV2FilePath string, yamlV3FilePath string) error {
 		return fmt.Errorf("error migrating values %v", err)
 	}
 
-	err = ioutil.WriteFile(yamlV3FilePath, []byte(yamlV3), 0666)
+	err = os.WriteFile(yamlV3FilePath, []byte(yamlV3), 0666)
 	if err != nil {
 		return fmt.Errorf("failed writing %s: %v", *outFileFlag, err)
 	}
