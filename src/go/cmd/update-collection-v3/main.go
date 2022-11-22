@@ -10,6 +10,7 @@ import (
 	disablethanos "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/disable-thanos"
 	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/events"
 	kubestatemetricscollectors "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/kube-state-metrics-collectors"
+	tracingreplaces "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tracing-replaces"
 )
 
 var (
@@ -55,6 +56,7 @@ var migrationDirectoriesAndFunctions = map[string]migrateFunc{
 	"kube-prometheus-stack": kubestatemetricscollectors.Migrate,
 	"events":                events.Migrate,
 	"disable-thanos":        disablethanos.Migrate,
+	"tracing-replaces":      tracingreplaces.Migrate,
 }
 
 func migrateYaml(input string) (string, error) {
