@@ -12,6 +12,10 @@ otelevents:
   config:
     override:
       key: value
+metadata:
+  logs:
+    config:
+      key: value
 sumologic:
   accessId: xxx
   accessKey: yyy

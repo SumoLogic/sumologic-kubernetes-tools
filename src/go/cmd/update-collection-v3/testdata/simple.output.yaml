@@ -1,3 +1,8 @@
+metadata:
+  logs:
+    config:
+      merge:
+        key: value
 otelevents:
   config:
     merge:
