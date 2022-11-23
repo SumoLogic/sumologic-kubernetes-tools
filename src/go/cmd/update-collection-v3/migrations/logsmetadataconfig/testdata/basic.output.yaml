@@ -1,0 +1,5 @@
+metadata:
+  logs:
+    config:
+      merge:
+        key: value

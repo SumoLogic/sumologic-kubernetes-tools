@@ -11,6 +11,7 @@ import (
 	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/events"
 	eventsconfigmerge "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/events-config-merge"
 	kubestatemetricscollectors "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/kube-state-metrics-collectors"
+	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/logsmetadataconfig"
 	tracingreplaces "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tracing-replaces"
 )
 
@@ -59,6 +60,7 @@ var migrationDirectoriesAndFunctions = map[string]migrateFunc{
 	"disable-thanos":        disablethanos.Migrate,
 	"tracing-replaces":      tracingreplaces.Migrate,
 	"events-config-merge":   eventsconfigmerge.Migrate,
+	"logs-metadata-config":  logsmetadataconfig.Migrate,
 }
 
 func migrateYaml(input string) (string, error) {
