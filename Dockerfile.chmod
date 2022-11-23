@@ -1,0 +1,14 @@
+FROM alpine:3.17.0 as alpine
+RUN apk add sudo
+RUN echo 'user ALL=(ALL) NOPASSWD: ALL' >> /etc/sudoers
+RUN mkdir -p /src /src/bin /src/usr/bin /src/etc /src/lib/ /src/usr/lib/sudo/
+RUN echo 'user:*:999:999:user:/_nonexistent:/bin/false' > /src/etc/passwd
+RUN echo 'root:x:0:0:root:/root:/bin/false' >> /src/etc/passwd
+RUN cp /bin/chmod /src/bin/chmod \
+ && cp /usr/bin/sudo /src/usr/bin/sudo \
+ && cp /etc/sudoers /src/etc \
+ && cp /lib/ld-musl-*.so.1 /lib/libz.so.1 /src/lib/ \
+ && cp /usr/lib/sudo/libsudo_util.so.0 /usr/lib/sudo/sudoers.so /src/usr/lib/sudo/
+
+FROM scratch
+COPY --from=alpine /src /

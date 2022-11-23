@@ -22,13 +22,17 @@ variable "TOOLS_CACHE_TAG" {
     default = "tools-build-cache"
 }
 
+variable "DOCKERFILE" {
+    default = "Dockerfile"
+}
+
 target "multiplatform" {
     platforms = ["linux/amd64", "linux/arm64"]
     output = ["type=image"]
 }
 
 target "default" {
-    dockerfile = "Dockerfile"
+    dockerfile = "${DOCKERFILE}"
     tags = ["${IMAGE}:${TAG}"]
     cache-from = [
         "${CACHE_IMAGE}:${BUILD_GO_CACHE_TAG}",
@@ -39,7 +43,7 @@ target "default" {
     platforms = ["linux/amd64"]
 }
 
-target "tools-multiplatform" {
+target "image-multiplatform" {
     inherits = ["default", "multiplatform"]
 }
 

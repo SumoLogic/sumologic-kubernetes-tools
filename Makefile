@@ -5,6 +5,11 @@ REPO_URL = $(DOCKERHUB_REPO_NAME)/$(IMAGE_NAME)
 ECR_URL = public.ecr.aws/a4t4y2n3
 ECR_REPO_URL = $(ECR_URL)/$(IMAGE_NAME)
 
+CHMOD_IMAGE_NAME = kubernetes-chmod
+CHMOD_DOCKERFILE = Dockerfile.chmod
+CHMOD_REPO_URL = $(DOCKERHUB_REPO_NAME)/$(CHMOD_IMAGE_NAME)
+CHMOD_ECR_REPO_URL = $(ECR_URL)/$(CHMOD_IMAGE_NAME)
+
 markdownlint: mdl
 
 mdl:
@@ -14,7 +19,7 @@ build-image:
 	TAG=$(BUILD_TAG) docker buildx bake
 
 build-image-multiplatform:
-	TAG=$(BUILD_TAG) docker buildx bake tools-multiplatform 
+	TAG=$(BUILD_TAG) docker buildx bake image-multiplatform
 
 tag-release-image-with-latest:
 	make push-image BUILD_TAG=latest
@@ -31,7 +36,7 @@ push-image-cache:
 	docker buildx bake cache-multiplatform
 
 push-image:
-	IMAGE=$(REPO_URL) TAG=$(BUILD_TAG) docker buildx bake tools-multiplatform --push
+	IMAGE=$(REPO_URL) TAG=$(BUILD_TAG) docker buildx bake image-multiplatform --push
 
 push-image-ecr:
 	make push-image REPO_URL=$(ECR_REPO_URL)
@@ -48,3 +53,20 @@ build-update-collection-v3:
 
 test-update-collection-v3:
 	make test -C src/go/cmd/update-collection-v3
+
+# chmod image
+
+build-chmod-image-multiplatform:
+	TAG=$(BUILD_TAG) DOCKERFILE=$(CHMOD_DOCKERFILE) IMAGE=$(CHMOD_IMAGE_NAME) docker buildx bake image-multiplatform
+
+build-chmod-image:
+	TAG=$(BUILD_TAG) DOCKERFILE=$(CHMOD_DOCKERFILE) IMAGE=$(CHMOD_IMAGE_NAME) docker buildx bake
+
+push-chmod-image:
+	TAG=$(BUILD_TAG) DOCKERFILE=$(CHMOD_DOCKERFILE) IMAGE=$(CHMOD_REPO_URL) docker buildx bake image-multiplatform --push
+
+tag-release-chmod-image-with-latest:
+	make push-image BUILD_TAG=latest
+
+push-chmod-image-ecr:
+	make push-image REPO_URL=$(CHMOD_ECR_REPO_URL)
