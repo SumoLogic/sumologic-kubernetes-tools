@@ -64,15 +64,17 @@ pub struct LogMessage {
     metadata: Metadata,
 }
 
-
+#[derive(Clone)]
 struct RegexCache {
-    cache: RwLock<HashMap<String, Arc<Regex>>>,
+    cache: Arc<RwLock<HashMap<String, Arc<Regex>>>>,
+    enabled: bool,
 }
 
 impl RegexCache {
-    pub fn new() -> RegexCache {
+    pub fn new(enabled: bool) -> RegexCache {
         RegexCache {
-            cache: RwLock::new(HashMap::new()),
+            cache: Arc::new(RwLock::new(HashMap::new())),
+            enabled,
         }
     }
 
@@ -93,14 +95,14 @@ impl RegexCache {
 #[derive(Clone)]
 pub struct LogRepository {
     pub messages_by_ts: BTreeMap<u64, Vec<LogMessage>>, // indexed by timestamp to make range queries possible
-    regex_cache: Arc<RegexCache>,
+    regex_cache: RegexCache,
 }
 
 impl LogRepository {
     pub fn new() -> Self {
         return Self {
             messages_by_ts: BTreeMap::new(),
-            regex_cache: Arc::new(RegexCache::new()),
+            regex_cache: RegexCache::new(true),
         };
     }
 
@@ -158,9 +160,14 @@ impl LogRepository {
 
                 // TODO: add caching the regexes
                 // To keep backward compatibility, by default match only when whole string is the match.
-                let re = self.regex_cache.get(*value)?;
 
-                let match_res = re.is_match(target_value)?;
+                let match_res = if self.regex_cache.enabled {
+                    let re = self.regex_cache.get(*value)?;
+
+                    re.is_match(target_value)?
+                } else {
+                    Regex::new(&format!("^{}$", value))?.is_match(target_value)?
+                };
 
                 if !match_res {
                     return Ok(false);
@@ -360,16 +367,14 @@ mod tests {
 
     #[test]
     fn test_repo_metadata_regex_cache() {
-        let metadata = [
-            Metadata::from_iter(
-                vec![
-                    ("key".to_string(), "value1".to_string()),
-                    ("key2".to_string(), "value2".to_string()),
-                    ("key3".to_string(), "thirdvalue".to_string()),
-                ]
-                .into_iter(),
-            ),
-        ];
+        let metadata = [Metadata::from_iter(
+            vec![
+                ("key".to_string(), "value1".to_string()),
+                ("key2".to_string(), "value2".to_string()),
+                ("key3".to_string(), "thirdvalue".to_string()),
+            ]
+            .into_iter(),
+        )];
         let body = "{\"log\": \"Log message\", \"timestamp\": 1}";
         let raw_logs = metadata
             .iter()
@@ -394,10 +399,24 @@ mod tests {
 
         // Confirm that cache has increased size
         assert_eq!(repository.regex_cache.cache.read().unwrap().len(), 2);
-        
+
         // Get the regexes.
-        let first = repository.regex_cache.cache.read().unwrap().get("value.*").unwrap().clone();
-        let third = repository.regex_cache.cache.read().unwrap().get("third.*").unwrap().clone();
+        let first = repository
+            .regex_cache
+            .cache
+            .read()
+            .unwrap()
+            .get("value.*")
+            .unwrap()
+            .clone();
+        let third = repository
+            .regex_cache
+            .cache
+            .read()
+            .unwrap()
+            .get("third.*")
+            .unwrap()
+            .clone();
 
         assert_eq!(Arc::strong_count(&first), 2);
         assert_eq!(Arc::strong_count(&third), 2);
@@ -418,6 +437,42 @@ mod tests {
         assert_eq!(repository.regex_cache.cache.read().unwrap().len(), 2);
         assert_eq!(Arc::strong_count(&first), 2);
         assert_eq!(Arc::strong_count(&third), 2);
+    }
+
+    fn run_bench(count: usize, metadata_count: usize, log_count: usize, cache_enabled: bool) -> u128 {
+        let metadata: HashMap<String, String> = (0..metadata_count)
+            .map(|x| (format!("key{}", x), format!("value{}", x)))
+            .collect();
+        let body = "{\"log\": \"Log message\", \"timestamp\": 1}";
+        let raw_logs = (0..log_count)
+            .map(|_| (body.to_string(), metadata.clone()))
+            .collect();
+        let mut repository = LogRepository::from_raw_logs(raw_logs).unwrap();
+        repository.regex_cache.enabled = cache_enabled;
+        let queried: HashMap<&str, &str> = metadata.iter().map(|(a, b)| (a.as_str(), b.as_str())).collect();
+
+        let now = std::time::SystemTime::now();
+        let mut total_count = 0;
+        for _ in 0..count {
+            total_count += repository.get_message_count(0, 100, queried.clone()).unwrap();
+        }
+
+        let ret = now.elapsed().unwrap().as_millis();
+        assert_eq!(total_count, count * log_count);
+
+        ret
+    }
+
+    #[test]
+    #[ignore]
+    fn benchmark_regex_cache_on() {
+        eprintln!("Time with cache on: {} ms", run_bench(3, 20, 1000, true));
+    }
+
+    #[test]
+    #[ignore]
+    fn benchmark_regex_cache_off() {
+        eprintln!("Time with cache off: {} ms", run_bench(3, 20, 1000, false));
     }
 
     #[test]
