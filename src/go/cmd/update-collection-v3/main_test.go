@@ -15,8 +15,8 @@ import (
 func TestIndividualMigrations(t *testing.T) {
 	_, testFileName, _, _ := runtime.Caller(0)
 	currentTestDirectory := path.Dir(testFileName)
-	for directoryName, migrateFunction := range migrationDirectoriesAndFunctions {
-		testMigrationsInDirectory(t, migrateFunction, path.Join(currentTestDirectory, "migrations", directoryName, "testdata"))
+	for _, migration := range migrations {
+		testMigrationsInDirectory(t, migration.action, path.Join(currentTestDirectory, "migrations", migration.directory, "testdata"))
 	}
 }
 
