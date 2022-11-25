@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 	kubestatemetricscollectors "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/kube-state-metrics-collectors"
 	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/logsmetadataconfig"
 	tracingreplaces "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tracing-replaces"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -97,7 +99,29 @@ func migrateYaml(input string) (string, error) {
 		}
 	}
 
-	return output, nil
+	// make the output consistently ordered
+	// without this logic, key ordering would depend on the final migration
+	// TODO: order keys the same as input
+	output, err = reorderYaml(output)
+
+	return output, err
+}
+
+// reorder yaml keys in the input
+// right now this just unmarshals into a map and marshals again
+// the result is alphabetical key ordering
+func reorderYaml(input string) (string, error) {
+	var outputMap map[string]interface{}
+	err := yaml.Unmarshal([]byte(input), &outputMap)
+	if err != nil {
+		return "", err
+	}
+	buffer := bytes.Buffer{}
+	encoder := yaml.NewEncoder(&buffer)
+	encoder.SetIndent(2)
+	err = encoder.Encode(outputMap)
+
+	return buffer.String(), err
 }
 
 type migrateFunc func(string) (string, error)
