@@ -1,0 +1,4 @@
+otelevents:
+  config:
+    merge:
+      key: value
