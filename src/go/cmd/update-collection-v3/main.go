@@ -20,6 +20,11 @@ var (
 	outFileFlag = flag.String("out", "new_values.yaml", "output values.yaml")
 )
 
+type Migration struct {
+	directory string
+	action    migrateFunc
+}
+
 func main() {
 	flag.Parse()
 
@@ -54,23 +59,41 @@ func migrateYamlFile(yamlV2FilePath string, yamlV3FilePath string) error {
 	return nil
 }
 
-var migrationDirectoriesAndFunctions = map[string]migrateFunc{
-	"kube-prometheus-stack": kubestatemetricscollectors.Migrate,
-	"events":                events.Migrate,
-	"disable-thanos":        disablethanos.Migrate,
-	"tracing-replaces":      tracingreplaces.Migrate,
-	"events-config-merge":   eventsconfigmerge.Migrate,
-	"logs-metadata-config":  logsmetadataconfig.Migrate,
+var migrations = []Migration{
+	{
+		directory: "kube-prometheus-stack",
+		action:    kubestatemetricscollectors.Migrate,
+	},
+	{
+		directory: "events",
+		action:    events.Migrate,
+	},
+	{
+		directory: "disable-thanos",
+		action:    disablethanos.Migrate,
+	},
+	{
+		directory: "tracing-replaces",
+		action:    tracingreplaces.Migrate,
+	},
+	{
+		directory: "events-config-merge",
+		action:    eventsconfigmerge.Migrate,
+	},
+	{
+		directory: "logs-metadata-config",
+		action:    logsmetadataconfig.Migrate,
+	},
 }
 
 func migrateYaml(input string) (string, error) {
+	var err error
 	output := input
 
-	for migrationDir, migrate := range migrationDirectoriesAndFunctions {
-		var err error
-		output, err = migrate(output)
+	for _, migration := range migrations {
+		output, err = migration.action(output)
 		if err != nil {
-			return "", fmt.Errorf("error running migration '%s': %v", migrationDir, err)
+			return "", fmt.Errorf("error running migration '%s': %v", migration.directory, err)
 		}
 	}
 
