@@ -1,0 +1,3 @@
+sumologic:
+  cluster:
+    load_config_file: false
