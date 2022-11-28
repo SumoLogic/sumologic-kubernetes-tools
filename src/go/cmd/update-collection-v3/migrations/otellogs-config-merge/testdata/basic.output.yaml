@@ -1,0 +1,4 @@
+otellogs:
+  config:
+    merge:
+      key: value

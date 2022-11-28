@@ -11,6 +11,10 @@ otelevents:
   config:
     merge:
       key: value
+otellogs:
+  config:
+    merge:
+      key: value
 sumologic:
   accessId: xxx
   accessKey: yyy

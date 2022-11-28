@@ -1,0 +1,4 @@
+otellogs:
+  config:
+    override:
+      key: value
