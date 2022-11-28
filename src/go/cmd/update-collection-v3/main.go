@@ -14,6 +14,7 @@ import (
 	kubestatemetricscollectors "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/kube-state-metrics-collectors"
 	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/logsmetadataconfig"
 	metricsmetadataconfig "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/metrics-metadata-config"
+	otellogsconfigmerge "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/otellogs-config-merge"
 	tracingreplaces "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tracing-replaces"
 	"gopkg.in/yaml.v3"
 )
@@ -90,6 +91,10 @@ var migrations = []Migration{
 	{
 		directory: "metrics-metadata-config",
 		action:    metricsmetadataconfig.Migrate,
+	},
+	{
+		directory: "otellogs-config-merge",
+		action:    otellogsconfigmerge.Migrate,
 	},
 }
 

@@ -12,6 +12,10 @@ otelevents:
   config:
     override:
       key: value
+otellogs:
+  config:
+    override:
+      key: value
 metadata:
   logs:
     config:
