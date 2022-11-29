@@ -1,0 +1,21 @@
+sumologic:
+  logs:
+    container:
+      enabled: false
+    enabled: false
+fluentd:
+  logs:
+    containers:
+      sourceCategory: ""
+      sourceCategoryPrefix: ""
+      sourceCategoryReplaceDash: ""
+      excludePriorityRegex: ""
+      excludeUnitRegex: ""
+      perContainerAnnotationsEnabled: false
+      perContainerAnnotationPrefixes: []
+    systemd:
+      sourceCategory: ""
+      sourceCategoryPrefix: ""
+      sourceCategoryReplaceDash: ""
+      excludePriorityRegex: ""
+      excludeUnitRegex: ""

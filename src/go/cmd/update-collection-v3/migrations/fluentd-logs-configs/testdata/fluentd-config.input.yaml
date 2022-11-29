@@ -1,0 +1,82 @@
+sumologic:
+  accessId: xxx
+  accessKey: yyy
+  logs:
+    container:
+      enabled: true
+    enabled: true
+    metadata:
+      provider: fluentd
+
+fluentd:
+  logs:
+    containers:
+      sourceCategory: '%{namespace}/%{pod_name}'
+      sourceCategoryPrefix: kubernetes/
+      sourceCategoryReplaceDash: /
+      sourceName: '%{namespace}.%{pod}.%{container}'
+      excludeFacilityRegex: my_excludeFacilityRegex
+      excludeHostRegex: my_excludeHostRegex
+      excludePriorityRegex: my_excludePriorityRegex
+      excludeUnitRegex:  my_excludeUnitRegex
+      perContainerAnnotationsEnabled: true
+      perContainerAnnotationPrefixes:
+      - prefixA
+      - prefixB
+      overrideRawConfig: |
+        testConfig
+      outputConf: |
+        @include logs.output.conf
+      k8sMetadataFilter:
+        watch: "true"
+    default:
+      extraFilterPluginConf: |
+        defaultExtraFilterPluginConf
+      extraOutputPluginConf: |
+        defaultExtraOutputPluginConf
+      outputConf: |
+        @include logs.output.conf
+      overrideOutputConf: |
+        defaultOverrideOutputConf
+      sourceName: my_default_sourceName
+      sourceCategory: my_default_sourceCategory
+      sourceCategoryPrefix: my_default_sourceCategoryPrefix
+      sourceCategoryReplaceDash: my_default_sourceCategoryReplaceDash
+      excludeFacilityRegex: my_default_excludeFacilityRegex
+      excludeHostRegex: my_default_excludeHostRegex
+      excludePriorityRegex: my_default_excludePriorityRegex
+      excludeUnitRegex: my_default_excludeUnitRegex
+    systemd:
+      enabled: true
+      extraFilterPluginConf: |
+        systemdExtraFilterPluginConf
+      extraOutputPluginConf: |
+        systemdExtraOutputPluginConf
+      outputConf: |
+        @include logs.output.conf
+      sourceCategory:  my_systemd_sourceCategory
+      sourceCategoryPrefix: my_systemd_sourceCategoryPrefix
+      sourceCategoryReplaceDash: my_systemd_sourceCategoryReplaceDash
+      sourceName: my_systemd_sourceName
+      excludeFacilityRegex: my_systemd_excludeFacilityRegex
+      excludeHostRegex: my_systemd_excludeHostRegex
+      excludePriorityRegex: my_systemd_excludePriorityRegex
+      excludeUnitRegex: my_systemd_excludeUnitRegex
+    kubelet:
+      enabled: true
+      extraFilterPluginConf: |
+        kubeletExtraFilterPluginConf
+      extraOutputPluginConf: |
+        kubeletExtraOutputPluginConf
+      outputConf: |
+        @include logs.output.conf
+      overrideOutputConf: |
+        kubeletOverrideOutputConf
+      sourceName: my_kubelet_sourceName
+      sourceCategory: my_kubelet_sourceCategory
+      sourceCategoryPrefix: my_kubelet_sourceCategoryPrefix
+      sourceCategoryReplaceDash: my_kubelet_sourceCategoryReplaceDash
+      excludeFacilityRegex: my_kubelet_excludeFacilityRegex
+      excludeHostRegex: my_kubelet_excludeHostRegex
+      excludePriorityRegex: my_kubelet_excludePriorityRegex
+      excludeUnitRegex: my_kubelet_excludeUnitRegex
