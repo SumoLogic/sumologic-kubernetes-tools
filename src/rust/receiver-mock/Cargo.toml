@@ -16,7 +16,7 @@ bytes = "1"
 base64 = "0.13"
 serde = { version = "1.0.148", features = ["derive"] }
 serde_json = "1.0.89"
-clap = "4.0.27"
+clap = "4.0.28"
 timer = "0.2"
 chrono = { version = "0.4", features = ["serde"] }
 json_str = "*"
