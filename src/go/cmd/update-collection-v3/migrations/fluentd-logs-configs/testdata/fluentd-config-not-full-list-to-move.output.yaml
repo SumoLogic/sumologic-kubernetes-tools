@@ -1,0 +1,67 @@
+sumologic:
+  logs:
+    container:
+      sourceCategory: '%{namespace}/%{pod_name}'
+      sourceCategoryPrefix: kubernetes/
+      sourceCategoryReplaceDash: /
+      excludeFacilityRegex: my_excludeFacilityRegex
+      excludeHostRegex: my_excludeHostRegex
+      excludePriorityRegex: my_excludePriorityRegex
+      excludeUnitRegex: my_excludeUnitRegex
+      enabled: true
+    systemd:
+      sourceName: my_systemd_sourceName
+      sourceCategoryPrefix: my_systemd_sourceCategoryPrefix
+      sourceCategoryReplaceDash: my_systemd_sourceCategoryReplaceDash
+      excludeFacilityRegex: my_systemd_excludeFacilityRegex
+      excludeHostRegex: my_systemd_excludeHostRegex
+      excludePriorityRegex: my_systemd_excludePriorityRegex
+      excludeUnitRegex: my_systemd_excludeUnitRegex
+    kubelet:
+      sourceName: my_kubelet_sourceName
+      sourceCategory: my_kubelet_sourceCategory
+      sourceCategoryPrefix: my_kubelet_sourceCategoryPrefix
+      sourceCategoryReplaceDash: my_kubelet_sourceCategoryReplaceDash
+      excludeFacilityRegex: my_kubelet_excludeFacilityRegex
+      excludeUnitRegex: my_kubelet_excludeUnitRegex
+    enabled: true
+    metadata:
+      provider: fluentd
+  accessId: xxx
+  accessKey: yyy
+fluentd:
+  logs:
+    containers:
+      k8sMetadataFilter:
+        watch: "true"
+      outputConf: |
+        @include logs.output.conf
+      overrideRawConfig: |
+        testConfig
+    systemd:
+      enabled: true
+      extraFilterPluginConf: |
+        systemdExtraFilterPluginConf
+      extraOutputPluginConf: |
+        systemdExtraOutputPluginConf
+      outputConf: |
+        @include logs.output.conf
+    kubelet:
+      enabled: true
+      extraFilterPluginConf: |
+        kubeletExtraFilterPluginConf
+      extraOutputPluginConf: |
+        kubeletExtraOutputPluginConf
+      outputConf: |
+        @include logs.output.conf
+      overrideOutputConf: |
+        kubeletOverrideOutputConf
+    default:
+      extraFilterPluginConf: |
+        defaultExtraFilterPluginConf
+      extraOutputPluginConf: |
+        defaultExtraOutputPluginConf
+      outputConf: |
+        @include logs.output.conf
+      overrideOutputConf: |
+        defaultOverrideOutputConf

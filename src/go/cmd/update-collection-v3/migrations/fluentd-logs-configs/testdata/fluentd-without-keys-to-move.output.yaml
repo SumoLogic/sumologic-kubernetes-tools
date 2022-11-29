@@ -1,0 +1,24 @@
+sumologic:
+  logs:
+    enabled: true
+    metadata:
+      provider: fluentd
+  accessId: xxx
+  accessKey: yyy
+fluentd:
+  logs:
+    containers:
+      k8sMetadataFilter:
+        watch: "true"
+      outputConf: |
+        @include logs.output.conf
+      overrideRawConfig: |
+        testConfig
+    systemd:
+      enabled: true
+      extraFilterPluginConf: |
+        systemdExtraFilterPluginConf
+      extraOutputPluginConf: |
+        systemdExtraOutputPluginConf
+      outputConf: |
+        @include logs.output.conf

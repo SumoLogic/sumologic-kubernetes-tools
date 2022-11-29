@@ -1,0 +1,18 @@
+sumologic:
+  logs:
+    container:
+      sourceCategory: ""
+      sourceCategoryPrefix: ""
+      sourceCategoryReplaceDash: ""
+      excludePriorityRegex: ""
+      excludeUnitRegex: ""
+      perContainerAnnotationsEnabled: false
+      perContainerAnnotationPrefixes: []
+      enabled: false
+    systemd:
+      sourceCategory: ""
+      sourceCategoryPrefix: ""
+      sourceCategoryReplaceDash: ""
+      excludePriorityRegex: ""
+      excludeUnitRegex: ""
+    enabled: false

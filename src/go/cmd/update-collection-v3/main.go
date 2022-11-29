@@ -12,6 +12,7 @@ import (
 	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/events"
 	eventsconfigmerge "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/events-config-merge"
 	falcoupgrade "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/falco-upgrade"
+	fluentdlogsconfigs "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/fluentd-logs-configs"
 	kubestatemetricscollectors "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/kube-state-metrics-collectors"
 	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/logsmetadataconfig"
 	metricsmetadataconfig "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/metrics-metadata-config"
@@ -115,6 +116,10 @@ var migrations = []Migration{
 	{
 		directory: "tailing-sidecar-operator-upgrade",
 		action:    tailingsidecaroperatorupgrade.Migrate,
+	},
+	{
+		directory: "fluentd-logs-configs",
+		action:    fluentdlogsconfigs.Migrate,
 	},
 }
 
