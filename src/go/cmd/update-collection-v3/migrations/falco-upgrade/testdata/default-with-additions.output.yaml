@@ -1,0 +1,58 @@
+falco:
+  falco:
+    json_output: true
+    rules_file:
+      - /etc/falco/falco_rules.yaml
+      - /etc/falco/falco_rules.local.yaml
+      - /etc/falco/k8s_audit_rules.yaml
+      - /etc/falco/rules.d
+      - /etc/falco/rules.available/application_rules.yaml
+    e: f
+  image:
+    c: d
+    registry: public.ecr.aws
+    repository: sumologic/falco
+  enabled: false
+  extra:
+    initContainers:
+      - command:
+          - sh
+          - -c
+          - |
+            while [ -f /host/etc/redhat-release ] && [ -z "$(ls /host/usr/src/kernels)" ] ; do
+            echo "waiting for kernel headers to be installed"
+            sleep 3
+            done
+        image: public.ecr.aws/docker/library/busybox
+        name: init-falco
+        volumeMounts:
+          - mountPath: /host/usr
+            name: usr-fs
+            readOnly: true
+          - mountPath: /host/etc
+            name: etc-fs
+            readOnly: true
+  ebpf:
+    g: h
+  driver:
+    kind: ebpf
+  a: b
+  addKernelDevel: true
+  customRules:
+    rules_user_known_k8s_api_callers.yaml: |-
+      - macro: user_known_contact_k8s_api_server_activities
+        condition: >
+          (container.image.repository = "sumologic/kubernetes-fluentd") or
+          (container.image.repository = "quay.io/prometheus/prometheus") or
+          (container.image.repository = "quay.io/coreos/prometheus-operator") or
+          (container.image.repository = "quay.io/influxdb/telegraf-operator") or
+          (container.image.repository = "kiwigrid/k8s-sidecar")
+    rules_user_privileged_containers.yaml: |-
+      - macro: user_privileged_containers
+        condition: >
+          (container.image.repository endswith ".amazonaws.com/eks/kube-proxy")
+    rules_user_sensitive_mount_containers.yaml: |-
+      - macro: user_sensitive_mount_containers
+        condition: >
+          (container.image.repository = "falcosecurity/falco") or
+          (container.image.repository = "quay.io/prometheus/node-exporter")
