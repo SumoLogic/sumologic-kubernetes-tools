@@ -18,6 +18,7 @@ import (
 	metricsserverupgrade "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/metrics-server-upgrade"
 	otellogsconfigmerge "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/otellogs-config-merge"
 	removeloadconfigfile "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/remove-load-config-file"
+	tailingsidecaroperatorupgrade "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tailing-sidecar-operator-upgrade"
 	tracingreplaces "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tracing-replaces"
 	"gopkg.in/yaml.v3"
 )
@@ -110,6 +111,10 @@ var migrations = []Migration{
 	{
 		directory: "metrics-server-upgrade",
 		action:    metricsserverupgrade.Migrate,
+	},
+	{
+		directory: "tailing-sidecar-operator-upgrade",
+		action:    tailingsidecaroperatorupgrade.Migrate,
 	},
 }
 
