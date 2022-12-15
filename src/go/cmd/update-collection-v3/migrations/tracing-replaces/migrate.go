@@ -36,7 +36,7 @@ func Migrate(yamlV2 string) (yamlV3 string, err error) {
 		if len(foundOtelcolReplaces) != 0 {
 			fmt.Println("WARNING! Found following special values in otelcol configuration which must be manually migrated:")
 			fmt.Println(strings.Join(foundOtelcolReplaces, "\n"))
-			fmt.Println("for details please see documentation: https://github.com/SumoLogic/sumologic-kubernetes-collection/blob/main/docs/v3-migration-doc.md#traces")
+			fmt.Println("for details please see documentation: https://github.com/SumoLogic/sumologic-kubernetes-collection/blob/main/docs/v3-migration-doc.md#replace-special-configuration-values-marked-by-replace-suffix")
 		}
 	}
 
