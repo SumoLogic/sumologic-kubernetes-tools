@@ -9,7 +9,7 @@ import (
 )
 
 var otelcolReplaces []string = []string{
-	"processors.sourcea.collector.replace",
+	"processors.source.collector.replace",
 	"processors.source.name.replace",
 	"processors.source.category.replace",
 	"processors.source.category_prefix.replace",
