@@ -8,13 +8,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var otelagentReplaces []string = []string{
-	"exporters.otlpmetrics.endpoint.replace",
-	"exporters.otlptraces.endpoint.replace",
-}
-
 var otelcolReplaces []string = []string{
-	"processors.source.collector.replace",
+	"processors.sourcea.collector.replace",
 	"processors.source.name.replace",
 	"processors.source.category.replace",
 	"processors.source.category_prefix.replace",
@@ -24,8 +19,6 @@ var otelcolReplaces []string = []string{
 	"processors.source.exclude_container_regex.replace",
 	"processors.source.exclude_host_regex.replace",
 	"processors.resource.cluster.replace",
-	"exporters.sumologic.source_name.replace",
-	"exporters.sumologic.source_category.replace",
 }
 
 func Migrate(yamlV2 string) (yamlV3 string, err error) {
@@ -34,34 +27,30 @@ func Migrate(yamlV2 string) (yamlV3 string, err error) {
 		return "", fmt.Errorf("error parsing input yaml: %v", err)
 	}
 
-	if valuesV2.Otelagent != nil {
-		foundOtelagentReplaces := []string{}
-		foundOtelagentReplaces, err = findUsedReplaces(valuesV2.Otelagent.Config, otelagentReplaces)
-		if err != nil {
-			return "", fmt.Errorf("error parsing otelcol configuration: %v", err)
-		}
-
-		if len(foundOtelagentReplaces) != 0 {
-			fmt.Println("WARNING! Found following special values in otelagent configuration which must be manually migrated:")
-			fmt.Println(strings.Join(foundOtelagentReplaces, "\n"))
-			fmt.Println("for details please see documentation: https://github.com/SumoLogic/sumologic-kubernetes-collection/blob/main/docs/v3-migration-doc.md")
-		}
-	}
-
-	if valuesV2.Otelcol != nil {
+	if &valuesV2.Otelcol != nil {
 		foundOtelcolReplaces := []string{}
-		foundOtelcolReplaces, err = findUsedReplaces(valuesV2.Otelcol.Config, otelcolReplaces)
+		foundOtelcolReplaces, err = findUsedReplaces(valuesV2.Otelcol, otelcolReplaces)
 		if err != nil {
 			return "", fmt.Errorf("error parsing otelcol configuration: %v", err)
 		}
 		if len(foundOtelcolReplaces) != 0 {
 			fmt.Println("WARNING! Found following special values in otelcol configuration which must be manually migrated:")
 			fmt.Println(strings.Join(foundOtelcolReplaces, "\n"))
-			fmt.Println("for details please see documentation: https://github.com/SumoLogic/sumologic-kubernetes-collection/blob/main/docs/v3-migration-doc.md")
+			fmt.Println("for details please see documentation: https://github.com/SumoLogic/sumologic-kubernetes-collection/blob/main/docs/v3-migration-doc.md#traces")
 		}
 	}
 
-	return yamlV2, err
+	valuesV3, err := migrate(&valuesV2)
+	if err != nil {
+		return "", fmt.Errorf("error migrating: %v", err)
+	}
+
+	buffer := bytes.Buffer{}
+	encoder := yaml.NewEncoder(&buffer)
+	encoder.SetIndent(2)
+	err = encoder.Encode(valuesV3)
+	fmt.Sprintln(buffer.String())
+	return buffer.String(), err
 }
 
 func parseValues(yamlV2 string) (ValuesV2, error) {
@@ -70,7 +59,7 @@ func parseValues(yamlV2 string) (ValuesV2, error) {
 	return valuesV2, err
 }
 
-func parseConfigToString(config map[string]interface{}) (string, error) {
+func parseConfigToString(config Otelcol) (string, error) {
 	buffer := bytes.Buffer{}
 	encoder := yaml.NewEncoder(&buffer)
 	encoder.SetIndent(2)
@@ -81,8 +70,8 @@ func parseConfigToString(config map[string]interface{}) (string, error) {
 	return buffer.String(), err
 }
 
-func findUsedReplaces(config map[string]interface{}, replaces []string) ([]string, error) {
-	if config == nil {
+func findUsedReplaces(config Otelcol, replaces []string) ([]string, error) {
+	if &config == nil {
 		return []string{}, nil
 	}
 
@@ -98,4 +87,15 @@ func findUsedReplaces(config map[string]interface{}, replaces []string) ([]strin
 		}
 	}
 	return found, nil
+}
+
+func migrate(valuesV2 *ValuesV2) (ValuesV3, error) {
+	valuesV3 := ValuesV3{
+		Rest: valuesV2.Rest,
+	}
+	// migrate otelcol source processor to otelcol-instrumentation
+	valuesV3.OtelcolInstrumentation.Config.Processors.Source = valuesV2.Otelcol.Config.Processors.Source
+	// migrate otelcol cascading_filter processor to tracesSampler
+	valuesV3.TracesSampler.Config.Processors.CascadingFilter = valuesV2.Otelcol.Config.Processors.CascadingFilter
+	return valuesV3, nil
 }
