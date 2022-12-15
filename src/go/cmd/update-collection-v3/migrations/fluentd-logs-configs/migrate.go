@@ -8,35 +8,35 @@ import (
 )
 
 func Migrate(input string) (string, error) {
-	valuesV2, err := parseValues(input)
+	valuesInput, err := parseValues(input)
 	if err != nil {
 		return "", fmt.Errorf("error parsing input yaml: %v", err)
 	}
 
-	if valuesV2.Fluentd == nil || valuesV2.Fluentd.Logs == nil {
+	if valuesInput.Fluentd == nil || valuesInput.Fluentd.Logs == nil {
 		// migration of fluentd.logs keys is not needed
 		return input, nil
 	}
 
-	valuesV3 := migrate(&valuesV2)
+	valuesOutput := migrate(&valuesInput)
 
 	buffer := bytes.Buffer{}
 	encoder := yaml.NewEncoder(&buffer)
 	encoder.SetIndent(2)
-	err = encoder.Encode(valuesV3)
+	err = encoder.Encode(valuesOutput)
 	return buffer.String(), err
 }
 
-func parseValues(input string) (ValuesV2, error) {
-	var valuesV2 ValuesV2
-	err := yaml.Unmarshal([]byte(input), &valuesV2)
-	return valuesV2, err
+func parseValues(input string) (ValuesInput, error) {
+	var valuesInput ValuesInput
+	err := yaml.Unmarshal([]byte(input), &valuesInput)
+	return valuesInput, err
 }
 
-func migrate(valuesV2 *ValuesV2) ValuesV3 {
-	return ValuesV3{
-		Rest:      valuesV2.Rest,
-		Sumologic: createSumologic(valuesV2),
-		Fluentd:   createFluentdLogs(valuesV2),
+func migrate(valuesInput *ValuesInput) ValuesOutput {
+	return ValuesOutput{
+		Rest:      valuesInput.Rest,
+		Sumologic: createSumologic(valuesInput),
+		Fluentd:   createFluentdLogs(valuesInput),
 	}
 }

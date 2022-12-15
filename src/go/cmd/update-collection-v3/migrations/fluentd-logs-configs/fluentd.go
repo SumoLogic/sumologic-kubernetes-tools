@@ -1,112 +1,112 @@
 package fluentdlogsconfigs
 
-func createSumologic(valuesV2 *ValuesV2) *SumologicV3 {
-	if valuesV2.Sumologic == nil && valuesV2.Fluentd == nil {
+func createSumologic(valuesInput *ValuesInput) *SumologicOutput {
+	if valuesInput.Sumologic == nil && valuesInput.Fluentd == nil {
 		return nil
 	}
 
-	sumoLogicV3 := &SumologicV3{}
-	if valuesV2.Fluentd != nil {
-		sumoLogicV3.Logs = createSumologicLogs(valuesV2.Fluentd.Logs, valuesV2.Sumologic.Logs)
+	sumoLogicOutput := &SumologicOutput{}
+	if valuesInput.Fluentd != nil {
+		sumoLogicOutput.Logs = createSumologicLogs(valuesInput.Fluentd.Logs, valuesInput.Sumologic.Logs)
 	}
 
-	if valuesV2.Sumologic != nil {
-		sumoLogicV3.Rest = valuesV2.Sumologic.Rest
+	if valuesInput.Sumologic != nil {
+		sumoLogicOutput.Rest = valuesInput.Sumologic.Rest
 	}
-	return sumoLogicV3
+	return sumoLogicOutput
 }
 
-func createSumologicLogs(fluentdLogsV2 *FluentdLogs, sumologicLogsV2 *SumologicLogsV2) *SumologicLogsV3 {
-	sumologicLogsV3 := &SumologicLogsV3{}
+func createSumologicLogs(fluentdLogsInput *FluentdLogs, sumologicLogsInput *SumologicLogsInput) *SumologicLogsOutput {
+	sumologicLogsOutput := &SumologicLogsOutput{}
 
-	if fluentdLogsV2 != nil {
-		sumologicLogsV3.Container = createSumologicLogsContainer(fluentdLogsV2.Containers, sumologicLogsV2.Container)
-		sumologicLogsV3.Systemd = createSumologicLogsConfig(fluentdLogsV2.Systemd, sumologicLogsV2.Systemd)
-		sumologicLogsV3.Kubelet = createSumologicLogsConfig(fluentdLogsV2.Kubelet, nil) // set nil because in v2 there was not any configuration under sumologic.logs.kubelet
-		sumologicLogsV3.Default = createSumologicLogsConfig(fluentdLogsV2.Default, nil) // set nil because in v2 there was not any configuration under sumologic.logs.defaultFluentd
+	if fluentdLogsInput != nil {
+		sumologicLogsOutput.Container = createSumologicLogsContainer(fluentdLogsInput.Containers, sumologicLogsInput.Container)
+		sumologicLogsOutput.Systemd = createSumologicLogsConfig(fluentdLogsInput.Systemd, sumologicLogsInput.Systemd)
+		sumologicLogsOutput.Kubelet = createSumologicLogsConfig(fluentdLogsInput.Kubelet, nil) // set nil because in v2 there was not any configuration under sumologic.logs.kubelet
+		sumologicLogsOutput.Default = createSumologicLogsConfig(fluentdLogsInput.Default, nil) // set nil because in v2 there was not any configuration under sumologic.logs.defaultFluentd
 	}
 
-	if sumologicLogsV2 != nil {
-		sumologicLogsV3.Rest = sumologicLogsV2.Rest
+	if sumologicLogsInput != nil {
+		sumologicLogsOutput.Rest = sumologicLogsInput.Rest
 	}
-	return sumologicLogsV3
+	return sumologicLogsOutput
 }
 
-func isLogsMigrationNeeded(configV2 *LogsConfig) bool {
-	if configV2 == nil {
+func isLogsMigrationNeeded(configInput *LogsConfig) bool {
+	if configInput == nil {
 		return false
-	} else if configV2.SourceName != nil ||
-		configV2.SourceCategory != nil ||
-		configV2.SourceCategoryPrefix != nil ||
-		configV2.SourceCategoryReplaceDash != nil ||
-		configV2.ExcludeFacilityRegex != nil ||
-		configV2.ExcludeHostRegex != nil ||
-		configV2.ExcludePriorityRegex != nil ||
-		configV2.ExcludeUnitRegex != nil {
+	} else if configInput.SourceName != nil ||
+		configInput.SourceCategory != nil ||
+		configInput.SourceCategoryPrefix != nil ||
+		configInput.SourceCategoryReplaceDash != nil ||
+		configInput.ExcludeFacilityRegex != nil ||
+		configInput.ExcludeHostRegex != nil ||
+		configInput.ExcludePriorityRegex != nil ||
+		configInput.ExcludeUnitRegex != nil {
 		return true
 	}
 	return false
 }
 
-func createSumologicLogsConfig(fluentdLogsConfigV2 *LogsConfig, sumologicLogsConfigV2 map[string]interface{}) *LogsConfig {
-	if !isLogsMigrationNeeded(fluentdLogsConfigV2) {
-		if sumologicLogsConfigV2 != nil {
-			return &LogsConfig{Rest: sumologicLogsConfigV2}
+func createSumologicLogsConfig(fluentdLogsConfigInput *LogsConfig, sumologicLogsConfigInput map[string]interface{}) *LogsConfig {
+	if !isLogsMigrationNeeded(fluentdLogsConfigInput) {
+		if sumologicLogsConfigInput != nil {
+			return &LogsConfig{Rest: sumologicLogsConfigInput}
 		}
 		return nil
 	}
 
 	return &LogsConfig{
-		SourceName:                fluentdLogsConfigV2.SourceName,
-		SourceCategory:            fluentdLogsConfigV2.SourceCategory,
-		SourceCategoryPrefix:      fluentdLogsConfigV2.SourceCategoryPrefix,
-		SourceCategoryReplaceDash: fluentdLogsConfigV2.SourceCategoryReplaceDash,
-		ExcludeFacilityRegex:      fluentdLogsConfigV2.ExcludeFacilityRegex,
-		ExcludeHostRegex:          fluentdLogsConfigV2.ExcludeHostRegex,
-		ExcludePriorityRegex:      fluentdLogsConfigV2.ExcludePriorityRegex,
-		ExcludeUnitRegex:          fluentdLogsConfigV2.ExcludeUnitRegex,
-		Rest:                      sumologicLogsConfigV2,
+		SourceName:                fluentdLogsConfigInput.SourceName,
+		SourceCategory:            fluentdLogsConfigInput.SourceCategory,
+		SourceCategoryPrefix:      fluentdLogsConfigInput.SourceCategoryPrefix,
+		SourceCategoryReplaceDash: fluentdLogsConfigInput.SourceCategoryReplaceDash,
+		ExcludeFacilityRegex:      fluentdLogsConfigInput.ExcludeFacilityRegex,
+		ExcludeHostRegex:          fluentdLogsConfigInput.ExcludeHostRegex,
+		ExcludePriorityRegex:      fluentdLogsConfigInput.ExcludePriorityRegex,
+		ExcludeUnitRegex:          fluentdLogsConfigInput.ExcludeUnitRegex,
+		Rest:                      sumologicLogsConfigInput,
 	}
 }
 
-func isContainerLogsMigrationNeeded(configV2 *ContainersLogsConfig) bool {
-	if configV2 == nil {
+func isContainerLogsMigrationNeeded(configInput *ContainersLogsConfig) bool {
+	if configInput == nil {
 		return false
-	} else if configV2.SourceName != nil ||
-		configV2.SourceCategory != nil ||
-		configV2.SourceCategoryPrefix != nil ||
-		configV2.SourceCategoryReplaceDash != nil ||
-		configV2.ExcludeFacilityRegex != nil ||
-		configV2.ExcludeHostRegex != nil ||
-		configV2.ExcludePriorityRegex != nil ||
-		configV2.ExcludeUnitRegex != nil ||
-		configV2.PerContainerAnnotationsEnabled != nil ||
-		configV2.PerContainerAnnotationPrefixes != nil {
+	} else if configInput.SourceName != nil ||
+		configInput.SourceCategory != nil ||
+		configInput.SourceCategoryPrefix != nil ||
+		configInput.SourceCategoryReplaceDash != nil ||
+		configInput.ExcludeFacilityRegex != nil ||
+		configInput.ExcludeHostRegex != nil ||
+		configInput.ExcludePriorityRegex != nil ||
+		configInput.ExcludeUnitRegex != nil ||
+		configInput.PerContainerAnnotationsEnabled != nil ||
+		configInput.PerContainerAnnotationPrefixes != nil {
 		return true
 	}
 	return false
 }
 
-func createSumologicLogsContainer(fluendLogsContainersV2 *ContainersLogsConfig, sumologicLogsContainerV2 map[string]interface{}) *ContainersLogsConfig {
-	if !isContainerLogsMigrationNeeded(fluendLogsContainersV2) {
-		if sumologicLogsContainerV2 != nil {
-			return &ContainersLogsConfig{Rest: sumologicLogsContainerV2}
+func createSumologicLogsContainer(fluendLogsContainersInput *ContainersLogsConfig, sumologicLogsContainerInput map[string]interface{}) *ContainersLogsConfig {
+	if !isContainerLogsMigrationNeeded(fluendLogsContainersInput) {
+		if sumologicLogsContainerInput != nil {
+			return &ContainersLogsConfig{Rest: sumologicLogsContainerInput}
 		}
 		return nil
 	}
 
 	return &ContainersLogsConfig{
-		SourceName:                     fluendLogsContainersV2.SourceName,
-		SourceCategory:                 fluendLogsContainersV2.SourceCategory,
-		SourceCategoryPrefix:           fluendLogsContainersV2.SourceCategoryPrefix,
-		SourceCategoryReplaceDash:      fluendLogsContainersV2.SourceCategoryReplaceDash,
-		ExcludeFacilityRegex:           fluendLogsContainersV2.ExcludeFacilityRegex,
-		ExcludeHostRegex:               fluendLogsContainersV2.ExcludeHostRegex,
-		ExcludePriorityRegex:           fluendLogsContainersV2.ExcludePriorityRegex,
-		ExcludeUnitRegex:               fluendLogsContainersV2.ExcludeUnitRegex,
-		PerContainerAnnotationsEnabled: fluendLogsContainersV2.PerContainerAnnotationsEnabled,
-		PerContainerAnnotationPrefixes: fluendLogsContainersV2.PerContainerAnnotationPrefixes,
-		Rest:                           sumologicLogsContainerV2,
+		SourceName:                     fluendLogsContainersInput.SourceName,
+		SourceCategory:                 fluendLogsContainersInput.SourceCategory,
+		SourceCategoryPrefix:           fluendLogsContainersInput.SourceCategoryPrefix,
+		SourceCategoryReplaceDash:      fluendLogsContainersInput.SourceCategoryReplaceDash,
+		ExcludeFacilityRegex:           fluendLogsContainersInput.ExcludeFacilityRegex,
+		ExcludeHostRegex:               fluendLogsContainersInput.ExcludeHostRegex,
+		ExcludePriorityRegex:           fluendLogsContainersInput.ExcludePriorityRegex,
+		ExcludeUnitRegex:               fluendLogsContainersInput.ExcludeUnitRegex,
+		PerContainerAnnotationsEnabled: fluendLogsContainersInput.PerContainerAnnotationsEnabled,
+		PerContainerAnnotationPrefixes: fluendLogsContainersInput.PerContainerAnnotationPrefixes,
+		Rest:                           sumologicLogsContainerInput,
 	}
 }
 
@@ -124,52 +124,52 @@ func isContainersLogRestEmpty(config *ContainersLogsConfig) bool {
 	return false
 }
 
-func isFluentdV3Empty(fluentdV2 *Fluentd) bool {
-	if fluentdV2 == nil ||
-		(fluentdV2.Rest == nil &&
-			isContainersLogRestEmpty(fluentdV2.Logs.Containers) &&
-			isLogRestEmpty(fluentdV2.Logs.Systemd) &&
-			isLogRestEmpty(fluentdV2.Logs.Kubelet) &&
-			isLogRestEmpty(fluentdV2.Logs.Default)) {
+func isFluentdOutputEmpty(fluentdInput *Fluentd) bool {
+	if fluentdInput == nil ||
+		(fluentdInput.Rest == nil &&
+			isContainersLogRestEmpty(fluentdInput.Logs.Containers) &&
+			isLogRestEmpty(fluentdInput.Logs.Systemd) &&
+			isLogRestEmpty(fluentdInput.Logs.Kubelet) &&
+			isLogRestEmpty(fluentdInput.Logs.Default)) {
 		return true
 	}
 	return false
 }
 
-func createFluentdLogsContainersConfig(containersConfigV2 *ContainersLogsConfig) *ContainersLogsConfig {
-	if containersConfigV2 != nil && containersConfigV2.Rest != nil {
+func createFluentdLogsContainersConfig(containersConfigInput *ContainersLogsConfig) *ContainersLogsConfig {
+	if containersConfigInput != nil && containersConfigInput.Rest != nil {
 		return &ContainersLogsConfig{
-			Rest: containersConfigV2.Rest,
+			Rest: containersConfigInput.Rest,
 		}
 	}
 	return nil
 }
 
-func createFluentdLogsConfig(logsConfigV2 *LogsConfig) *LogsConfig {
-	if logsConfigV2 != nil && logsConfigV2.Rest != nil {
+func createFluentdLogsConfig(logsConfigInput *LogsConfig) *LogsConfig {
+	if logsConfigInput != nil && logsConfigInput.Rest != nil {
 		return &LogsConfig{
-			Rest: logsConfigV2.Rest,
+			Rest: logsConfigInput.Rest,
 		}
 	}
 	return nil
 }
 
-func createFluentdLogs(valuesV2 *ValuesV2) *Fluentd {
-	if isFluentdV3Empty(valuesV2.Fluentd) {
+func createFluentdLogs(valuesInput *ValuesInput) *Fluentd {
+	if isFluentdOutputEmpty(valuesInput.Fluentd) {
 		return nil
 	}
 
-	if valuesV2.Fluentd.Logs == nil {
-		return &Fluentd{Rest: valuesV2.Fluentd.Rest}
+	if valuesInput.Fluentd.Logs == nil {
+		return &Fluentd{Rest: valuesInput.Fluentd.Rest}
 	}
 
 	return &Fluentd{
-		Rest: valuesV2.Fluentd.Rest,
+		Rest: valuesInput.Fluentd.Rest,
 		Logs: &FluentdLogs{
-			Containers: createFluentdLogsContainersConfig(valuesV2.Fluentd.Logs.Containers),
-			Systemd:    createFluentdLogsConfig(valuesV2.Fluentd.Logs.Systemd),
-			Kubelet:    createFluentdLogsConfig(valuesV2.Fluentd.Logs.Kubelet),
-			Default:    createFluentdLogsConfig(valuesV2.Fluentd.Logs.Default),
+			Containers: createFluentdLogsContainersConfig(valuesInput.Fluentd.Logs.Containers),
+			Systemd:    createFluentdLogsConfig(valuesInput.Fluentd.Logs.Systemd),
+			Kubelet:    createFluentdLogsConfig(valuesInput.Fluentd.Logs.Kubelet),
+			Default:    createFluentdLogsConfig(valuesInput.Fluentd.Logs.Default),
 		},
 	}
 }
