@@ -1,0 +1,11 @@
+sumologic:
+  accessId: xxx
+  accessKey: yyy
+  logs:
+    container:
+      enabled: true
+    enabled: true
+    metadata:
+      provider: fluentd
+    systemd:
+      enabled: true
