@@ -1,10 +1,3 @@
-otelagent:
-  config:
-    exporters:
-      otlphttp/metrics:
-        endpoint: http://exporters.otlpmetrics.endpoint.replace:4318
-      otlphttp/traces:
-        endpoint: http://exporters.otlptraces.endpoint.replace:4318
 otelcol:
   config:
     exporters:
@@ -12,6 +5,8 @@ otelcol:
         source_category: exporters.sumologic.source_category.replace
         source_name: exporters.sumologic.source_name.replace
     processors:
+      cascading_filter:
+        num_spans: 200000
       source:
         annotation_prefix: k8s.pod.annotation.
         collector: processors.source.collector.replace
