@@ -11,11 +11,11 @@ actix-web = "4.2.1"
 actix-http = "3.2.2"
 actix-service = "1"
 actix-rt = "2"
-anyhow = "1.0.66"
+anyhow = "1.0.68"
 bytes = "1"
 base64 = "0.20"
-serde = { version = "1.0.150", features = ["derive"] }
-serde_json = "1.0.89"
+serde = { version = "1.0.151", features = ["derive"] }
+serde_json = "1.0.91"
 clap = "4.0.29"
 timer = "0.2"
 chrono = { version = "0.4", features = ["serde"] }
