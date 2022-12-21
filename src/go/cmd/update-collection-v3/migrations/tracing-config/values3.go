@@ -1,4 +1,4 @@
-package tracingreplaces
+package tracingconfig
 
 type ValuesV3 struct {
 	OtelcolInstrumentation OtelcolInstrumentation `yaml:"otelcolInstrumentation,omitempty"`
