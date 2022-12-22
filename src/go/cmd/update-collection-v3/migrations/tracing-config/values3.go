@@ -3,6 +3,9 @@ package tracingconfig
 type ValuesV3 struct {
 	OtelcolInstrumentation OtelcolInstrumentation `yaml:"otelcolInstrumentation,omitempty"`
 	TracesSampler          TracesSampler          `yaml:"tracesSampler,omitempty"`
+	Otelcol                map[string]interface{} `yaml:"-"`
+	Otelagent              map[string]interface{} `yaml:"-"`
+	Otelgateway            map[string]interface{} `yaml:"-"`
 	Rest                   map[string]interface{} `yaml:",inline"`
 }
 
@@ -12,9 +15,7 @@ type OtelcolInstrumentation struct {
 			Source map[string]interface{} `yaml:"source,omitempty"`
 			Rest   map[string]interface{} `yaml:",inline"`
 		} `yaml:"processors,omitempty"`
-		Rest map[string]interface{} `yaml:",inline"`
 	} `yaml:"config,omitempty"`
-	Rest map[string]interface{} `yaml:",inline"`
 }
 
 type TracesSampler struct {
@@ -23,7 +24,5 @@ type TracesSampler struct {
 			CascadingFilter map[string]interface{} `yaml:"cascading_filter,omitempty"`
 			Rest            map[string]interface{} `yaml:",inline"`
 		} `yaml:"processors,omitempty"`
-		Rest map[string]interface{} `yaml:",inline"`
 	} `yaml:"config,omitempty"`
-	Rest map[string]interface{} `yaml:",inline"`
 }

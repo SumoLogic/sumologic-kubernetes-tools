@@ -1,8 +1,10 @@
 package tracingreplaces
 
 type ValuesV2 struct {
-	Otelcol Otelcol                `yaml:"otelcol,omitempty"`
-	Rest    map[string]interface{} `yaml:",inline"`
+	Otelcol     Otelcol                `yaml:"otelcol,omitempty"`
+	Otelagent   map[string]interface{} `yaml:"otelagent,omitempty"`
+	Otelgateway map[string]interface{} `yaml:"otelgateway,omitempty"`
+	Rest        map[string]interface{} `yaml:",inline"`
 }
 
 type Otelcol struct {
