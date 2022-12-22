@@ -1,3 +1,19 @@
+sumologic:
+  traces:
+    enabled: true
+otelagent:
+  enabled: true
+  config:
+    exporters:
+      otlphttp/metrics:
+        endpoint: http://exporters.otlpmetrics.endpoint.replace:4318
+      otlphttp/traces:
+        endpoint: http://exporters.otlptraces.endpoint.replace:4318
+otelgateway:
+  enabled: true
+  config:
+    exporters:
+      loadbalancing:
 otelcol:
   config:
     exporters:

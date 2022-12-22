@@ -17,6 +17,9 @@ otelcolInstrumentation:
         source_category_replace_dash: processors.source.category_replace_dash.replace
         source_host: '%{k8s.pod.hostname}'
         source_name: processors.source.name.replace
+sumologic:
+  traces:
+    enabled: true
 tracesSampler:
   config:
     processors:
