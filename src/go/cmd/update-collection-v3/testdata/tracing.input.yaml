@@ -21,6 +21,8 @@ otelcol:
         source_category: exporters.sumologic.source_category.replace
         source_name: exporters.sumologic.source_name.replace
     processors:
+      other:
+        enabled: true
       cascading_filter:
         num_spans: 200000
       source:

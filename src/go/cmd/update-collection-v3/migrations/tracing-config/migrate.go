@@ -7,14 +7,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func Migrate(yamlV2 string) (yamlV3 string, err error) {
-	valuesV2, err := parseValues(yamlV2)
+func Migrate(input string) (string, error) {
+	inputValues, err := parseValues(input)
 	if err != nil {
 		return "", fmt.Errorf("error parsing input yaml: %v", err)
 	}
 
-	if &valuesV2.Otelcol != nil {
-		valuesV3, err := migrate(&valuesV2)
+	if &inputValues.Otelcol != nil {
+		outputValues, err := migrate(&inputValues)
 		if err != nil {
 			return "", fmt.Errorf("error migrating: %v", err)
 		}
@@ -22,29 +22,29 @@ func Migrate(yamlV2 string) (yamlV3 string, err error) {
 		buffer := bytes.Buffer{}
 		encoder := yaml.NewEncoder(&buffer)
 		encoder.SetIndent(2)
-		err = encoder.Encode(valuesV3)
+		err = encoder.Encode(outputValues)
 		fmt.Sprintln(buffer.String())
 		fmt.Println("WARNING! Tracing config migrated to v3, please check the output file. For more details see documentation: https://github.com/SumoLogic/sumologic-kubernetes-collection/blob/main/docs/v3-migration-doc.md#tracinginstrumentation-changes")
 		return buffer.String(), err
 	}
 
-	return yamlV2, err
+	return input, err
 }
 
-func parseValues(yamlV2 string) (ValuesV2, error) {
-	var valuesV2 ValuesV2
-	err := yaml.Unmarshal([]byte(yamlV2), &valuesV2)
-	return valuesV2, err
+func parseValues(input string) (ValuesInput, error) {
+	var outputValues ValuesInput
+	err := yaml.Unmarshal([]byte(input), &outputValues)
+	return outputValues, err
 }
 
-func migrate(valuesV2 *ValuesV2) (ValuesV3, error) {
-	valuesV3 := ValuesV3{
-		Rest: valuesV2.Rest,
+func migrate(inputValues *ValuesInput) (ValuesOutput, error) {
+	outputValues := ValuesOutput{
+		Rest: inputValues.Rest,
 	}
 	// migrate otelcol source processor to otelcol-instrumentation
-	valuesV3.OtelcolInstrumentation.Config.Processors.Source = valuesV2.Otelcol.Config.Processors.Source
+	outputValues.OtelcolInstrumentation.Config.Processors.Source = inputValues.Otelcol.Config.Processors.Source
 	// migrate otelcol cascading_filter processor to tracesSampler
-	valuesV3.TracesSampler.Config.Processors.CascadingFilter = valuesV2.Otelcol.Config.Processors.CascadingFilter
+	outputValues.TracesSampler.Config.Processors.CascadingFilter = inputValues.Otelcol.Config.Processors.CascadingFilter
 
-	return valuesV3, nil
+	return outputValues, nil
 }

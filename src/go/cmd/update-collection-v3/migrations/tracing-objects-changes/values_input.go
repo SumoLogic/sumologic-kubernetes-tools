@@ -1,6 +1,6 @@
 package tracingobjectchanges
 
-type ValuesV2 struct {
+type ValuesInput struct {
 	Sumologic struct {
 		Traces struct {
 			Enabled bool `yaml:"enabled,omitempty"`

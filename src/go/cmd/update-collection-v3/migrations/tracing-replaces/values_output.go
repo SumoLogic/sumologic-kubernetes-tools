@@ -1,6 +1,6 @@
 package tracingreplaces
 
-type ValuesV2 struct {
+type ValuesInput struct {
 	Otelcol     Otelcol                `yaml:"otelcol,omitempty"`
 	Otelagent   map[string]interface{} `yaml:"otelagent,omitempty"`
 	Otelgateway map[string]interface{} `yaml:"otelgateway,omitempty"`

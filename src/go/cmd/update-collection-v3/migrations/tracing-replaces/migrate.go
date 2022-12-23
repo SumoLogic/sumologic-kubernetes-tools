@@ -21,15 +21,15 @@ var otelcolReplaces []string = []string{
 	"processors.resource.cluster.replace",
 }
 
-func Migrate(yamlV2 string) (yamlV3 string, err error) {
-	valuesV2, err := parseValues(yamlV2)
+func Migrate(input string) (string, error) {
+	inputValues, err := parseValues(input)
 	if err != nil {
 		return "", fmt.Errorf("error parsing input yaml: %v", err)
 	}
 
-	if &valuesV2.Otelcol != nil {
+	if &inputValues.Otelcol != nil {
 		foundOtelcolReplaces := []string{}
-		foundOtelcolReplaces, err = findUsedReplaces(valuesV2.Otelcol, otelcolReplaces)
+		foundOtelcolReplaces, err = findUsedReplaces(inputValues.Otelcol, otelcolReplaces)
 		if err != nil {
 			return "", fmt.Errorf("error parsing otelcol configuration: %v", err)
 		}
@@ -40,13 +40,13 @@ func Migrate(yamlV2 string) (yamlV3 string, err error) {
 		}
 	}
 
-	return yamlV2, err
+	return input, err
 }
 
-func parseValues(yamlV2 string) (ValuesV2, error) {
-	var valuesV2 ValuesV2
-	err := yaml.Unmarshal([]byte(yamlV2), &valuesV2)
-	return valuesV2, err
+func parseValues(input string) (ValuesInput, error) {
+	var inputValues ValuesInput
+	err := yaml.Unmarshal([]byte(input), &inputValues)
+	return inputValues, err
 }
 
 func parseConfigToString(config Otelcol) (string, error) {

@@ -1,6 +1,6 @@
 package tracingconfig
 
-type ValuesV3 struct {
+type ValuesOutput struct {
 	OtelcolInstrumentation OtelcolInstrumentation `yaml:"otelcolInstrumentation,omitempty"`
 	TracesSampler          TracesSampler          `yaml:"tracesSampler,omitempty"`
 	Otelcol                map[string]interface{} `yaml:"-"`
