@@ -21,6 +21,8 @@ import (
 	removeloadconfigfile "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/remove-load-config-file"
 	tailingsidecaroperatorupgrade "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tailing-sidecar-operator-upgrade"
 	tracingreplaces "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tracing-replaces"
+	tracingconfig "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tracing-config"
+	tracingobjectchanges "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tracing-objects-changes"
 	"gopkg.in/yaml.v3"
 )
 
@@ -120,6 +122,14 @@ var migrations = []Migration{
 	{
 		directory: "fluentd-logs-configs",
 		action:    fluentdlogsconfigs.Migrate,
+	},
+	{
+		directory: "tracing-objects-changes",
+		action: tracingobjectchanges.Migrate,
+	},
+	{
+		directory: "tracing-config",
+		action:    tracingconfig.Migrate,
 	},
 }
 
