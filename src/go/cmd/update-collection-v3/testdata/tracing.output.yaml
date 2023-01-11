@@ -1,16 +1,5 @@
-otelagent:
+otelcolInstrumentation:
   config:
-    exporters:
-      otlphttp/metrics:
-        endpoint: http://exporters.otlpmetrics.endpoint.replace:4318
-      otlphttp/traces:
-        endpoint: http://exporters.otlptraces.endpoint.replace:4318
-otelcol:
-  config:
-    exporters:
-      sumologic:
-        source_category: exporters.sumologic.source_category.replace
-        source_name: exporters.sumologic.source_name.replace
     processors:
       source:
         annotation_prefix: k8s.pod.annotation.
@@ -28,3 +17,11 @@ otelcol:
         source_category_replace_dash: processors.source.category_replace_dash.replace
         source_host: '%{k8s.pod.hostname}'
         source_name: processors.source.name.replace
+sumologic:
+  traces:
+    enabled: true
+tracesSampler:
+  config:
+    processors:
+      cascading_filter:
+        num_spans: 200000

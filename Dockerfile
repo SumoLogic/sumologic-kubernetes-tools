@@ -1,4 +1,4 @@
-FROM golang:1.19.3 as go-builder
+FROM golang:1.19.5 as go-builder
 RUN mkdir /build
 ADD ./src/go /build/
 WORKDIR /build
@@ -18,7 +18,7 @@ RUN CGO_ENABLED=0 GOOS=linux \
         -ldflags '-w -extldflags "-static"' \
         -o customer-trace-tester cmd/customer-trace-tester/main.go
 
-FROM rust:1.65.0-alpine3.16 as rust-builder
+FROM rust:1.66.0-alpine3.16 as rust-builder
 RUN apk update \
     && apk upgrade \
     && apk add g++ git \
@@ -35,7 +35,7 @@ WORKDIR /logs-generator
 COPY ./src/rust/logs-generator .
 RUN cargo build --release
 
-FROM alpine:3.17.0
+FROM alpine:3.17.1
 ARG TARGETARCH
 ARG TARGETOS
 ENV HELM_VERSION="3.7.2"

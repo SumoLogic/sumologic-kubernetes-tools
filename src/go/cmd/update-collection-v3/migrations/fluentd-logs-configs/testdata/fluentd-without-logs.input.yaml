@@ -1,0 +1,17 @@
+fluentd:
+  image:
+    pullPolicy: IfNotPresent
+    repository: public.ecr.aws/sumologic/kubernetes-fluentd
+    tag: 1.14.6-sumo-5
+
+sumologic:
+  accessId: xxx
+  accessKey: yyy
+  logs:
+    container:
+      enabled: true
+    enabled: true
+    metadata:
+      provider: fluentd
+    systemd:
+      enabled: true

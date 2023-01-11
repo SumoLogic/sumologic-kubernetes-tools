@@ -11,6 +11,8 @@ import (
 	disablethanos "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/disable-thanos"
 	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/events"
 	eventsconfigmerge "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/events-config-merge"
+	falcoupgrade "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/falco-upgrade"
+	fluentdlogsconfigs "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/fluentd-logs-configs"
 	kubeprometheusstackrepository "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/kube-prometheus-stack-repository"
 	kubestatemetricscollectors "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/kube-state-metrics-collectors"
 	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/logsmetadataconfig"
@@ -18,7 +20,10 @@ import (
 	metricsserverupgrade "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/metrics-server-upgrade"
 	otellogsconfigmerge "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/otellogs-config-merge"
 	removeloadconfigfile "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/remove-load-config-file"
+	tailingsidecaroperatorupgrade "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tailing-sidecar-operator-upgrade"
 	tracingreplaces "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tracing-replaces"
+	tracingconfig "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tracing-config"
+	tracingobjectchanges "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tracing-objects-changes"
 	"gopkg.in/yaml.v3"
 )
 
@@ -88,6 +93,10 @@ var migrations = []Migration{
 		action:    tracingreplaces.Migrate,
 	},
 	{
+		directory: "falco-upgrade",
+		action:    falcoupgrade.Migrate,
+	},
+	{
 		directory: "events-config-merge",
 		action:    eventsconfigmerge.Migrate,
 	},
@@ -110,6 +119,22 @@ var migrations = []Migration{
 	{
 		directory: "metrics-server-upgrade",
 		action:    metricsserverupgrade.Migrate,
+	},
+	{
+		directory: "tailing-sidecar-operator-upgrade",
+		action:    tailingsidecaroperatorupgrade.Migrate,
+	},
+	{
+		directory: "fluentd-logs-configs",
+		action:    fluentdlogsconfigs.Migrate,
+	},
+	{
+		directory: "tracing-objects-changes",
+		action: tracingobjectchanges.Migrate,
+	},
+	{
+		directory: "tracing-config",
+		action:    tracingconfig.Migrate,
 	},
 }
 
