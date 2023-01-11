@@ -1,0 +1,24 @@
+alertmanager:
+  alertmanagerSpec:
+    image:
+      repository: quay.io/prometheus/alertmanager
+prometheus:
+  prometheusSpec:
+    image:
+      repository: quay.io/prometheus/prometheus
+prometheusOperator:
+  admissionWebhooks:
+    patch:
+      image:
+        repository: k8s.gcr.io/ingress-nginx/kube-webhook-certgen
+  image:
+    repository: quay.io/prometheus-operator/prometheus-operator
+  prometheusConfigReloader:
+    image:
+      repository: quay.io/prometheus-operator/prometheus-config-reloader
+  thanosImage:
+    repository: quay.io/thanos/thanos
+thanosRuler:
+  thanosRulerSpec:
+    image:
+      repository: quay.io/thanos/thanos
