@@ -1,0 +1,10 @@
+sumologic:
+  logs:
+    container:
+      sourceCategoryReplaceDash: _
+    systemd:
+      sourceCategoryReplaceDash: _
+    kubelet:
+      sourceCategoryReplaceDash: _
+  accessId: accessId
+  accessKey: accessKey
