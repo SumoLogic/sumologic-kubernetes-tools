@@ -1,0 +1,13 @@
+fluentd:
+  logs:
+    autoscaling:
+      enabled: true
+      maxReplicas: 10
+      minReplicas: 3
+      targetCPUUtilizationPercentage: 50
+    containers:
+      sourceCategoryReplaceDash: _
+    kubelet:
+      sourceCategoryReplaceDash: _
+    systemd:
+      sourceCategoryReplaceDash: _
