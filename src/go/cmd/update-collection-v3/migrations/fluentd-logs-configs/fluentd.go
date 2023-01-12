@@ -7,7 +7,11 @@ func createSumologic(valuesInput *ValuesInput) *SumologicOutput {
 
 	sumoLogicOutput := &SumologicOutput{}
 	if valuesInput.Fluentd != nil {
-		sumoLogicOutput.Logs = createSumologicLogs(valuesInput.Fluentd.Logs, valuesInput.Sumologic.Logs)
+		var valuesInputSumologicLogs *SumologicLogsInput
+		if valuesInput.Sumologic != nil {
+			valuesInputSumologicLogs = valuesInput.Sumologic.Logs
+		}
+		sumoLogicOutput.Logs = createSumologicLogs(valuesInput.Fluentd.Logs, valuesInputSumologicLogs)
 	}
 
 	if valuesInput.Sumologic != nil {
@@ -136,7 +140,8 @@ func isFluentdOutputEmpty(fluentdInput *Fluentd) bool {
 			isContainersLogRestEmpty(fluentdInput.Logs.Containers) &&
 			isLogRestEmpty(fluentdInput.Logs.Systemd) &&
 			isLogRestEmpty(fluentdInput.Logs.Kubelet) &&
-			isLogRestEmpty(fluentdInput.Logs.Default)) {
+			isLogRestEmpty(fluentdInput.Logs.Default)) &&
+			fluentdInput.Logs.Rest == nil {
 		return true
 	}
 	return false
@@ -176,6 +181,7 @@ func createFluentdLogs(valuesInput *ValuesInput) *Fluentd {
 			Systemd:    createFluentdLogsConfig(valuesInput.Fluentd.Logs.Systemd),
 			Kubelet:    createFluentdLogsConfig(valuesInput.Fluentd.Logs.Kubelet),
 			Default:    createFluentdLogsConfig(valuesInput.Fluentd.Logs.Default),
+			Rest:       valuesInput.Fluentd.Logs.Rest,
 		},
 	}
 }

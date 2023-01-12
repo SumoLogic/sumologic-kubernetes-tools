@@ -1,0 +1,15 @@
+sumologic:
+  logs:
+    container:
+      sourceCategoryReplaceDash: _
+    systemd:
+      sourceCategoryReplaceDash: _
+    kubelet:
+      sourceCategoryReplaceDash: _
+fluentd:
+  logs:
+    autoscaling:
+      enabled: true
+      maxReplicas: 10
+      minReplicas: 3
+      targetCPUUtilizationPercentage: 50
