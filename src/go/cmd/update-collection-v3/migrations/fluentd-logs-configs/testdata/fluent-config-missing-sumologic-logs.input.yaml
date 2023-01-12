@@ -1,0 +1,11 @@
+fluentd:
+  logs:
+    systemd:
+      sourceCategoryReplaceDash: _
+    kubelet:
+      sourceCategoryReplaceDash: _
+    containers:
+      sourceCategoryReplaceDash: _
+sumologic:
+  accessId: accessId
+  accessKey: accessKey

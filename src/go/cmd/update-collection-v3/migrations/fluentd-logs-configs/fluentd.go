@@ -20,8 +20,14 @@ func createSumologicLogs(fluentdLogsInput *FluentdLogs, sumologicLogsInput *Sumo
 	sumologicLogsOutput := &SumologicLogsOutput{}
 
 	if fluentdLogsInput != nil {
-		sumologicLogsOutput.Container = createSumologicLogsContainer(fluentdLogsInput.Containers, sumologicLogsInput.Container)
-		sumologicLogsOutput.Systemd = createSumologicLogsConfig(fluentdLogsInput.Systemd, sumologicLogsInput.Systemd)
+		var sumologicLogsInputContainer map[string]interface{}
+		var sumologicLogsInputSystemd map[string]interface{}
+		if sumologicLogsInput != nil {
+			sumologicLogsInputContainer = sumologicLogsInput.Container
+			sumologicLogsInputSystemd = sumologicLogsInput.Systemd
+		}
+		sumologicLogsOutput.Container = createSumologicLogsContainer(fluentdLogsInput.Containers, sumologicLogsInputContainer)
+		sumologicLogsOutput.Systemd = createSumologicLogsConfig(fluentdLogsInput.Systemd, sumologicLogsInputSystemd)
 		sumologicLogsOutput.Kubelet = createSumologicLogsConfig(fluentdLogsInput.Kubelet, nil) // set nil because in v2 there was not any configuration under sumologic.logs.kubelet
 		sumologicLogsOutput.Default = createSumologicLogsConfig(fluentdLogsInput.Default, nil) // set nil because in v2 there was not any configuration under sumologic.logs.defaultFluentd
 	}
