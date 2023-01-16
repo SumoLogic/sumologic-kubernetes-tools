@@ -33,3 +33,5 @@ jobs:
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  build-binaries:
+    uses: SumoLogic/sumologic-kubernetes-tools/.github/workflows/build_binaries.yml@main
