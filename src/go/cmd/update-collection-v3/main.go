@@ -25,7 +25,7 @@ import (
 	tracingconfig "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tracing-config"
 	tracingobjectchanges "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tracing-objects-changes"
 	tracingreplaces "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/tracing-replaces"
-	"gopkg.in/yaml.v3"
+	"github.com/goccy/go-yaml"
 )
 
 var (
@@ -172,8 +172,7 @@ func reorderYaml(input string) (string, error) {
 		return "", err
 	}
 	buffer := bytes.Buffer{}
-	encoder := yaml.NewEncoder(&buffer)
-	encoder.SetIndent(2)
+	encoder := yaml.NewEncoder(&buffer, yaml.Indent(2))
 	err = encoder.Encode(outputMap)
 
 	return buffer.String(), err
