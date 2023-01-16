@@ -5,31 +5,56 @@ on:
     branches:
       - main
       - 'release-v[0-9]+.[0-9]+'
+      - 'rnishtala-migration-tool-binaries'
 
 jobs:
-  extract-image-tag:
+  build-binaries:
     runs-on: ubuntu-20.04
-    outputs:
-      build_tag: ${{ steps.extract_tag.outputs.tag }}
     steps:
       - uses: actions/checkout@v3
-      - name: Unshallow git repo
-        run: git fetch -v --tags --unshallow origin "$(git rev-parse --abbrev-ref HEAD)"
-      - name: Extract tag
-        id: extract_tag
-        run: |
-          tag=$(git describe --tags)
-          echo "::set-output name=tag::$(echo ${tag#v})"
-      - name: Print tag
-        run: echo "Running dev build for ${{ steps.extract_tag.outputs.tag }}"
-  build-and-push-image:
-    uses: SumoLogic/sumologic-kubernetes-tools/.github/workflows/build_and_push_image.yml@main
-    needs: extract-image-tag
-    with:
-      build_tag: ${{ needs.extract-image-tag.outputs.build_tag }}
-      push_cache: true
-    secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: Setup go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.19'
+      - name: Build
+        run: make build-update-collection-v3
+      - name: List
+        run: ls
+        working-directory: ./src/go/cmd/update-collection-v3
+      - name: Store binary as action artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: collection-sumo-windows_arm64
+          path: ./src/go/cmd/update-collection-v3/collection-sumo-windows_arm64
+          if-no-files-found: error
+      - name: Store binary as action artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: collection-sumo-windows_amd64
+          path: ./src/go/cmd/update-collection-v3/collection-sumo-windows_amd64
+          if-no-files-found: error
+      - name: Store binary as action artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: collection-sumo-linux_amd64
+          path: ./src/go/cmd/update-collection-v3/collection-sumo-linux_amd64
+          if-no-files-found: error
+      - name: Store binary as action artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: collection-sumo-linux_arm64
+          path: ./src/go/cmd/update-collection-v3/collection-sumo-linux_arm64
+          if-no-files-found: error
+      - name: Store binary as action artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: collection-sumo-darwin_amd64
+          path: ./src/go/cmd/update-collection-v3/collection-sumo-darwin_amd64
+          if-no-files-found: error
+      - name: Store binary as action artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: collection-sumo-darwin_arm64
+          path: ./src/go/cmd/update-collection-v3/collection-sumo-darwin_arm64
+          if-no-files-found: error
+
