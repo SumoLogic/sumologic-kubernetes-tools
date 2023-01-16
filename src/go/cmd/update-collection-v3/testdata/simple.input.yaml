@@ -1,6 +1,12 @@
 fluentd:
   events:
     enabled: false
+  logs:
+    autoscaling:
+      enabled: true
+  metrics:
+    autoscaling:
+      enabled: true
 kube-prometheus-stack:
   prometheus:
     prometheusSpec:
