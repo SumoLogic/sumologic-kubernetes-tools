@@ -1,12 +1,12 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"os"
+	"sort"
 
 	disablethanos "github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/disable-thanos"
 	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/migrations/events"
@@ -156,26 +156,68 @@ func migrateYaml(input string) (string, error) {
 
 	// make the output consistently ordered
 	// without this logic, key ordering would depend on the final migration
-	// TODO: order keys the same as input
-	output, err = reorderYaml(output)
+	output, err = reorderYaml(output, input)
 
 	return output, err
 }
 
-// reorder yaml keys in the input
-// right now this just unmarshals into a map and marshals again
-// the result is alphabetical key ordering
-func reorderYaml(input string) (string, error) {
-	var outputMap map[string]interface{}
-	err := yaml.Unmarshal([]byte(input), &outputMap)
+// reorder yaml keys in the input based on their order in the output
+func reorderYaml(input string, original string) (string, error) {
+	var outputMapSlice, originalMapSlice yaml.MapSlice
+	var err error
+	err = yaml.UnmarshalWithOptions([]byte(input), &outputMapSlice, yaml.UseOrderedMap())
 	if err != nil {
 		return "", err
 	}
-	buffer := bytes.Buffer{}
-	encoder := yaml.NewEncoder(&buffer, yaml.Indent(2))
-	err = encoder.Encode(outputMap)
+	err = yaml.UnmarshalWithOptions([]byte(original), &originalMapSlice, yaml.UseOrderedMap())
+	if err != nil {
+		return "", err
+	}
 
-	return buffer.String(), err
+	sortByBlueprint(outputMapSlice, originalMapSlice)
+
+	outputBytes, err := yaml.MarshalWithOptions(outputMapSlice, yaml.Indent(2))
+
+	return string(outputBytes), err
+}
+
+// sortByBlueprint sorts the input based on the order of keys in the output
+// this is done recursively
+// keys not present in the blueprint go to the end and are sorted alphabetically
+func sortByBlueprint(input yaml.MapSlice, blueprint yaml.MapSlice) {
+	blueprintMap := blueprint.ToMap()
+	sort.Slice(input, func(i, j int) bool {
+		iKey := input[i].Key
+		jKey := input[j].Key
+		iPosition, jPosition := len(input), len(input)
+		for position, entry := range blueprint {
+			if entry.Key == iKey {
+				iPosition = position
+			}
+			if entry.Key == jKey {
+				jPosition = position
+			}
+		}
+		if iPosition == len(input) && jPosition == len(input) {
+			// if neither key are in the blueprint, sort alphabetically
+			return iKey.(string) < jKey.(string)
+		}
+		return iPosition < jPosition
+	})
+
+	// sort recursively for values which are also yaml.MapSlice and exist in the blueprint
+	var entryValueMapSlice yaml.MapSlice
+	var ok bool
+	for _, entry := range input {
+		if entryValueMapSlice, ok = (entry.Value).(yaml.MapSlice); !ok { // not a yaml.MapSlice
+			continue
+		}
+		if blueprintValue, ok := blueprintMap[entry.Key]; ok {
+			if blueprintValueMapSlice, ok := (blueprintValue).(yaml.MapSlice); ok {
+				sortByBlueprint(entryValueMapSlice, blueprintValueMapSlice)
+			}
+		}
+	}
 }
 
 type migrateFunc func(string) (string, error)

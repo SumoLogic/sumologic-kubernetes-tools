@@ -1,3 +1,6 @@
+sumologic:
+  accessId: xxx
+  accessKey: yyy
 fluentd:
   events:
     enabled: false
@@ -14,6 +17,13 @@ kube-prometheus-stack:
         resources:
           limits:
             cpu: 20m
+metadata:
+  logs:
+    config:
+      keylogs: valuelogs
+  metrics:
+    config:
+      keymetrics: valuemetrics
 otelevents:
   config:
     override:
@@ -22,13 +32,3 @@ otellogs:
   config:
     override:
       key: value
-metadata:
-  logs:
-    config:
-      keylogs: valuelogs
-  metrics:
-    config:
-      keymetrics: valuemetrics
-sumologic:
-  accessId: xxx
-  accessKey: yyy
