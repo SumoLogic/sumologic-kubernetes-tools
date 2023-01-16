@@ -17,6 +17,11 @@ func createSumologic(valuesInput *ValuesInput) *SumologicOutput {
 	if valuesInput.Sumologic != nil {
 		sumoLogicOutput.Rest = valuesInput.Sumologic.Rest
 	}
+
+	if sumoLogicOutput.Logs == nil && len(sumoLogicOutput.Rest) == 0 {
+		sumoLogicOutput = nil
+	}
+
 	return sumoLogicOutput
 }
 
@@ -39,6 +44,11 @@ func createSumologicLogs(fluentdLogsInput *FluentdLogs, sumologicLogsInput *Sumo
 	if sumologicLogsInput != nil {
 		sumologicLogsOutput.Rest = sumologicLogsInput.Rest
 	}
+
+	if sumologicLogsOutput.empty() {
+		sumologicLogsOutput = nil
+	}
+
 	return sumologicLogsOutput
 }
 
@@ -184,4 +194,15 @@ func createFluentdLogs(valuesInput *ValuesInput) *Fluentd {
 			Rest:       valuesInput.Fluentd.Logs.Rest,
 		},
 	}
+}
+
+func (sumologicLogsOutput *SumologicLogsOutput) empty() bool {
+	if sumologicLogsOutput.Container == nil &&
+		sumologicLogsOutput.Systemd == nil &&
+		sumologicLogsOutput.Kubelet == nil &&
+		sumologicLogsOutput.Default == nil &&
+		len(sumologicLogsOutput.Rest) == 0 {
+		return true
+	}
+	return false
 }
