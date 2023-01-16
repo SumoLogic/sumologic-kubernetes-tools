@@ -1,9 +1,20 @@
+fluentd:
+  logs:
+    autoscaling:
+      enabled: true
+  metrics:
+    autoscaling:
+      enabled: true
 metadata:
   logs:
+    autoscaling:
+      enabled: true
     config:
       merge:
         keylogs: valuelogs
   metrics:
+    autoscaling:
+      enabled: true
     config:
       merge:
         keymetrics: valuemetrics
