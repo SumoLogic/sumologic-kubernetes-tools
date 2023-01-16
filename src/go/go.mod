@@ -3,6 +3,7 @@ module github.com/SumoLogic/sumologic-kubernetes-collection/tools
 go 1.18
 
 require (
+	github.com/goccy/go-yaml v1.9.8
 	github.com/opentracing/opentracing-go v1.2.0
 	github.com/stretchr/testify v1.8.0
 	github.com/uber/jaeger-client-go v2.30.0+incompatible
@@ -20,7 +21,13 @@ require (
 	k8s.io/client-go v0.17.12
 )
 
-require github.com/google/go-cmp v0.5.6 // indirect
+require (
+	github.com/fatih/color v1.10.0 // indirect
+	github.com/google/go-cmp v0.5.6 // indirect
+	github.com/mattn/go-colorable v0.1.8 // indirect
+	github.com/mattn/go-isatty v0.0.12 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+)
 
 require (
 	github.com/cenkalti/backoff/v4 v4.1.2 // indirect
@@ -43,7 +50,7 @@ require (
 	golang.org/x/crypto v0.0.0-20210920023735-84f357641f63 // indirect
 	golang.org/x/net v0.0.0-20210917221730-978cfadd31cf // indirect
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8 // indirect
-	golang.org/x/sys v0.0.0-20220328115105-d36c6a25d886 // indirect
+	golang.org/x/sys v0.0.0-20220406163625-3f8b81556e12 // indirect
 	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
