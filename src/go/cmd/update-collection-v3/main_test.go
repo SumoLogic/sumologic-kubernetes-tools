@@ -46,3 +46,86 @@ func testMigrationsInDirectory(t *testing.T, migrate migrateFunc, directory stri
 		})
 	}
 }
+
+func TestReorderYaml(t *testing.T) {
+	testCases := []struct {
+		inputYaml    string
+		originalYaml string
+		outputYaml   string
+		description  string
+	}{
+		{
+			inputYaml: `
+a: b
+c: d
+`,
+			originalYaml: `
+c: d
+a: b
+`,
+			outputYaml: `
+c: d
+a: b
+`,
+			description: "basic ordering",
+		},
+		{
+			inputYaml: `
+a: b
+c: d
+e: f
+`,
+			originalYaml: `
+c: d
+a: b
+`,
+			outputYaml: `
+c: d
+a: b
+e: f
+`,
+			description: "key not in original goes to the end",
+		},
+		{
+			inputYaml: `
+g: h
+e: f
+`,
+			originalYaml: `
+c: d
+a: b
+`,
+			outputYaml: `
+e: f
+g: h
+`,
+			description: "keys not in original are sorted alphabetically",
+		},
+		{
+			inputYaml: `
+nested: 
+  a: b
+  c: d
+`,
+			originalYaml: `
+nested:
+  c: d
+  a: b
+`,
+			outputYaml: `
+nested:
+  c: d
+  a: b
+`,
+			description: "basic nested ordering",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.description, func(t *testing.T) {
+			actualOutput, err := reorderYaml(testCase.inputYaml, testCase.originalYaml)
+			require.NoError(t, err)
+			require.Equal(t, strings.Trim(testCase.outputYaml, "\n"), strings.Trim(actualOutput, "\n"))
+		})
+	}
+}

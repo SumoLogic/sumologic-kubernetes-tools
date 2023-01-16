@@ -1,3 +1,8 @@
+sumologic:
+  accessId: xxx
+  accessKey: yyy
+  events:
+    enabled: false
 fluentd:
   logs:
     autoscaling:
@@ -7,17 +12,17 @@ fluentd:
       enabled: true
 metadata:
   logs:
-    autoscaling:
-      enabled: true
     config:
       merge:
         keylogs: valuelogs
-  metrics:
     autoscaling:
       enabled: true
+  metrics:
     config:
       merge:
         keymetrics: valuemetrics
+    autoscaling:
+      enabled: true
 otelevents:
   config:
     merge:
@@ -26,8 +31,3 @@ otellogs:
   config:
     merge:
       key: value
-sumologic:
-  accessId: xxx
-  accessKey: yyy
-  events:
-    enabled: false
