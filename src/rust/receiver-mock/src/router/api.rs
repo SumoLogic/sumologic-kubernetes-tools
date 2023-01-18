@@ -1,6 +1,6 @@
 pub mod v1 {
     use actix_web::{HttpRequest, HttpResponse, Responder};
-    use base64;
+    use base64::{engine::general_purpose as b64, Engine as _};
     use serde::{Deserialize, Serialize};
 
     #[derive(Deserialize, Serialize)]
@@ -28,7 +28,7 @@ pub mod v1 {
         };
 
         // For now the token is only checked if it can be decoded successfully.
-        let _decoded = match base64::decode(val) {
+        let _decoded = match b64::STANDARD.decode(val) {
             Ok(v) => v,
             Err(_) => {
                 return HttpResponse::Unauthorized().finish();
