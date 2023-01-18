@@ -10,6 +10,30 @@ markdownlint: mdl
 mdl:
 	mdl --style .markdownlint/style.rb .
 
+.PHONY: add-tag
+add-tag:
+	@[ "${TAG}" ] || ( echo ">> env var TAG is not set"; exit 1 )
+	@echo "Adding tag ${TAG}"
+	@git tag -a ${TAG} -s -m "${TAG}"
+
+.PHONY: push-tag
+push-tag:
+	@[ "${TAG}" ] || ( echo ">> env var TAG is not set"; exit 1 )
+	@echo "Pushing tag ${TAG}"
+	@git push origin ${TAG}
+
+.PHONY: delete-tag
+delete-tag:
+	@[ "${TAG}" ] || ( echo ">> env var TAG is not set"; exit 1 )
+	@echo "Deleting tag ${TAG}"
+	@git tag -d ${TAG}
+
+.PHONY: delete-remote-tag
+delete-remote-tag:
+	@[ "${TAG}" ] || ( echo ">> env var TAG is not set"; exit 1 )
+	@echo "Deleting remote tag ${TAG}"
+	@git push --delete origin ${TAG}
+
 build-image:
 	TAG=$(BUILD_TAG) docker buildx bake
 
