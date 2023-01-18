@@ -1,22 +1,20 @@
 # Releasing
 
 - [How to release](#how-to-release)
-  - [Create and push Git tag](#create-and-push-git-tag)
-  - [Publish GitHub release](#publish-github-release)
+- [Create and push Git tag](#create-and-push-git-tag)
+- [Publish GitHub release](#publish-github-release)
 
 ## How to release
 
 ### Create and push Git tag
 
-In order to release a new version of Sumo OT distro you'd export `TAG` env variable
-and create a tag and push it.
+In order to release a new version of Sumologic Kubernetes Tools you'd export `TAG` env variable and create a tag and push it.
 
 This can be done using `add-tag` and `push-tag` `make` targets which will handle
-that for you as well as pushing tags for all the plugins in this repo so that
-they can be imported from other repositories.
+that for you.
 
 ```shell
-export TAG=v0.51.0-sumo-0
+export TAG=v3.15.0
 make add-tag push-tag
 ```
 
@@ -30,7 +28,7 @@ you might need to remove the created tags, perhaps change something, and create 
 To delete the tags both locally and remotely, run the following commands:
 
 ```shell
-export TAG=v0.51.0-sumo-0
+export TAG=v3.15.0
 make delete-tag delete-remote-tag
 ```
 
@@ -39,9 +37,6 @@ make delete-tag delete-remote-tag
 The GitHub release is created as draft by the [create-release](../.github/workflows/release_builds.yml) GitHub Action.
 
 After the release draft is created, go to [GitHub releases](https://github.com/SumoLogic/sumologic-kubernetes-tools/releases),
-edit the release draft and fill in missing information:
-
-- What's changed
-- Full Changelog
+edit the release draft and fill in missing information.
 
 After verifying that the release text and all links are good, publish the release.
