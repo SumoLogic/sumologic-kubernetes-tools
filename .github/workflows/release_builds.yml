@@ -38,7 +38,7 @@ jobs:
       - extract-image-tag
     steps:
       - name: Print tag
-        run: echo "v${{ steps.extract_tag.outputs.tag }}"
+        run: echo "v${{ needs.extract-image-tag.outputs.build_tag }}"
       - name: Download all binaries stored as artifact
         uses: actions/download-artifact@v3
         with:
@@ -52,6 +52,7 @@ jobs:
           omitBodyDuringUpdate: true
           omitNameDuringUpdate: true
           body: |
-            ## v${{ steps.extract_tag.outputs.tag }}
-            ### What's Changed
-            #### Full Changelog:
+            ## v${{ needs.extract-image-tag.outputs.build_tag }}
+          artifacts: "artifacts/*/*"
+          artifactErrorsFailBuild: true
+          replacesArtifacts: true
