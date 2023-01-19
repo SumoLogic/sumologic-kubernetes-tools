@@ -3,6 +3,9 @@ sumologic:
   accessKey: yyy
   events:
     enabled: false
+  logs:
+    container:
+      format: text
 fluentd:
   logs:
     autoscaling:
