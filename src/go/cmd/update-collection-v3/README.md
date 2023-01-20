@@ -48,7 +48,7 @@ make build
 ## Known issues
 
 1. This package is using github.com/go-yaml/yaml which unfortunately doesn't allow
-   to maintain `yaml` comments and order when using user defined structutres.
+   to maintain `yaml` comments and order when using user defined structures.
 
    This could be done when we'd use [`yaml.Node`][yaml_node] instead of customized structs
    which reflect the schema of `values.yaml` used in `sumologic-kubernetes-collection`

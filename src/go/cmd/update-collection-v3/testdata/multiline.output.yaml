@@ -1,0 +1,9 @@
+sumologic:
+  accessId: xxx
+  accessKey: yyy
+multiline_key: |-
+  line 1
+  line 2
+  
+  line 3
+another_key: yes

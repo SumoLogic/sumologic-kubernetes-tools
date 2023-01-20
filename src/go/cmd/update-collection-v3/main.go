@@ -181,7 +181,7 @@ func reorderYaml(input string, original string) (string, error) {
 
 	sortByBlueprint(outputMapSlice, originalMapSlice)
 
-	outputBytes, err := yaml.MarshalWithOptions(outputMapSlice, yaml.Indent(2))
+	outputBytes, err := yaml.MarshalWithOptions(outputMapSlice, yaml.Indent(2), yaml.UseLiteralStyleIfMultiline(true))
 
 	return string(outputBytes), err
 }
