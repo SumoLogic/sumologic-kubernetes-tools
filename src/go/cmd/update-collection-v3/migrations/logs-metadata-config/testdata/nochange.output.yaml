@@ -1,7 +1,7 @@
 metadata:
-  metrics:
-    statefulset:
-      keymetrics: valuemetrics
   logs:
     statefulset:
       keylogs: valuelogs
+  metrics:
+    statefulset:
+      keymetrics: valuemetrics

@@ -65,6 +65,7 @@ func migrate(inputValues *InputValues) (OutputValues, error) {
 		Rest: inputValues.Rest,
 	}
 	outputValues.Metadata.Rest = inputValues.Metadata.Rest
+	outputValues.Metadata.Metrics.Rest = inputValues.Metadata.Metrics.Rest
 	outputValues.Metadata.Metrics.Config.Merge = inputValues.Metadata.Metrics.Config
 	return outputValues, nil
 }
