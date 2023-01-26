@@ -75,7 +75,7 @@ func migrateYamlFile(yamlV2FilePath string, yamlV3FilePath string) error {
 
 var migrations = []Migration{
 	{
-		directory: "kube-prometheus-stack",
+		directory: "kube-state-metrics-collectors",
 		action:    kubestatemetricscollectors.Migrate,
 	},
 	{
