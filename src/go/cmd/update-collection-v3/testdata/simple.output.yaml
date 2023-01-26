@@ -18,12 +18,16 @@ metadata:
     config:
       merge:
         keylogs: valuelogs
+    statefulset:
+      stsLogsKey: stsLogsValue
     autoscaling:
       enabled: true
   metrics:
     config:
       merge:
         keymetrics: valuemetrics
+    statefulset:
+      stsMetricsKey: stsMetricsValue
     autoscaling:
       enabled: true
 otelevents:

@@ -23,9 +23,13 @@ metadata:
   logs:
     config:
       keylogs: valuelogs
+    statefulset:
+      stsLogsKey: stsLogsValue
   metrics:
     config:
       keymetrics: valuemetrics
+    statefulset:
+      stsMetricsKey: stsMetricsValue
 otelevents:
   config:
     override:

@@ -9,7 +9,7 @@ import (
 
 type InputValues struct {
 	Metadata struct {
-		Logs LogsMetadataInput         `yaml:"logs,omitempty"`
+		Logs LogsMetadataInput      `yaml:"logs,omitempty"`
 		Rest map[string]interface{} `yaml:",inline"`
 	} `yaml:"metadata,omitempty"`
 	Rest map[string]interface{} `yaml:",inline"`
@@ -22,7 +22,7 @@ type LogsMetadataInput struct {
 
 type OutputValues struct {
 	Metadata struct {
-		Logs LogsMetadataOutput         `yaml:"logs,omitempty"`
+		Logs LogsMetadataOutput     `yaml:"logs,omitempty"`
 		Rest map[string]interface{} `yaml:",inline"`
 	} `yaml:"metadata,omitempty"`
 	Rest map[string]interface{} `yaml:",inline"`
@@ -35,7 +35,6 @@ type LogsMetadataOutput struct {
 	} `yaml:"config,omitempty"`
 	Rest map[string]interface{} `yaml:",inline"`
 }
-
 
 func Migrate(inputYaml string) (outputYaml string, err error) {
 	inputValues, err := parseValues(inputYaml)
@@ -66,6 +65,7 @@ func migrate(inputValues *InputValues) (OutputValues, error) {
 		Rest: inputValues.Rest,
 	}
 	outputValues.Metadata.Rest = inputValues.Metadata.Rest
+	outputValues.Metadata.Logs.Rest = inputValues.Metadata.Logs.Rest
 	outputValues.Metadata.Logs.Config.Merge = inputValues.Metadata.Logs.Config
 	return outputValues, nil
 }
