@@ -16,6 +16,9 @@ func TestIndividualMigrations(t *testing.T) {
 	_, testFileName, _, _ := runtime.Caller(0)
 	currentTestDirectory := path.Dir(testFileName)
 	for _, migration := range migrations {
+		migrationDirectory := path.Join(currentTestDirectory, "migrations", migration.directory)
+		_, err := os.Stat(migrationDirectory)
+		require.NoError(t, err, "migration directory '%s' not found", migration.directory)
 		testMigrationsInDirectory(t, migration.action, path.Join(currentTestDirectory, "migrations", migration.directory, "testdata"))
 	}
 }
