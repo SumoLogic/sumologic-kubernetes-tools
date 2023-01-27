@@ -10,11 +10,35 @@ otelagent:
       otlphttp/traces:
         endpoint: http://exporters.otlptraces.endpoint.replace:4318
 otelgateway:
+  deployment:
+    replicas: 7
+    resources:
+      limits:
+        memory: 3Gi
+        cpu: 2
+      requests:
+        memory: 2Gi
+        cpu: 1
   enabled: true
   config:
     exporters:
       loadbalancing:
+        protocol:
+          otlp:
+            compression: gzip
+            sending_queue:
+              num_consumers: 100
+              queue_size: 13000
 otelcol:
+  deployment:
+    replicas: 12
+    resources:
+      limits:
+        memory: 4Gi
+        cpu: 2000m
+      requests:
+        memory: 2Gi
+        cpu: 100m
   config:
     exporters:
       sumologic:
@@ -23,6 +47,8 @@ otelcol:
     processors:
       other:
         enabled: true
+      batch:
+        send_batch_size: 1024
       cascading_filter:
         num_spans: 200000
       source:
