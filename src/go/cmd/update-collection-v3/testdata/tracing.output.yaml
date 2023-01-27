@@ -20,8 +20,38 @@ otelcolInstrumentation:
         source_category_replace_dash: processors.source.category_replace_dash.replace
         source_host: "%{k8s.pod.hostname}"
         source_name: processors.source.name.replace
+tracesGateway:
+  config:
+    exporters:
+      loadbalancing:
+        protocol:
+          otlp:
+            compression: gzip
+            sending_queue:
+              num_consumers: 100
+              queue_size: 13000
+  deployment:
+    replicas: 7
+    resources:
+      limits:
+        cpu: 2
+        memory: 3Gi
+      requests:
+        cpu: 1
+        memory: 2Gi
 tracesSampler:
   config:
     processors:
+      batch:
+        send_batch_size: 1024
       cascading_filter:
         num_spans: 200000
+  deployment:
+    replicas: 12
+    resources:
+      limits:
+        cpu: 2000m
+        memory: 4Gi
+      requests:
+        cpu: 100m
+        memory: 2Gi

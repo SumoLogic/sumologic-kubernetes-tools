@@ -41,10 +41,34 @@ func migrate(inputValues *ValuesInput) (ValuesOutput, error) {
 	outputValues := ValuesOutput{
 		Rest: inputValues.Rest,
 	}
+
+	// otelcol-instrumentation migrations
 	// migrate otelcol source processor to otelcol-instrumentation
 	outputValues.OtelcolInstrumentation.Config.Processors.Source = inputValues.Otelcol.Config.Processors.Source
-	// migrate otelcol cascading_filter processor to tracesSampler
+
+	// tracesgateway (old otelgateway) migrations
+	// migrate deployment
+	outputValues.TracesGateway.Deployment = inputValues.Otelgateway.Deployment
+	// migrate loadbalancing exporter compression
+	outputValues.TracesGateway.Config.Exporters.LoadBalancing.Protocol.Otlp.Compression = inputValues.Otelgateway.Config.Exporters.LoadBalancing.Protocol.Otlp.Compression
+	// migration loadbalancing exporter num of consumers
+	outputValues.TracesGateway.Config.Exporters.LoadBalancing.Protocol.Otlp.SendingQueue.NumConsumers = inputValues.Otelgateway.Config.Exporters.LoadBalancing.Protocol.Otlp.SendingQueue.NumConsumers
+	// migration loadbalancing exporter queue size
+	outputValues.TracesGateway.Config.Exporters.LoadBalancing.Protocol.Otlp.SendingQueue.QueueSize = inputValues.Otelgateway.Config.Exporters.LoadBalancing.Protocol.Otlp.SendingQueue.QueueSize
+	// migrate batch processor
+	outputValues.TracesGateway.Config.Processors.Batch = inputValues.Otelgateway.Config.Processors.Batch
+	// migrate memory limiter processor
+	outputValues.TracesGateway.Config.Processors.MemoryLimiter = inputValues.Otelgateway.Config.Processors.MemoryLimiter
+
+	// tracessampler (old oltecol) migrations
+	// migrate deployment
+	outputValues.TracesSampler.Deployment = inputValues.Otelcol.Deployment
+	// migrate cascading_filter processor
 	outputValues.TracesSampler.Config.Processors.CascadingFilter = inputValues.Otelcol.Config.Processors.CascadingFilter
+	// migrate batch processor
+	outputValues.TracesSampler.Config.Processors.Batch = inputValues.Otelcol.Config.Processors.Batch
+	// migrate memory limiter processor
+	outputValues.TracesSampler.Config.Processors.MemoryLimiter = inputValues.Otelcol.Config.Processors.MemoryLimiter
 
 	return outputValues, nil
 }
