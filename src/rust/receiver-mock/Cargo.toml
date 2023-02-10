@@ -23,7 +23,7 @@ json_str = "*"
 rand = "0.8"
 prometheus-parse = { git = "https://github.com/ccakes/prometheus-parse-rs", rev = "a4574e9bade29b8af31e68b68a5392c61cbb74cd" }
 http = "0.2"
-opentelemetry-proto = { version = "0.1.0", features = ["gen-tonic", "build-server", "logs", "metrics", "traces"] }
+opentelemetry-proto = { git = "https://github.com/mat-rumian/opentelemetry-rust", branch = "update-proto", features = ["gen-tonic", "logs", "metrics", "traces"]  }
 prost = "0.11.0"
 itertools = "0.10.5"
 log = "0.4.17"
