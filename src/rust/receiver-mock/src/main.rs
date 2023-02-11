@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use actix_web::web;
 
 use chrono::Duration;
-use clap::{Arg, ArgAction, Command};
+use clap::Parser;
 use log::error;
 use log::info;
 use std::thread;
@@ -23,112 +23,115 @@ mod metadata;
 mod router;
 mod time;
 
+#[derive(Parser)]
+#[command(
+    name = "Receiver mock",
+    author = "Sumo Logic <collection@sumologic.com>",
+    version = "0.0",
+    about = "Receiver mock can be used for testing performance or functionality of kubernetes collection without sending data to sumologic"
+)]
+struct Cli {
+    #[arg(short, long, default_value_t = 3000, help = "Port to listen on")]
+    port: u16,
+
+    #[arg(
+        short='l',
+        long,
+        default_value_t = String::from("localhost"), 
+        help="Hostname reported as the receiver. For kubernetes it will be '<service name>.<namespace>'"
+    )]
+    hostname: String,
+
+    #[arg(
+        short = 'r',
+        long = "print-logs",
+        default_value_t = false,
+        help = "Use to print received logs on stdout"
+    )]
+    print_logs: bool,
+
+    #[arg(
+        short = 'm',
+        long = "print-metrics",
+        default_value_t = false,
+        help = "Use to print received metrics on stdout"
+    )]
+    print_metrics: bool,
+
+    #[arg(
+        short = 's',
+        long = "print-spans",
+        default_value_t = false,
+        help = "Use to print received spans on stdout"
+    )]
+    print_spans: bool,
+
+    #[arg(
+        long = "print-headers",
+        default_value_t = false,
+        help = "Use to print received requests' headers"
+    )]
+    print_headers: bool,
+
+    #[arg(
+        long = "store-headers",
+        default_value_t = false,
+        help = "Use to store log data which can then be queried via /logs/* endpoints"
+    )]
+    store_logs: bool,
+
+    #[arg(
+        long = "store-metrics",
+        default_value_t = false,
+        help = "Use to store metrics which will then be returned via /metrics-samples"
+    )]
+    store_metrics: bool,
+
+    #[arg(
+        long = "store-traces",
+        default_value_t = false,
+        help = "Use to store traces which can then be queried via /logs/* endpoints"
+    )]
+    store_traces: bool,
+
+    #[arg(
+        short,
+        long = "drop-rate",
+        default_value_t = 0,
+        help = "Use to specify packet drop rate. This is number from 0 (do not drop) to 100 (drop all)."
+    )]
+    drop_rate: i64,
+
+    #[arg(
+        short = 'd',
+        long = "delay-time",
+        default_value_t = 0,
+        help = "Use to specify delay time. It mocks request processing time in milliseconds."
+    )]
+    delay_time: u64,
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     simple_logger::init_with_level(log::Level::Debug).unwrap();
 
-    let matches = Command::new("Receiver mock")
-      .version("0.0")
-      .author("Sumo Logic <collection@sumologic.com>")
-      .about("Receiver mock can be used for testing performance or functionality of kubernetes collection without sending data to sumologic")
-      .arg(Arg::new("port")
-          .short('p')
-          .long("port")
-          .value_name("port")
-          .help("Port to listen on")
-          .action(ArgAction::Set)
-          .required(false))
-      .arg(Arg::new("hostname")
-          .short('l')
-          .long("hostname")
-          .value_name("hostname")
-          .help("Hostname reported as the receiver. For kubernetes it will be '<service name>.<namespace>'")
-          .action(ArgAction::Set)
-          .required(false))
-      .arg(Arg::new("print_logs")
-          .short('r')
-          .long("print-logs")
-          .value_name("print_logs")
-          .help("Use to print received logs on stdout")
-          .action(ArgAction::SetTrue)
-          .required(false))
-      .arg(Arg::new("print_headers")
-          .long("print-headers")
-          .value_name("print_headers")
-          .help("Use to print received requests' headers")
-          .action(ArgAction::SetTrue)
-          .required(false))
-      .arg(Arg::new("print_metrics")
-          .short('m')
-          .long("print-metrics")
-          .value_name("print_metrics")
-          .help("Use to print received metrics (with dimensions) on stdout")
-          .action(ArgAction::SetTrue)
-          .required(false))
-        .arg(Arg::new("print_spans")
-          .short('s')
-          .long("print-spans")
-          .value_name("print_spans")
-          .help("Use to print received spans on stdout")
-          .action(ArgAction::SetTrue)
-          .required(false))
-        .arg(Arg::new("store_traces")
-          .long("store-traces")
-          .value_name("store_traces")
-          .help("Use to store traces")
-          .action(ArgAction::SetTrue)
-          .required(false))
-      .arg(Arg::new("store_metrics")
-          .long("store-metrics")
-          .value_name("store_metrics")
-          .help("Use to store metrics which will then be returned via /metrics-samples")
-          .action(ArgAction::SetTrue)
-          .required(false))
-      .arg(Arg::new("store_logs")
-          .long("store-logs")
-          .value_name("store_logs")
-          .help("Use to store log data which can then be queried via /logs/* endpoints")
-          .action(ArgAction::SetTrue)
-          .required(false))
-      .arg(Arg::new("drop_rate")
-          .short('d')
-          .long("drop-rate")
-          .value_name("drop_rate")
-          .help("Use to specify packet drop rate. This is number from 0 (do not drop) to 100 (drop all).")
-          .action(ArgAction::Set)
-          .required(false))
-        .arg(Arg::new("delay_time")
-            .short('t')
-            .long("delay-time")
-            .value_name("delay_time")
-            .help("Use to specify delay time. It mocks request processing time in milliseconds.")
-            .action(ArgAction::Set)
-            .required(false))
-      .get_matches();
-
-    let port = *matches.get_one::<u16>("port").unwrap_or(&3000);
-    let drop_rate = *matches.get_one::<i64>("drop_rate").unwrap_or(&0);
-    let delay_time = stime::Duration::from_millis(*matches.get_one::<u64>("drop_rate").unwrap_or(&0));
-    let hostname = matches
-        .get_one::<String>("hostname")
-        .unwrap_or(&"localhost".to_string())
-        .to_string();
+    let cli = Cli::parse();
 
     let opts = Options {
         print: options::Print {
-            logs: matches.contains_id("print_logs"),
-            headers: matches.contains_id("print_headers"),
-            metrics: matches.contains_id("print_metrics"),
-            spans: matches.contains_id("print_spans"),
+            logs: cli.print_logs,
+            headers: cli.print_headers,
+            metrics: cli.print_metrics,
+            spans: cli.print_spans,
         },
-        drop_rate: drop_rate,
-        delay_time: delay_time,
-        store_traces: matches.contains_id("store_traces"),
-        store_metrics: matches.contains_id("store_metrics"),
-        store_logs: matches.contains_id("store_logs"),
+        drop_rate: cli.drop_rate,
+        delay_time: stime::Duration::from_millis(cli.delay_time),
+        store_traces: cli.store_traces,
+        store_metrics: cli.store_metrics,
+        store_logs: cli.store_logs,
     };
 
-    run_app(hostname, port, opts).await
+    run_app(cli.hostname, cli.port, opts).await
 }
 
 async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<()> {
