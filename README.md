@@ -170,61 +170,6 @@ $ kubectl run receiver-mock \
 
 [More information](src/rust/receiver-mock/README.md)
 
-### K8S Template generator
-
-#### Generating
-
-Before generating the configuration we recommend to prepare `values.yaml` file where you will store all your configuration.
-Alternatively you can replace the file with `--set property=value` arguments according to [helm documentation](https://helm.sh/docs/intro/using_helm/).
-
-##### Docker
-
-```bash
-cat values.yaml | docker run \
-  --rm -i sumologic/kubernetes-tools \
-  template \
-    --namespace '<NAMESPACE>' \
-    --name-template 'collection' \
-      | tee sumologic.yaml
-```
-
-##### Kubectl
-
-Minimal supported version of kubectl is `1.14`
-
-```bash
-cat values.yaml | \
-  kubectl run tools \
-    -i --quiet --rm \
-    --restart=Never \
-    --image sumologic/kubernetes-tools -- \
-    template \
-      --namespace '<NAMESPACE>' \
-      --name-template 'collection' \
-      | tee sumologic.yaml
-```
-
-#### Applying changes
-
-Due to [issues](https://github.com/helm/charts/tree/master/stable/prometheus-operator#helm-fails-to-create-crds) with prometheus operator and CustomResourceDefinitions you should apply them before applying the generated template.
-
-```
-kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.38/example/prometheus-operator-crd/monitoring.coreos.com_alertmanagers.yaml
-kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.38/example/prometheus-operator-crd/monitoring.coreos.com_podmonitors.yaml
-kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.38/example/prometheus-operator-crd/monitoring.coreos.com_prometheuses.yaml
-kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.38/example/prometheus-operator-crd/monitoring.coreos.com_prometheusrules.yaml
-kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.38/example/prometheus-operator-crd/monitoring.coreos.com_servicemonitors.yaml
-kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.38/example/prometheus-operator-crd/monitoring.coreos.com_thanosrulers.yaml
-```
-
-Wait for CRDs to be created. It should take around few seconds.
-
-Apply the generated template:
-
-```
-kubectl apply -f sumologic.yaml
-```
-
 ### Template dependency configuration
 
 There could be scenarios when you want to get the configuration of the subcharts (prometheus-operator, fluent-bit, etc.).

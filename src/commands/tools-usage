@@ -25,30 +25,6 @@ This image provides a set of tools for Kubernetes Collection. You can use follow
   --env SPANS_PER_MIN=6000 \
   -- stress-tester
 
- * K8S template generator
-
-  docker run --rm kubernetes-tools \
-    template \
-    --namespace '<NAMESPACE>' \
-    --name-template 'collection' \
-    --set sumologic.accessId='<ACCESS_KEY>' \
-    --set sumologic.accessKey='<ACCESS_ID>' \
-    --set sumologic.collectorName='<COLLECTOR_NAME>' \
-    --set sumologic.clusterName='<CLUSTER_NAME>' \
-    | tee sumologic.yaml
-
-  or
-
-  kubectl run tools -it --rm --restart=Never --image sumologic/kubernetes-tools -- \
-    template \
-    --namespace '<NAMESPACE>' \
-    --name-template 'collection' \
-    --set sumologic.accessId='<ACCESS_KEY>' \
-    --set sumologic.accessKey='<ACCESS_ID>' \
-    --set sumologic.collectorName='<COLLECTOR_NAME>' \
-    --set sumologic.clusterName='<CLUSTER_NAME>' \
-    | tee sumologic.yaml
-
  * Receiver mock:
 
  kubectl run receiver-mock \

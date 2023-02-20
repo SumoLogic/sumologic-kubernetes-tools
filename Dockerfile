@@ -79,7 +79,6 @@ COPY \
     ./src/commands/pvc-cleaner \
     ./src/commands/fix-log-symlinks \
     ./src/commands/tools-usage \
-    ./src/commands/template \
     ./src/commands/template-dependency \
     ./src/commands/upgrade-2.0 \
     /usr/bin/
