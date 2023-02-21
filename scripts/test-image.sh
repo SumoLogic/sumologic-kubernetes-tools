@@ -10,7 +10,6 @@ function test_image() {
   check
   fix-log-symlinks
   tools-usage
-  template
   template-dependency
   template-prometheus-mixin
   logs-generator
