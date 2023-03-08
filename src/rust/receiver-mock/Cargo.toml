@@ -15,7 +15,7 @@ anyhow = "1.0.69"
 bytes = "1"
 base64 = "0.21"
 serde = { version = "1.0.153", features = ["derive"] }
-serde_json = "1.0.93"
+serde_json = "1.0.94"
 clap = { version = "4.1.8", features = ["derive"]}
 timer = "0.2"
 chrono = { version = "0.4", features = ["serde"] }
