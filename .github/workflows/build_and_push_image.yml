@@ -26,6 +26,8 @@ on:
         required: true
       AWS_SECRET_ACCESS_KEY:
         required: true
+      SUFFIX:
+        required: true
 
 
 jobs:
@@ -49,19 +51,19 @@ jobs:
       # https://github.com/aws/containers-roadmap/issues/876
       - name: Build and push image build cache to Docker Hub
         if: ${{ inputs.push_cache }}
-        run: make push-image-cache
+        run: make push-image-cache-${{ secrets.SUFFIX }}
       - name: Build and push image to Docker Hub
-        run: make push-image BUILD_TAG=${{ inputs.build_tag }}
+        run: make push-image-${{ secrets.SUFFIX }} BUILD_TAG=${{ inputs.build_tag }}
       - name: Tag latest to point to most recent release in Docker Hub
         if: ${{ inputs.tag_latest }}
-        run: make tag-release-image-with-latest BUILD_TAG=${{ inputs.build_tag }}
+        run: make tag-release-image-with-latest-${{ secrets.SUFFIX }} BUILD_TAG=${{ inputs.build_tag }}
       - name: Login to ECR
         run: make login-ecr
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       - name: Build and push image to ECR
-        run: make push-image-ecr BUILD_TAG=${{ inputs.build_tag }}
+        run: make push-image-ecr-${{ secrets.SUFFIX }} BUILD_TAG=${{ inputs.build_tag }}
       - name: Tag latest to point to most recent release in ECR
         if: ${{ inputs.tag_latest }}
-        run: make tag-release-image-with-latest-ecr BUILD_TAG=${{ inputs.build_tag }}
+        run: make tag-release-image-with-latest-ecr-${{ secrets.SUFFIX }} BUILD_TAG=${{ inputs.build_tag }}

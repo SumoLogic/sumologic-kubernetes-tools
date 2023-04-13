@@ -50,21 +50,25 @@ build-image-multiplatform-tools:
 build-image-multiplatform-kubectl:
 	TAG=$(BUILD_TAG) docker buildx bake kubectl-multiplatform 
 
-tag-release-image-with-latest:
-	make push-image BUILD_TAG=latest
+tag-release-image-with-latest-tools:
+	make push-image-tools BUILD_TAG=latest
 
-tag-release-image-with-latest-ecr:
-	make tag-release-image-with-latest REPO_URL=$(ECR_REPO_URL)
+tag-release-image-with-latest-kubectl:
+	make push-image-kubectl BUILD_TAG=latest
+
+tag-release-image-with-latest-ecr-tools:
+	make tag-release-image-with-latest-tools REPO_URL=$(ECR_REPO_URL)
+
+tag-release-image-with-latest-ecr-kubectl:
+	make tag-release-image-with-latest-kubectl REPO_URL=$(ECR_REPO_URL)
 
 test-image:
 	./scripts/test-image.sh "$(IMAGE_NAME):$(BUILD_TAG)"
 
-push-image-cache:
+push-image-cache-tools:
 	# only push cache to Dockerhub as ECR doesn't support it yet
     	# https://github.com/aws/containers-roadmap/issues/876
 	docker buildx bake cache-multiplatform
-
-push-image: push-image-tools push-image-kubectl
 
 push-image-tools:
 	IMAGE=$(REPO_URL) TAG=$(BUILD_TAG) docker buildx bake tools-multiplatform --push
@@ -72,8 +76,11 @@ push-image-tools:
 push-image-kubectl:
 	IMAGE=$(REPO_URL) TAG=$(BUILD_TAG) docker buildx bake kubectl-multiplatform --push
 
-push-image-ecr:
-	make push-image REPO_URL=$(ECR_REPO_URL)
+push-image-ecr-tools:
+	make push-image-tools REPO_URL=$(ECR_REPO_URL)
+
+push-image-ecr-kubectl:
+	make push-image-kubectl REPO_URL=$(ECR_REPO_URL)
 
 login:
 	echo "${DOCKER_PASSWORD}" | docker login -u sumodocker --password-stdin
