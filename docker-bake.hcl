@@ -50,7 +50,7 @@ target "tools-multiplatform" {
     inherits = ["default", "multiplatform"]
 }
 
-target "kubeclt-multiplatform" {
+target "kubectl-multiplatform" {
     inherits = ["kubectl", "multiplatform"]
 }
 
