@@ -18,7 +18,7 @@ jobs:
       - name: Print tag
         run: echo "Running release build for ${{ steps.extract_tag.outputs.tag }}"
   build-and-push-image:
-    uses: SumoLogic/sumologic-kubernetes-tools/.github/workflows/build_and_push_image.yml@main
+    uses: ./.github/workflows/build_and_push_image.yml
     needs: extract-image-tag
     with:
       build_tag: ${{ needs.extract-image-tag.outputs.build_tag }}
@@ -28,8 +28,21 @@ jobs:
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      SUFFIX: tools
+  build-and-push-image-kubectl:
+    uses: ./.github/workflows/build_and_push_image.yml
+    needs: extract-image-tag
+    with:
+      build_tag: ${{ needs.extract-image-tag.outputs.build_tag }}
+      tag_latest: true
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_KUBECTL }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_KUBECTL }}
+      SUFFIX: kubectl
   build-binaries:
-    uses: SumoLogic/sumologic-kubernetes-tools/.github/workflows/build_binaries.yml@main
+    uses: ./.github/workflows/build_binaries.yml
   create-release:
     name: Create Github release
     runs-on: ubuntu-20.04
