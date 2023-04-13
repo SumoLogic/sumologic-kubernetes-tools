@@ -17,6 +17,10 @@ on:
         default: false
         required: false
         type: boolean
+      suffix:
+        description: Image suffix, should be "tools" or "kubectl"
+        required: true
+        type: string
     secrets:
       DOCKER_USERNAME:
         required: true
@@ -26,7 +30,6 @@ on:
         required: true
       AWS_SECRET_ACCESS_KEY:
         required: true
-
 
 jobs:
   build-and-push-image:
@@ -49,19 +52,19 @@ jobs:
       # https://github.com/aws/containers-roadmap/issues/876
       - name: Build and push image build cache to Docker Hub
         if: ${{ inputs.push_cache }}
-        run: make push-image-cache
+        run: make push-image-cache-${{ inputs.suffix }}
       - name: Build and push image to Docker Hub
-        run: make push-image BUILD_TAG=${{ inputs.build_tag }}
+        run: make push-image-${{ inputs.suffix }} BUILD_TAG=${{ inputs.build_tag }}
       - name: Tag latest to point to most recent release in Docker Hub
         if: ${{ inputs.tag_latest }}
-        run: make tag-release-image-with-latest BUILD_TAG=${{ inputs.build_tag }}
+        run: make tag-release-image-with-latest-${{ inputs.suffix }} BUILD_TAG=${{ inputs.build_tag }}
       - name: Login to ECR
         run: make login-ecr
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       - name: Build and push image to ECR
-        run: make push-image-ecr BUILD_TAG=${{ inputs.build_tag }}
+        run: make push-image-ecr-${{ inputs.suffix }} BUILD_TAG=${{ inputs.build_tag }}
       - name: Tag latest to point to most recent release in ECR
         if: ${{ inputs.tag_latest }}
-        run: make tag-release-image-with-latest-ecr BUILD_TAG=${{ inputs.build_tag }}
+        run: make tag-release-image-with-latest-ecr-${{ inputs.suffix }} BUILD_TAG=${{ inputs.build_tag }}
