@@ -39,8 +39,19 @@ target "default" {
     platforms = ["linux/amd64"]
 }
 
+target "kubectl" {
+    dockerfile = "Dockerfile.kubectl"
+    tags = ["${IMAGE}-kubectl:${TAG}"]
+    output = ["type=docker"]
+    platforms = ["linux/amd64"]
+}
+
 target "tools-multiplatform" {
     inherits = ["default", "multiplatform"]
+}
+
+target "kubeclt-multiplatform" {
+    inherits = ["kubectl", "multiplatform"]
 }
 
 group "cache" {
