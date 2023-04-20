@@ -10,7 +10,7 @@ prometheusOperator:
   admissionWebhooks:
     patch:
       image:
-        repository: k8s.gcr.io/ingress-nginx/kube-webhook-certgen
+        repository: registry.k8s.io/ingress-nginx/kube-webhook-certgen
   image:
     repository: quay.io/prometheus-operator/prometheus-operator
   prometheusConfigReloader:
