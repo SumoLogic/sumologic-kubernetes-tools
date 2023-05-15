@@ -19,7 +19,7 @@ jobs:
         id: extract_tag
         run: |
           tag=$(git describe --tags)
-          echo "::set-output name=tag::$(echo ${tag#v})"
+          echo "tag=$(echo ${tag#v})" >> $GITHUB_OUTPUT
       - name: Print tag
         run: echo "Running dev build for ${{ steps.extract_tag.outputs.tag }}"
   build-and-push-image:
