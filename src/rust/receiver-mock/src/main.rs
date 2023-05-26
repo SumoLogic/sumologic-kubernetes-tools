@@ -95,7 +95,7 @@ struct Cli {
     store_traces: bool,
 
     #[arg(
-        short,
+        short = 'a',
         long = "drop-rate",
         default_value_t = 0,
         help = "Use to specify packet drop rate. This is number from 0 (do not drop) to 100 (drop all)."
@@ -204,6 +204,22 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
                     .route(
                         "/collector/heartbeat",
                         web::post().to(router::api::v1::handler_collector_heartbeat),
+                    )
+                    .route(
+                        "/otCollectors/metadata",
+                        web::post().to(router::api::v1::handler_collector_metadata),
+                    )
+                    .route(
+                        "/collector/logs",
+                        web::post().to(router::otlp::handler_receiver_otlp_logs),
+                    )
+                    .route(
+                        "/collector/metrics",
+                        web::post().to(router::otlp::handler_receiver_otlp_metrics),
+                    )
+                    .route(
+                        "/collector/traces",
+                        web::post().to(router::otlp::handler_receiver_otlp_traces),
                     ),
             )
             .service(

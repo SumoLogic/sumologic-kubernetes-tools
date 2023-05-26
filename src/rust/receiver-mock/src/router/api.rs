@@ -5,9 +5,13 @@ pub mod v1 {
 
     #[derive(Deserialize, Serialize)]
     pub(crate) struct CollectorRegisterRespone {
+        #[serde(rename = "collectorCredentialId")]
         collector_credential_id: String,
+        #[serde(rename = "collectorCredentialKey")]
         collector_credential_key: String,
+        #[serde(rename = "collectorId")]
         collector_id: String,
+        #[serde(rename = "collectorName")]
         collector_name: String,
     }
 
@@ -22,18 +26,26 @@ pub mod v1 {
             Err(_) => return HttpResponse::BadRequest().finish(),
         };
 
-        let val = match val_str.strip_prefix("Basic ") {
-            Some(v) => v,
-            None => return HttpResponse::Unauthorized().finish(),
-        };
+        if val_str.starts_with("Basic ") {
+            let val = match val_str.strip_prefix("Basic ") {
+                Some(v) => v,
+                None => return HttpResponse::Unauthorized().finish(),
+            };
 
-        // For now the token is only checked if it can be decoded successfully.
-        let _decoded = match b64::STANDARD.decode(val) {
-            Ok(v) => v,
-            Err(_) => {
-                return HttpResponse::Unauthorized().finish();
-            }
-        };
+            match b64::STANDARD.decode(val) {
+                Ok(v) => v,
+                Err(_) => {
+                    return HttpResponse::Unauthorized().finish();
+                }
+            };
+        } else if val_str.starts_with("Bearer ") {
+            match val_str.strip_prefix("Bearer ") {
+                Some(v) => v,
+                None => return HttpResponse::Unauthorized().finish(),
+            };
+        } else {
+            return HttpResponse::Unauthorized().finish();
+        }
 
         HttpResponse::Ok().json(CollectorRegisterRespone {
             collector_credential_id: String::from("eeeQShpym1Szkza33333"),
@@ -45,6 +57,10 @@ pub mod v1 {
 
     pub async fn handler_collector_heartbeat() -> impl Responder {
         HttpResponse::NoContent().finish()
+    }
+
+    pub async fn handler_collector_metadata() -> impl Responder {
+        HttpResponse::Ok().finish()
     }
 }
 
@@ -105,10 +121,22 @@ mod tests_api {
             assert_eq!(body, "");
         }
         {
-            // Decodable token returns a 204 with JSON payload
+            // Decodable token returns a 200 with JSON payload
             let req = test::TestRequest::post()
                 .uri("/api/v1/collector/register")
                 .insert_header(("Authorization", "Basic ZHVtbXk6bXlwYXNzd29yZA=="))
+                .to_request();
+
+            let resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let _result: router::api::v1::CollectorRegisterRespone = test::read_body_json(resp).await;
+        }
+        {
+            // Bearer token returns 200
+            let req = test::TestRequest::post()
+                .uri("/api/v1/collector/register")
+                .insert_header(("Authorization", "Bearer xyz"))
                 .to_request();
 
             let resp = test::call_service(&mut app, req).await;
@@ -153,6 +181,47 @@ mod tests_api {
 
             let resp = test::call_service(&mut app, req).await;
             assert_eq!(resp.status(), 204);
+
+            let body = test::read_body(resp).await;
+            assert_eq!(body, "");
+        }
+    }
+
+    #[actix_rt::test]
+    async fn test_api_v1_collector_metadata() {
+        let app_data = web::Data::new(router::AppState::new());
+        let opts = options::Options {
+            print: options::Print {
+                logs: false,
+                headers: false,
+                metrics: false,
+                spans: false,
+            },
+            delay_time: std::time::Duration::from_secs(0),
+            drop_rate: 0,
+            store_traces: false,
+            store_metrics: false,
+            store_logs: false,
+        };
+
+        let mut app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(opts.clone()))
+                .app_data(app_data.clone()) // Mutable shared state
+                .service(web::scope("/api/v1").route(
+                    "/collector/metadata",
+                    web::post().to(router::api::v1::handler_collector_metadata),
+                )),
+        )
+        .await;
+
+        {
+            let req = test::TestRequest::post()
+                .uri("/api/v1/collector/metadata")
+                .to_request();
+
+            let resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
 
             let body = test::read_body(resp).await;
             assert_eq!(body, "");
