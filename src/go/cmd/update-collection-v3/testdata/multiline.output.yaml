@@ -6,4 +6,4 @@ multiline_key: |-
   line 2
   
   line 3
-another_key: yes
+another_key: "yes"
