@@ -25,7 +25,7 @@ jobs:
         with:
           toolchain: stable
       - name: Install Protoc
-        uses: arduino/setup-protoc@v1
+        uses: arduino/setup-protoc@v2
       - name: Build receiver-mock
         working-directory: src/rust/receiver-mock/
         run: cargo rustc -- -D warnings
