@@ -11,7 +11,7 @@ actix-web = "4.3.1"
 actix-http = "3.3.1"
 actix-service = "1"
 actix-rt = "2"
-anyhow = "1.0.74"
+anyhow = "1.0.75"
 bytes = "1"
 base64 = "0.21"
 serde = { version = "1.0.183", features = ["derive"] }
