@@ -22,7 +22,7 @@ RUN CGO_ENABLED=0 GOOS=linux \
         -ldflags '-w -extldflags "-static"' \
         -o update-collection-v3 cmd/update-collection-v3/main.go
 
-FROM rust:1.69.0-alpine3.16 as rust-builder
+FROM rust:1.72.0-alpine3.18 as rust-builder
 RUN apk update \
     && apk upgrade \
     && apk add g++ git \
