@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/helpers"
 	"gopkg.in/yaml.v3"
 )
 
@@ -63,6 +64,10 @@ func parseConfigToString(config Otelcol) (string, error) {
 func findUsedReplaces(config Otelcol, replaces []string) ([]string, error) {
 	if &config == nil {
 		return []string{}, nil
+	}
+	_, err := helpers.CheckForConflictsInRest(config)
+	if err != nil {
+		return []string{}, err
 	}
 
 	confStr, err := parseConfigToString(config)

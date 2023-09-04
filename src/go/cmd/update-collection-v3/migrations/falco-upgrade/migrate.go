@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/helpers"
 	"gopkg.in/yaml.v3"
 )
 
@@ -66,6 +67,10 @@ Please confirm that migrated configuration is correct according to Falco helm ch
 				values.Falco.Ebpf.Enabled = nil
 			}
 		}
+	}
+	_, err = helpers.CheckForConflictsInRest(values)
+	if err != nil {
+		return "", err
 	}
 
 	buffer := bytes.Buffer{}

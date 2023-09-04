@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/helpers"
 	"gopkg.in/yaml.v3"
 )
 
@@ -19,6 +20,10 @@ func Migrate(input string) (string, error) {
 	}
 
 	valuesOutput := migrate(&valuesInput)
+	_, err = helpers.CheckForConflictsInRest(valuesOutput)
+	if err != nil {
+		return "", err
+	}
 
 	buffer := bytes.Buffer{}
 	encoder := yaml.NewEncoder(&buffer)
