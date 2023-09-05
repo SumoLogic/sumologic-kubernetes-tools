@@ -1,6 +1,6 @@
 module github.com/SumoLogic/sumologic-kubernetes-collection/tools
 
-go 1.18
+go 1.21
 
 require (
 	github.com/goccy/go-yaml v1.11.0
