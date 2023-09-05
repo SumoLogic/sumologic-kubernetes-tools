@@ -3,6 +3,7 @@ package helpers
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strings"
 )
 
@@ -33,7 +34,7 @@ func CheckForConflictsInRestRecursive(v reflect.Value, obj interface{}, prefix s
 	if rest.IsValid() {
 		for _, key := range rest.MapKeys() {
 			keyStr := key.String()
-			if contains(knownProperties, keyStr) {
+			if slices.Contains(knownProperties, keyStr) {
 				duplicated = append(duplicated, fmt.Sprintf("%s%s", prefix, keyStr))
 			}
 		}
@@ -55,15 +56,6 @@ func CheckForConflictsInRestRecursive(v reflect.Value, obj interface{}, prefix s
 		e = fmt.Errorf("conflict between input and output values for the following keys: %s", strings.Join(duplicated, ", "))
 	}
 	return duplicated, e
-}
-
-func contains(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
 }
 
 // Helper function to get the known property names from the struct's field tags
