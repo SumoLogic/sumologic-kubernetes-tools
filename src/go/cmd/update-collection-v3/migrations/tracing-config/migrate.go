@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/helpers"
 )
 
 func Migrate(input string) (string, error) {
@@ -22,6 +24,10 @@ func Migrate(input string) (string, error) {
 		buffer := bytes.Buffer{}
 		encoder := yaml.NewEncoder(&buffer)
 		encoder.SetIndent(2)
+		_, err = helpers.CheckForConflictsInRest(outputValues)
+		if err != nil {
+			return "", err
+		}
 		err = encoder.Encode(outputValues)
 		fmt.Sprintln(buffer.String())
 		fmt.Println("WARNING! Tracing config migrated to v3, please check the output file. For more details see documentation: https://github.com/SumoLogic/sumologic-kubernetes-collection/blob/main/docs/v3-migration-doc.md#tracinginstrumentation-changes")

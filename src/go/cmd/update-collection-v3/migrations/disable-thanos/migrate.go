@@ -3,6 +3,7 @@ package disablethanos
 import (
 	"bytes"
 
+	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/helpers"
 	"gopkg.in/yaml.v3"
 )
 
@@ -13,6 +14,10 @@ func Migrate(inputYaml string) (string, error) {
 		return "", err
 	}
 	outputValues, err := migrate(&inputValues)
+	if err != nil {
+		return "", err
+	}
+	_, err = helpers.CheckForConflictsInRest(outputValues)
 	if err != nil {
 		return "", err
 	}

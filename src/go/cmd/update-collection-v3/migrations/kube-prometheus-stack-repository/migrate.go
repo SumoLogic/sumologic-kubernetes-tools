@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/SumoLogic/sumologic-kubernetes-collection/tools/cmd/update-collection-v3/helpers"
 	"gopkg.in/yaml.v3"
 )
 
@@ -69,6 +70,10 @@ func Migrate(inputYaml string) (outputYaml string, err error) {
 	values = migrate(&values)
 	if err != nil {
 		return "", fmt.Errorf("error migrating: %v", err)
+	}
+	_, err = helpers.CheckForConflictsInRest(values)
+	if err != nil {
+		return "", err
 	}
 
 	buffer := bytes.Buffer{}
