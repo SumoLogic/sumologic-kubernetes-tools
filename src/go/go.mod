@@ -17,8 +17,8 @@ require (
 	go.opentelemetry.io/otel/trace v1.0.0-RC1
 	google.golang.org/grpc v1.53.0
 	gopkg.in/yaml.v3 v3.0.1
-	k8s.io/apimachinery v0.17.12
-	k8s.io/client-go v0.17.12
+	k8s.io/apimachinery v0.17.16
+	k8s.io/client-go v0.17.16
 )
 
 require (
@@ -60,7 +60,7 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gotest.tools v2.2.0+incompatible
-	k8s.io/api v0.17.12 // indirect
+	k8s.io/api v0.17.16 // indirect
 	k8s.io/klog v1.0.0 // indirect
 	k8s.io/utils v0.0.0-20191114184206-e782cd3c129f // indirect
 	sigs.k8s.io/yaml v1.1.0 // indirect
