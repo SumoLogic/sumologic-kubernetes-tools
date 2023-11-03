@@ -74,7 +74,7 @@ struct Cli {
     print_headers: bool,
 
     #[arg(
-        long = "store-headers",
+        long = "store-logs",
         default_value_t = false,
         help = "Use to store log data which can then be queried via /logs/* endpoints"
     )]
