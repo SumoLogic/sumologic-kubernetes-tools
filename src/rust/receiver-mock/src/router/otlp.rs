@@ -84,7 +84,7 @@ fn get_otlp_metadata_from_logs(resource_logs: &logsv1::ResourceLogs) -> Metadata
 
 fn get_otlp_lines_from_logs(resource_logs: &logsv1::ResourceLogs) -> Vec<String> {
     resource_logs
-        .instrumentation_library_logs
+        .scope_logs
         .iter()
         .map(|ill| ill.log_records.iter())
         .flatten()
@@ -144,7 +144,7 @@ pub async fn handler_receiver_otlp_metrics(
                 }
 
                 let resource_attributes = &resource_metrics.resource.unwrap().attributes;
-                for instrumentation_lib_metrics in resource_metrics.instrumentation_library_metrics {
+                for instrumentation_lib_metrics in resource_metrics.scope_metrics {
                     for metric in instrumentation_lib_metrics.metrics {
                         let metric_sample_vec = sample::otlp_metric_to_samples(&metric, resource_attributes);
 
@@ -208,7 +208,7 @@ pub async fn handler_receiver_otlp_traces(
                 }
 
                 let resource_attrs = resource_spans.resource.unwrap().attributes;
-                for instrumentation_lib_spans in resource_spans.instrumentation_library_spans {
+                for instrumentation_lib_spans in resource_spans.scope_spans {
                     for span in instrumentation_lib_spans.spans {
                         let storage_span = otlp_span_to_span(&span, &resource_attrs);
                         if opts.print.spans {
@@ -485,11 +485,11 @@ mod test {
     use actix_web::test as actix_test;
     use actix_web::{web, App};
     use bytes::Bytes;
-    use opentelemetry_proto::tonic::metrics::v1::{InstrumentationLibraryMetrics, Metric, ResourceMetrics};
-    use opentelemetry_proto::tonic::trace::v1::{InstrumentationLibrarySpans, ResourceSpans};
+    use opentelemetry_proto::tonic::metrics::v1::{Metric, ResourceMetrics, ScopeMetrics};
+    use opentelemetry_proto::tonic::trace::v1::{ResourceSpans, ScopeSpans};
     use opentelemetry_proto::tonic::{
-        common::v1::{any_value::Value, AnyValue, InstrumentationLibrary, KeyValue},
-        logs::v1::{InstrumentationLibraryLogs, LogRecord},
+        common::v1::{any_value::Value, AnyValue, InstrumentationScope, KeyValue},
+        logs::v1::{LogRecord, ScopeLogs},
         resource::v1::Resource,
     };
 
@@ -531,7 +531,6 @@ mod test {
             body: Some(AnyValue {
                 value: Some(Value::StringValue(body.to_string())),
             }),
-            name: "temperature log".to_string(),
             attributes: vec![],
             dropped_attributes_count: 0,
             flags: 0b101010,
@@ -560,18 +559,20 @@ mod test {
         }
     }
 
-    fn get_sample_instr_library() -> InstrumentationLibrary {
-        InstrumentationLibrary {
+    fn get_sample_instr_library() -> InstrumentationScope {
+        InstrumentationScope {
             name: "the best library".to_string(),
             version: "v2.1.5".to_string(),
+            attributes: vec![],
+            dropped_attributes_count: 0,
         }
     }
 
     fn get_sample_logs_data() -> logsv1::LogsData {
         let resource = get_sample_resource();
 
-        let instr = vec![InstrumentationLibraryLogs {
-            instrumentation_library: Some(get_sample_instr_library()),
+        let instr = vec![ScopeLogs {
+            scope: Some(get_sample_instr_library()),
             log_records: vec![
                 get_sample_log_record("warning: the temperature is too low"),
                 get_sample_log_record("killing child with a fork"),
@@ -581,7 +582,7 @@ mod test {
 
         let resource_logs_1 = logsv1::ResourceLogs {
             resource: Some(resource.clone()),
-            instrumentation_library_logs: instr,
+            scope_logs: instr,
             schema_url: String::new(),
         };
 
@@ -790,14 +791,14 @@ mod test {
 
     fn get_sample_metrics_data() -> metricsv1::MetricsData {
         let resource = get_sample_resource();
-        let instr = vec![InstrumentationLibraryMetrics {
-            instrumentation_library: Some(get_sample_instr_library()),
+        let instr = vec![ScopeMetrics {
+            scope: Some(get_sample_instr_library()),
             metrics: vec![get_sample_metric("length"), get_sample_metric("breath")],
             schema_url: "".to_string(),
         }];
         let resource_metrics_1 = ResourceMetrics {
             resource: Some(resource),
-            instrumentation_library_metrics: instr,
+            scope_metrics: instr,
             schema_url: "".to_string(),
         };
         let resource_metrics_2 = resource_metrics_1.clone();
@@ -917,8 +918,8 @@ mod test {
 
     fn get_sample_spans_data() -> tracev1::TracesData {
         let resource = get_sample_resource();
-        let instr = vec![InstrumentationLibrarySpans {
-            instrumentation_library: Some(get_sample_instr_library()),
+        let instr = vec![ScopeSpans {
+            scope: Some(get_sample_instr_library()),
             spans: vec![
                 get_sample_span("parent", "aaaa", "", "bbbb"),
                 get_sample_span("child", "cccc", "aaaa", "bbbb"),
@@ -927,7 +928,7 @@ mod test {
         }];
         let resource_spans_1 = ResourceSpans {
             resource: Some(resource),
-            instrumentation_library_spans: instr,
+            scope_spans: instr,
             schema_url: "".to_string(),
         };
         tracev1::TracesData {
