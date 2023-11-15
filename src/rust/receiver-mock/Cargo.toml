@@ -25,7 +25,7 @@ prometheus-parse = { git = "https://github.com/ccakes/prometheus-parse-rs", vers
 http = "0.2"
 opentelemetry-proto = { version = "0.3.0", features = ["gen-tonic", "logs", "metrics", "traces"] }
 prost = "0.11.0"
-itertools = "0.11.0"
+itertools = "0.12.0"
 log = "0.4.20"
 simple_logger = "4.2.0"
 hex = "0.4.3"
