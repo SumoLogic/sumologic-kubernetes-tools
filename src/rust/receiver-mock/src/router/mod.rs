@@ -380,9 +380,9 @@ pub async fn handler_dump(body: web::Bytes) -> impl Responder {
 }
 
 pub fn print_request_headers(
-    method: &http::Method,
-    version: http::Version,
-    uri: &http::Uri,
+    method: &actix_http::Method,
+    version: actix_http::Version,
+    uri: &actix_http::Uri,
     headers: &actix_http::header::HeaderMap,
 ) {
     let method = method.as_str();
