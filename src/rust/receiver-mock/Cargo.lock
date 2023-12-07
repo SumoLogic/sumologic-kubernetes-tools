@@ -1278,10 +1278,10 @@ dependencies = [
 [[package]]
 name = "prometheus-parse"
 version = "0.2.4"
-source = "git+https://github.com/ccakes/prometheus-parse-rs#401d9b235955c0cf668ce51f9a51eaa8824eb127"
+source = "git+https://github.com/ccakes/prometheus-parse-rs#919ff2063dfc01657f1f13c04c97b38ba6f841f3"
 dependencies = [
  "chrono",
- "itertools 0.10.5",
+ "itertools 0.12.0",
  "once_cell",
  "regex",
 ]
