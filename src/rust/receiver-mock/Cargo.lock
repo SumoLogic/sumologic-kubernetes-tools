@@ -1363,7 +1363,6 @@ dependencies = [
  "clap",
  "fancy-regex",
  "hex",
- "http",
  "itertools 0.12.0",
  "json_str",
  "log",
