@@ -1277,8 +1277,8 @@ dependencies = [
 
 [[package]]
 name = "prometheus-parse"
-version = "0.2.4"
-source = "git+https://github.com/ccakes/prometheus-parse-rs#919ff2063dfc01657f1f13c04c97b38ba6f841f3"
+version = "0.2.5"
+source = "git+https://github.com/ccakes/prometheus-parse-rs#37bf4a20a9747364189463350304e0bb2524ef48"
 dependencies = [
  "chrono",
  "itertools 0.12.0",
