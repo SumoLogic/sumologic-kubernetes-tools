@@ -53,7 +53,7 @@ jobs:
       - name: Print tag
         run: echo "v${{ needs.extract-image-tag.outputs.build_tag }}"
       - name: Download all binaries stored as artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artifacts/
       - uses: ncipollo/release-action@v1
