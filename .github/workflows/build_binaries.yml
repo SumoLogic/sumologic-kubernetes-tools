@@ -15,37 +15,37 @@ jobs:
       - name: Build
         run: make build-update-collection-v3
       - name: Store windows (arm64) binary as action artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: update-collection-v3-sumo-windows_arm64
           path: ./src/go/cmd/update-collection-v3/update-collection-v3-sumo-windows_arm64
           if-no-files-found: error
       - name: Store windows (amd64) binary as action artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: update-collection-v3-sumo-windows_amd64
           path: ./src/go/cmd/update-collection-v3/update-collection-v3-sumo-windows_amd64
           if-no-files-found: error
       - name: Store linux (amd64) binary as action artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: update-collection-v3-sumo-linux_amd64
           path: ./src/go/cmd/update-collection-v3/update-collection-v3-sumo-linux_amd64
           if-no-files-found: error
       - name: Store linux (arm64) binary as action artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: update-collection-v3-sumo-linux_arm64
           path: ./src/go/cmd/update-collection-v3/update-collection-v3-sumo-linux_arm64
           if-no-files-found: error
       - name: Store darwin (amd64) binary as action artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: update-collection-v3-sumo-darwin_amd64
           path: ./src/go/cmd/update-collection-v3/update-collection-v3-sumo-darwin_amd64
           if-no-files-found: error
       - name: Store darwin (arm64) binary as action artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: update-collection-v3-sumo-darwin_arm64
           path: ./src/go/cmd/update-collection-v3/update-collection-v3-sumo-darwin_arm64
