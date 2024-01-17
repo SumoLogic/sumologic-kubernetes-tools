@@ -1,0 +1,22 @@
+FROM rust:1.68.2-alpine3.16 as rust-builder
+RUN apk update \
+    && apk upgrade \
+    && apk add g++ git \
+# Cmake and make are needed to build proto-build Rust dependency.
+    && apk add cmake make \
+# Protoc is needed to build opentelemetry-proto Rust dependency. 
+    && apk add protoc
+
+WORKDIR /sumologic-mock
+COPY ./src/rust/sumologic-mock .
+RUN cargo build --release
+
+FROM alpine:3.17.3
+ARG TARGETARCH
+ARG TARGETOS
+
+COPY --from=rust-builder \
+    /sumologic-mock/target/release/sumologic-mock \
+    /usr/bin/
+
+CMD ["/usr/bin/sumologic-mock"]

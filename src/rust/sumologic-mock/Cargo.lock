@@ -1378,7 +1378,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "receiver-mock"
+name = "sumologic-mock"
 version = "0.1.0"
 dependencies = [
  "actix-http",

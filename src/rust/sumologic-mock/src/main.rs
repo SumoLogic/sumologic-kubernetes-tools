@@ -25,10 +25,10 @@ mod time;
 
 #[derive(Parser)]
 #[command(
-    name = "Receiver mock",
+    name = "Sumo Logic Mock",
     author = "Sumo Logic <collection@sumologic.com>",
     version = "0.0",
-    about = "Receiver mock can be used for testing performance or functionality of kubernetes collection without sending data to sumologic"
+    about = "Sumo Logic Mock can be used for testing performance or functionality of kubernetes collection without sending data to sumologic"
 )]
 struct Cli {
     #[arg(short, long, default_value_t = 3000, help = "Port to listen on")]
@@ -150,7 +150,7 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
         fields: Mutex::new(HashMap::new()),
     });
 
-    info!("Receiver mock is waiting for enemy on 0.0.0.0:{}!", port);
+    info!("Sumo Logic Mock is listening on 0.0.0.0:{}!", port);
     let result = actix_web::HttpServer::new(move || {
         actix_web::App::new()
             // Middleware printing headers for all handlers.

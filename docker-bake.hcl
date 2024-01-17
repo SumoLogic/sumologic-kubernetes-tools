@@ -2,6 +2,10 @@ variable "IMAGE" {
     default = "kubernetes-tools"
 }
 
+variable "SUMOLOGIC_MOCK_IMAGE" {
+    default = "sumologic-mock"
+}
+
 variable "TAG" {
     default = "dev-latest"
 }
@@ -52,6 +56,20 @@ target "tools-multiplatform" {
 
 target "kubectl-multiplatform" {
     inherits = ["kubectl", "multiplatform"]
+}
+
+target "sumologic-mock" {
+    dockerfile = "Dockerfile.sumologic-mock"
+    tags = ["${SUMOLOGIC_MOCK_IMAGE}:${TAG}"]
+    cache-from = [
+        "${CACHE_IMAGE}:${BUILD_RUST_CACHE_TAG}",
+    ]
+    output = ["type=docker"]
+    platforms = ["linux/amd64"]
+}
+
+target "sumologic-mock-multiplatform" {
+    inherits = ["sumologic-mock", "multiplatform"]   
 }
 
 group "cache" {

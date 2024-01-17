@@ -156,19 +156,19 @@ You can configure this tool by setting the following env variables:
 2021/07/09 00:33:10 Expected number of spans for all traces: 40
 ```
 
-### Receiver-mock
+### Sumo Logic Mock
 
-Small tool for mocking sumologic receiver to avoid sending data outside of cluster.
+Small tool for mocking Sumo Logic receiver to avoid sending data outside of cluster.
 
 ```bash
-$ kubectl run receiver-mock \
+$ kubectl run sumologic-mock \
  -it --rm \
  --restart=Never \
  --image sumologic/kubernetes-tools \
- -- receiver-mock --help
+ -- sumologic-mock --help
 ```
 
-[More information](src/rust/receiver-mock/README.md)
+[More information](src/rust/sumologic-mock/README.md)
 
 ### Template dependency configuration
 

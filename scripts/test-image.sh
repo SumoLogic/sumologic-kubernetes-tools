@@ -6,7 +6,6 @@ function test_image() {
   local apps="
   stress-tester
   k8s-api-test
-  receiver-mock
   check
   fix-log-symlinks
   tools-usage

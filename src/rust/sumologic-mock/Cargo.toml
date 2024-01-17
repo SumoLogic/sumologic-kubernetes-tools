@@ -1,5 +1,5 @@
 [package]
-name = "receiver-mock"
+name = "sumologic-mock"
 version = "0.1.0"
 authors = ["Sumo Logic <collection@sumologic.com>"]
 edition = "2021"

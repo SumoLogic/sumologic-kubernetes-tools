@@ -42,13 +42,19 @@ build-image-tools:
 build-image-kubectl:
 	TAG=$(BUILD_TAG) docker buildx bake kubectl
 
+build-image-sumologic-mock:
+	TAG=$(BUILD_TAG) docker buildx bake sumologic-mock
+
 build-image-multiplatform: build-image-multiplatform-tools build-image-multiplatform-kubectl
 
 build-image-multiplatform-tools:
-	TAG=$(BUILD_TAG) docker buildx bake tools-multiplatform 
+	TAG=$(BUILD_TAG) docker buildx bake tools-multiplatform
 
 build-image-multiplatform-kubectl:
-	TAG=$(BUILD_TAG) docker buildx bake kubectl-multiplatform 
+	TAG=$(BUILD_TAG) docker buildx bake kubectl-multiplatform
+
+build-image-multiplatform-sumologic-mock:
+	TAG=$(BUILD_TAG) docker buildx bake sumologic-mock-multiplatform
 
 tag-release-image-with-latest-tools:
 	make push-image-tools BUILD_TAG=latest

@@ -31,10 +31,6 @@ RUN apk update \
 # Protoc is needed to build opentelemetry-proto Rust dependency. 
     && apk add protoc
 
-WORKDIR /receiver-mock
-COPY ./src/rust/receiver-mock .
-RUN cargo build --release
-
 WORKDIR /logs-generator
 COPY ./src/rust/logs-generator .
 RUN cargo build --release
@@ -95,7 +91,6 @@ COPY --from=go-builder \
     /usr/bin/
 
 COPY --from=rust-builder \
-    /receiver-mock/target/release/receiver-mock \
     /logs-generator/target/release/logs-generator \
     /usr/bin/
 

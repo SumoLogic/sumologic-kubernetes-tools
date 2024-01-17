@@ -1,6 +1,6 @@
-# Receiver-mock
+# Sumo Logic Mock
 
-receiver-mock is an small containerized application written in rust which can be used for local testing of the [`kubernetes sumologic collection`](https://github.com/SumoLogic/sumologic-kubernetes-collection)
+Sumo Logic Mock is an small containerized application written in rust which can be used for local testing of the [`kubernetes sumologic collection`](https://github.com/SumoLogic/sumologic-kubernetes-collection)
 
 ## Running
 
@@ -10,7 +10,7 @@ cargo run
 
 ### Arguments
 
-List of arguments taken by receiver-mock:
+List of arguments taken by Sumo Logic Mock:
 
 | Long form                   | Short form        | Default value | Description                                                                                    |
 |-----------------------------|-------------------|:-------------:|------------------------------------------------------------------------------------------------|
@@ -30,7 +30,7 @@ List of arguments taken by receiver-mock:
 
 ## Terraform mock
 
-It expose the `/terraform.*` url which can be used to set HTTP source for k8s collection to receiver-mock itself
+It expose the `/terraform.*` url which can be used to set HTTP source for k8s collection to Sumo Logic Mock itself
 
 Example output:
 
@@ -188,15 +188,15 @@ The following endpoints provide information about received traces:
 
 These are endpoints which provide information about received metrics:
 
-- `metrics` - exposes receiver-mock metrics in prometheus format
+- `metrics` - exposes Sumo Logic Mock metrics in prometheus format
 
   ```
-  # TYPE receiver_mock_metrics_count counter
-  receiver_mock_metrics_count 123
-  # TYPE receiver_mock_logs_count counter
-  receiver_mock_logs_count 123
-  # TYPE receiver_mock_logs_bytes_count counter
-  receiver_mock_logs_bytes_count 45678
+  # TYPE sumologic_mock_metrics_count counter
+  sumologic_mock_metrics_count 123
+  # TYPE sumologic_mock_logs_count counter
+  sumologic_mock_logs_count 123
+  # TYPE sumologic_mock_logs_bytes_count counter
+  sumologic_mock_logs_bytes_count 45678
   ```
 
 - `/metrics-list` - returns list of counted unique metrics
@@ -286,7 +286,7 @@ The following endpoints provide information about received logs:
 
 ## Dump message
 
-Receiver mock comes with special `/dump` endpoint, which is going to print message on stdout independently on the header value.
+Sumo Logic Mock comes with special `/dump` endpoint, which is going to print message on stdout independently on the header value.
 
 ## Disclaimer
 
