@@ -151,12 +151,12 @@ pub struct AppMetadata {
 // Metrics in prometheus format
 pub async fn handler_metrics(app_state: web::Data<AppState>) -> impl Responder {
     let mut body = format!(
-        "# TYPE receiver_mock_metrics_count counter
-receiver_mock_metrics_count {}
-# TYPE receiver_mock_logs_count counter
-receiver_mock_logs_count {}
-# TYPE receiver_mock_logs_bytes_count counter
-receiver_mock_logs_bytes_count {}\n",
+        "# TYPE sumologic_mock_metrics_count counter
+sumologic_mock_metrics_count {}
+# TYPE sumologic_mock_logs_count counter
+sumologic_mock_logs_count {}
+# TYPE sumologic_mock_logs_bytes_count counter
+sumologic_mock_logs_bytes_count {}\n",
         app_state.metrics.read().unwrap(),
         app_state.log_stats.read().unwrap().total.message_count,
         app_state.log_stats.read().unwrap().total.byte_count,
@@ -165,10 +165,10 @@ receiver_mock_logs_bytes_count {}\n",
     {
         let metrics_ip_list = app_state.metrics_ip_list.read().unwrap();
         if metrics_ip_list.len() > 0 {
-            let mut metrics_ip_string = String::from("# TYPE receiver_mock_metrics_ip_count counter\n");
+            let mut metrics_ip_string = String::from("# TYPE sumologic_mock_metrics_ip_count counter\n");
             for (ip, count) in metrics_ip_list.iter() {
                 metrics_ip_string.push_str(&format!(
-                    "receiver_mock_metrics_ip_count{{ip_address=\"{}\"}} {}\n",
+                    "sumologic_mock_metrics_ip_count{{ip_address=\"{}\"}} {}\n",
                     ip, count
                 ));
             }
@@ -179,16 +179,16 @@ receiver_mock_logs_bytes_count {}\n",
     {
         let log_ipaddr_stats = &app_state.log_stats.read().unwrap().ipaddr;
         if log_ipaddr_stats.len() > 0 {
-            let mut logs_ip_count_bytes_string = String::from("# TYPE receiver_mock_logs_bytes_ip_count counter\n");
-            let mut logs_ip_count_string = String::from("# TYPE receiver_mock_logs_ip_count counter\n");
+            let mut logs_ip_count_bytes_string = String::from("# TYPE sumologic_mock_logs_bytes_ip_count counter\n");
+            let mut logs_ip_count_string = String::from("# TYPE sumologic_mock_logs_ip_count counter\n");
 
             for (ip, val) in log_ipaddr_stats.iter() {
                 logs_ip_count_string.push_str(&format!(
-                    "receiver_mock_logs_ip_count{{ip_address=\"{}\"}} {}\n",
+                    "sumologic_mock_logs_ip_count{{ip_address=\"{}\"}} {}\n",
                     ip, val.message_count
                 ));
                 logs_ip_count_bytes_string.push_str(&format!(
-                    "receiver_mock_logs_bytes_ip_count{{ip_address=\"{}\"}} {}\n",
+                    "sumologic_mock_logs_bytes_ip_count{{ip_address=\"{}\"}} {}\n",
                     ip, val.byte_count
                 ));
             }
@@ -487,12 +487,12 @@ mod tests_metrics {
             let body = test::read_body(resp).await;
             assert_eq!(
                 web::Bytes::from_static(
-                    b"# TYPE receiver_mock_metrics_count counter\n\
-                 receiver_mock_metrics_count 3000\n\
-                 # TYPE receiver_mock_logs_count counter\n\
-                 receiver_mock_logs_count 0\n\
-                 # TYPE receiver_mock_logs_bytes_count counter\n\
-                 receiver_mock_logs_bytes_count 0\n",
+                    b"# TYPE sumologic_mock_metrics_count counter\n\
+                 sumologic_mock_metrics_count 3000\n\
+                 # TYPE sumologic_mock_logs_count counter\n\
+                 sumologic_mock_logs_count 0\n\
+                 # TYPE sumologic_mock_logs_bytes_count counter\n\
+                 sumologic_mock_logs_bytes_count 0\n",
                 ),
                 body,
             );
@@ -513,12 +513,12 @@ mod tests_metrics {
             let body = test::read_body(resp).await;
             assert_eq!(
                 web::Bytes::from_static(
-                    b"# TYPE receiver_mock_metrics_count counter\n\
-                  receiver_mock_metrics_count 0\n\
-                  # TYPE receiver_mock_logs_count counter\n\
-                  receiver_mock_logs_count 0\n\
-                  # TYPE receiver_mock_logs_bytes_count counter\n\
-                  receiver_mock_logs_bytes_count 0\n",
+                    b"# TYPE sumologic_mock_metrics_count counter\n\
+                  sumologic_mock_metrics_count 0\n\
+                  # TYPE sumologic_mock_logs_count counter\n\
+                  sumologic_mock_logs_count 0\n\
+                  # TYPE sumologic_mock_logs_bytes_count counter\n\
+                  sumologic_mock_logs_bytes_count 0\n",
                 ),
                 body,
             );

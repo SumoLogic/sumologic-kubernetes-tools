@@ -25,13 +25,6 @@ This image provides a set of tools for Kubernetes Collection. You can use follow
   --env SPANS_PER_MIN=6000 \
   -- stress-tester
 
- * Receiver mock:
-
- kubectl run receiver-mock \
-    -it --rm --restart=Never \
-    --image sumologic/kubernetes-tools \
-    -- receiver-mock --help
-
  * Interactive mode:
 
  kubectl run tools \

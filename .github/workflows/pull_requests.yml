@@ -17,7 +17,7 @@ jobs:
       - name: Check markdown files with markdownlint
         run: make markdownlint
 
-  test-receiver-mock:
+  test-sumologic-mock:
     runs-on: ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
@@ -26,14 +26,14 @@ jobs:
           toolchain: stable
       - name: Install Protoc
         uses: arduino/setup-protoc@v2
-      - name: Build receiver-mock
-        working-directory: src/rust/receiver-mock/
+      - name: Build Sumo Logic Mock
+        working-directory: src/rust/sumologic-mock/
         run: cargo rustc -- -D warnings
-      - name: Check receiver-mock formatting
-        working-directory: src/rust/receiver-mock/
+      - name: Check sumologic-mock formatting
+        working-directory: src/rust/sumologic-mock/
         run: make check-rustfmt
-      - name: Test receiver-mock
-        working-directory: src/rust/receiver-mock/
+      - name: Test sumologic-mock
+        working-directory: src/rust/sumologic-mock/
         run: make test
 
   build-image:

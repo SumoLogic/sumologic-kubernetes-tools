@@ -1,4 +1,4 @@
-/src/rust/receiver-mock/target/
+/src/rust/sumologic-mock/target/
 .github/
 /src/go/stress-tester
 /src/go/k8s-api-test
