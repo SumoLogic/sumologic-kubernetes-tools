@@ -50,7 +50,7 @@ jobs:
     needs: extract-image-tag
     with:
       build_tag: ${{ needs.extract-image-tag.outputs.build_tag }}
-      sufffix: sumologic-mock
+      suffix: sumologic-mock
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}

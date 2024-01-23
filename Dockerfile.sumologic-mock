@@ -1,4 +1,4 @@
-FROM rust:1.68.2-alpine3.16 as rust-builder
+FROM rust:1.75.0-alpine3.18 as rust-builder
 RUN apk update \
     && apk upgrade \
     && apk add g++ git \
@@ -11,7 +11,7 @@ WORKDIR /sumologic-mock
 COPY ./src/rust/sumologic-mock .
 RUN cargo build --release
 
-FROM alpine:3.17.3
+FROM alpine:3.19.0
 ARG TARGETARCH
 ARG TARGETOS
 
