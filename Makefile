@@ -5,6 +5,10 @@ REPO_URL = $(DOCKERHUB_REPO_NAME)/$(IMAGE_NAME)
 ECR_URL = public.ecr.aws/a4t4y2n3
 ECR_REPO_URL = $(ECR_URL)/$(IMAGE_NAME)
 
+SUMOLOGIC_MOCK_IMAGE_NAME = sumologic-mock
+SUMOLOGIC_MOCK_REPO_URL = $(DOCKERHUB_REPO_NAME)/$(SUMOLOGIC_MOCK_IMAGE_NAME)
+SUMOLOGIC_MOCK_ECR_REPO_URL = $(ECR_URL)/$(SUMOLOGIC_MOCK_IMAGE_NAME)
+
 markdownlint: mdl
 
 mdl:
@@ -82,11 +86,17 @@ push-image-tools:
 push-image-kubectl:
 	IMAGE=$(REPO_URL) TAG=$(BUILD_TAG) docker buildx bake kubectl-multiplatform --push
 
+push-image-sumologic-mock:
+	IMAGE=$(SUMOLOGIC_MOCK_REPO_URL) TAG=$(BUILD_TAG) docker buildx bake sumologic-mock-multiplatform --push
+
 push-image-ecr-tools:
 	make push-image-tools REPO_URL=$(ECR_REPO_URL)
 
 push-image-ecr-kubectl:
 	make push-image-kubectl REPO_URL=$(ECR_REPO_URL)
+
+push-image-ecr-sumologic-mock:
+	make push-image-sumologic-mock REPO_URL=$(SUMOLOGIC_MOCK_ECR_REPO_URL)
 
 login:
 	echo "${DOCKER_PASSWORD}" | docker login -u sumodocker --password-stdin
