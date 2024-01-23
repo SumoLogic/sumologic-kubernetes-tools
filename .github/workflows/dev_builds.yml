@@ -51,6 +51,7 @@ jobs:
     with:
       build_tag: ${{ needs.extract-image-tag.outputs.build_tag }}
       suffix: sumologic-mock
+      push_cache: true
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
       DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}

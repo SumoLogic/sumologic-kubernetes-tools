@@ -22,6 +22,10 @@ variable "BUILD_RUST_CACHE_TAG" {
     default = "rust-build-cache"
 }
 
+variable "BUILD_RUST_SUMOLOGIC_MOCK_CACHE_TAG" {
+    default = "rust-sumologic-mock-build-cache"
+}
+
 variable "TOOLS_CACHE_TAG" {
     default = "tools-build-cache"
 }
@@ -62,7 +66,7 @@ target "sumologic-mock" {
     dockerfile = "Dockerfile.sumologic-mock"
     tags = ["${SUMOLOGIC_MOCK_IMAGE}:${TAG}"]
     cache-from = [
-        "${CACHE_IMAGE}:${BUILD_RUST_CACHE_TAG}",
+        "${CACHE_IMAGE}:${BUILD_RUST_SUMOLOGIC_MOCK_CACHE_TAG}",
     ]
     output = ["type=docker"]
     platforms = ["linux/amd64"]
@@ -82,6 +86,15 @@ target "rust-cache" {
         "${CACHE_IMAGE}:${BUILD_RUST_CACHE_TAG}",
     ]
     cache-to = ["${CACHE_IMAGE}:${BUILD_RUST_CACHE_TAG}"]
+    target = "rust-builder"
+}
+
+target "rust-cache-sumologic-mock" {
+    dockerfile = "Dockerfile.sumologic-mock"
+    cache-from = [
+        "${CACHE_IMAGE}:${BUILD_RUST_SUMOLOGIC_MOCK_CACHE_TAG}",
+    ]
+    cache-to = ["${CACHE_IMAGE}:${BUILD_RUST_SUMOLOGIC_MOCK_CACHE_TAG}"]
     target = "rust-builder"
 }
 
@@ -113,4 +126,8 @@ target "go-cache-multiplatform" {
 
 target "tools-cache-multiplatform" {
     inherits = ["tools-cache", "multiplatform"]
+}
+
+target "sumologic-mock-cache-multiplatform" {
+    inherits = ["rust-cache-sumologic-mock", "multiplatform"]
 }
