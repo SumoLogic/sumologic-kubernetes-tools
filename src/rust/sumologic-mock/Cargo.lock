@@ -449,9 +449,9 @@ checksum = "0d261e256854913907f67ed06efbc3338dfe6179796deefc1ff763fc1aee5535"
 
 [[package]]
 name = "bytes"
-version = "1.1.0"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4872d67bab6358e59559027aa3b9157c53d9358c51423c17554809a8858e0f8"
+checksum = "a2bd12c1caf447e69cd4528f47f94d203fd2582878ecb9e9465484c4148a8223"
 
 [[package]]
 name = "bytestring"
@@ -1378,34 +1378,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sumologic-mock"
-version = "0.1.0"
-dependencies = [
- "actix-http",
- "actix-rt",
- "actix-service 1.0.6",
- "actix-web",
- "anyhow",
- "base64",
- "bytes",
- "chrono",
- "clap",
- "fancy-regex",
- "hex",
- "itertools 0.12.0",
- "json_str",
- "log",
- "opentelemetry-proto",
- "prometheus-parse",
- "prost",
- "rand",
- "serde",
- "serde_json",
- "simple_logger",
- "timer",
-]
-
-[[package]]
 name = "redox_syscall"
 version = "0.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1588,6 +1560,34 @@ name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
+
+[[package]]
+name = "sumologic-mock"
+version = "0.1.0"
+dependencies = [
+ "actix-http",
+ "actix-rt",
+ "actix-service 1.0.6",
+ "actix-web",
+ "anyhow",
+ "base64",
+ "bytes",
+ "chrono",
+ "clap",
+ "fancy-regex",
+ "hex",
+ "itertools 0.12.0",
+ "json_str",
+ "log",
+ "opentelemetry-proto",
+ "prometheus-parse",
+ "prost",
+ "rand",
+ "serde",
+ "serde_json",
+ "simple_logger",
+ "timer",
+]
 
 [[package]]
 name = "syn"
