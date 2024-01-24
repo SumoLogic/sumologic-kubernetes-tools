@@ -80,6 +80,11 @@ push-image-cache-tools:
     	# https://github.com/aws/containers-roadmap/issues/876
 	docker buildx bake cache-multiplatform
 
+push-image-cache-sumologic-mock:
+	# only push cache to Dockerhub as ECR doesn't support it yet
+	# https://github.com/aws/containers-roadmap/issues/876
+	docker buildx bake sumologic-mock-cache-multiplatform
+
 push-image-tools:
 	IMAGE=$(REPO_URL) TAG=$(BUILD_TAG) docker buildx bake tools-multiplatform --push
 
