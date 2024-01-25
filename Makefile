@@ -38,7 +38,7 @@ delete-remote-tag:
 	@echo "Deleting remote tag ${TAG}"
 	@git push --delete origin ${TAG}
 
-build-image: build-image-tools build-image-kubectl
+build-image: build-image-tools build-image-kubectl build-image-sumologic-mock
 
 build-image-tools:
 	TAG=$(BUILD_TAG) docker buildx bake
@@ -66,11 +66,17 @@ tag-release-image-with-latest-tools:
 tag-release-image-with-latest-kubectl:
 	make push-image-kubectl BUILD_TAG=latest
 
+tag-release-image-with-latest-sumologic-mock:
+	make push-image-sumologic-mock BUILD_TAG=latest
+
 tag-release-image-with-latest-ecr-tools:
 	make tag-release-image-with-latest-tools REPO_URL=$(ECR_REPO_URL)
 
 tag-release-image-with-latest-ecr-kubectl:
 	make tag-release-image-with-latest-kubectl REPO_URL=$(ECR_REPO_URL)
+
+tag-release-image-with-latest-ecr-sumologic-mock:
+	make tag-release-image-with-latest-sumologic-mock SUMOLOGIC_MOCK_REPO_URL=$(SUMOLOGIC_MOCK_ECR_REPO_URL)
 
 test-image:
 	./scripts/test-image.sh "$(IMAGE_NAME):$(BUILD_TAG)"
@@ -92,7 +98,7 @@ push-image-kubectl:
 	IMAGE=$(REPO_URL) TAG=$(BUILD_TAG) docker buildx bake kubectl-multiplatform --push
 
 push-image-sumologic-mock:
-	IMAGE=$(SUMOLOGIC_MOCK_REPO_URL) TAG=$(BUILD_TAG) docker buildx bake sumologic-mock-multiplatform --push
+	SUMOLOGIC_MOCK_IMAGE=$(SUMOLOGIC_MOCK_REPO_URL) TAG=$(BUILD_TAG) docker buildx bake sumologic-mock-multiplatform --push
 
 push-image-ecr-tools:
 	make push-image-tools REPO_URL=$(ECR_REPO_URL)
@@ -101,7 +107,7 @@ push-image-ecr-kubectl:
 	make push-image-kubectl REPO_URL=$(ECR_REPO_URL)
 
 push-image-ecr-sumologic-mock:
-	make push-image-sumologic-mock REPO_URL=$(SUMOLOGIC_MOCK_ECR_REPO_URL)
+	make push-image-sumologic-mock SUMOLOGIC_MOCK_REPO_URL=$(SUMOLOGIC_MOCK_ECR_REPO_URL)
 
 login:
 	echo "${DOCKER_PASSWORD}" | docker login -u sumodocker --password-stdin
