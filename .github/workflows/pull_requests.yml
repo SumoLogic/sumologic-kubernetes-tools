@@ -25,7 +25,7 @@ jobs:
         with:
           toolchain: stable
       - name: Install Protoc
-        uses: arduino/setup-protoc@v2
+        uses: arduino/setup-protoc@v3
       - name: Build Sumo Logic Mock
         working-directory: src/rust/sumologic-mock/
         run: cargo rustc -- -D warnings
