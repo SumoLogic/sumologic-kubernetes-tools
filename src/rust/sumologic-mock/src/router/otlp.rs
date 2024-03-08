@@ -913,6 +913,7 @@ mod test {
             links: vec![],
             dropped_links_count: 0,
             status: None,
+            flags: 0,
         }
     }
 
