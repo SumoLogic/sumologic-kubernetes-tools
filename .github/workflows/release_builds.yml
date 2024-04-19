@@ -25,8 +25,8 @@ jobs:
       tag_latest: true
       suffix: tools
     secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_LOGIN }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+      DOCKER_USERNAME: ${{ secrets.DOCKERHUB_LOGIN }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   build-and-push-image-kubectl:
@@ -37,8 +37,8 @@ jobs:
       tag_latest: true
       suffix: kubectl
     secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_LOGIN_KUBECTL }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD_KUBECTL }}
+      DOCKER_USERNAME: ${{ secrets.DOCKERHUB_LOGIN_KUBECTL }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD_KUBECTL }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_KUBECTL }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_KUBECTL }}
   build-and-push-image-sumologic-mock:
@@ -49,8 +49,8 @@ jobs:
       tag_latest: true
       suffix: sumologic-mock
     secrets:
-      DOCKER_USERNAME: ${{ secrets.DOCKER_LOGIN_SUMOLOGIC_MOCK }}
-      DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD_SUMOLOGIC_MOCK }}
+      DOCKER_USERNAME: ${{ secrets.DOCKERHUB_LOGIN_SUMOLOGIC_MOCK }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD_SUMOLOGIC_MOCK }}
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_SUMOLOGIC_MOCK }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_SUMOLOGIC_MOCK }}
   build-binaries:
