@@ -26,6 +26,6 @@ opentelemetry-proto = { version = "0.5.0", features = ["gen-tonic", "logs", "met
 prost = "0.12.4"
 itertools = "0.12.1"
 log = "0.4.21"
-simple_logger = "4.3.3"
+simple_logger = "5.0.0"
 hex = "0.4.3"
 fancy-regex = "0.13.0"
