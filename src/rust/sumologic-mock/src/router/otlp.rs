@@ -443,6 +443,7 @@ mod sample {
                 description: String::new(),
                 unit: String::new(),
                 data: Some(data),
+                metadata: vec![],
             }
         }
 
@@ -786,6 +787,7 @@ mod test {
             description: "a test metric".to_string(),
             unit: "petaweber".to_string(),
             data: Some(metricsv1::metric::Data::Gauge(get_sample_gauge())),
+            metadata: vec![],
         }
     }
 
