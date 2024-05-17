@@ -1007,6 +1007,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1322,7 +1331,7 @@ version = "0.2.5"
 source = "git+https://github.com/ccakes/prometheus-parse-rs#37bf4a20a9747364189463350304e0bb2524ef48"
 dependencies = [
  "chrono",
- "itertools",
+ "itertools 0.12.1",
  "once_cell",
  "regex",
 ]
@@ -1344,7 +1353,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19de2de2a00075bf566bee3bd4db014b11587e84184d3f7a791bc17f1a8e9e48"
 dependencies = [
  "anyhow",
- "itertools",
+ "itertools 0.12.1",
  "proc-macro2",
  "quote",
  "syn 2.0.52",
@@ -1587,7 +1596,7 @@ dependencies = [
  "clap",
  "fancy-regex",
  "hex",
- "itertools",
+ "itertools 0.13.0",
  "json_str",
  "log",
  "opentelemetry-proto",
