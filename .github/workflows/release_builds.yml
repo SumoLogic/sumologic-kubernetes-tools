@@ -3,7 +3,7 @@ name: Release builds
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
   extract-image-tag:
@@ -36,6 +36,18 @@ jobs:
       build_tag: ${{ needs.extract-image-tag.outputs.build_tag }}
       tag_latest: true
       suffix: kubectl
+    secrets:
+      DOCKER_USERNAME: ${{ secrets.DOCKERHUB_LOGIN_KUBECTL }}
+      DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD_KUBECTL }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID_KUBECTL }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY_KUBECTL }}
+  build-and-push-image-kubectl-ubi:
+    uses: ./.github/workflows/build_and_push_image.yml
+    needs: extract-image-tag
+    with:
+      build_tag: ${{ needs.extract-image-tag.outputs.build_tag }}
+      tag_latest: true
+      suffix: kubectl-ubi
     secrets:
       DOCKER_USERNAME: ${{ secrets.DOCKERHUB_LOGIN_KUBECTL }}
       DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD_KUBECTL }}

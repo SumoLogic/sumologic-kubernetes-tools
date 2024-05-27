@@ -38,7 +38,7 @@ delete-remote-tag:
 	@echo "Deleting remote tag ${TAG}"
 	@git push --delete origin ${TAG}
 
-build-image: build-image-tools build-image-kubectl build-image-sumologic-mock
+build-image: build-image-tools build-image-kubectl build-image-kubectl-ubi build-image-sumologic-mock
 
 build-image-tools:
 	TAG=$(BUILD_TAG) docker buildx bake
@@ -46,16 +46,22 @@ build-image-tools:
 build-image-kubectl:
 	TAG=$(BUILD_TAG) docker buildx bake kubectl
 
+build-image-kubectl-ubi:
+	TAG=$(BUILD_TAG) docker buildx bake kubectl-ubi
+
 build-image-sumologic-mock:
 	TAG=$(BUILD_TAG) docker buildx bake sumologic-mock
 
-build-image-multiplatform: build-image-multiplatform-tools build-image-multiplatform-kubectl
+build-image-multiplatform: build-image-multiplatform-tools build-image-multiplatform-kubectl build-image-multiplatform-kubectl-ubi
 
 build-image-multiplatform-tools:
 	TAG=$(BUILD_TAG) docker buildx bake tools-multiplatform
 
 build-image-multiplatform-kubectl:
 	TAG=$(BUILD_TAG) docker buildx bake kubectl-multiplatform
+
+build-image-multiplatform-kubectl-ubi:
+	TAG=$(BUILD_TAG) docker buildx bake kubectl-ubi-multiplatform
 
 build-image-multiplatform-sumologic-mock:
 	TAG=$(BUILD_TAG) docker buildx bake sumologic-mock-multiplatform
@@ -66,6 +72,9 @@ tag-release-image-with-latest-tools:
 tag-release-image-with-latest-kubectl:
 	make push-image-kubectl BUILD_TAG=latest
 
+tag-release-image-with-latest-kubectl-ubi:
+	make push-image-kubectl-ubi BUILD_TAG=latest
+
 tag-release-image-with-latest-sumologic-mock:
 	make push-image-sumologic-mock BUILD_TAG=latest
 
@@ -74,6 +83,9 @@ tag-release-image-with-latest-ecr-tools:
 
 tag-release-image-with-latest-ecr-kubectl:
 	make tag-release-image-with-latest-kubectl REPO_URL=$(ECR_REPO_URL)
+
+tag-release-image-with-latest-ecr-kubectl-ubi:
+	make tag-release-image-with-latest-kubectl-ubi REPO_URL=$(ECR_REPO_URL)
 
 tag-release-image-with-latest-ecr-sumologic-mock:
 	make tag-release-image-with-latest-sumologic-mock SUMOLOGIC_MOCK_REPO_URL=$(SUMOLOGIC_MOCK_ECR_REPO_URL)
@@ -97,6 +109,9 @@ push-image-tools:
 push-image-kubectl:
 	IMAGE=$(REPO_URL) TAG=$(BUILD_TAG) docker buildx bake kubectl-multiplatform --push
 
+push-image-kubectl-ubi:
+	IMAGE=$(REPO_URL) TAG=$(BUILD_TAG) docker buildx bake kubectl-ubi-multiplatform --push
+
 push-image-sumologic-mock:
 	SUMOLOGIC_MOCK_IMAGE=$(SUMOLOGIC_MOCK_REPO_URL) TAG=$(BUILD_TAG) docker buildx bake sumologic-mock-multiplatform --push
 
@@ -105,6 +120,9 @@ push-image-ecr-tools:
 
 push-image-ecr-kubectl:
 	make push-image-kubectl REPO_URL=$(ECR_REPO_URL)
+
+push-image-ecr-kubectl-ubi:
+	make push-image-kubectl-ubi REPO_URL=$(ECR_REPO_URL)
 
 push-image-ecr-sumologic-mock:
 	make push-image-sumologic-mock SUMOLOGIC_MOCK_REPO_URL=$(SUMOLOGIC_MOCK_ECR_REPO_URL)
