@@ -1,0 +1,25 @@
+FROM registry.access.redhat.com/ubi8/ubi-minimal:8.6
+
+ARG TARGETARCH
+ARG TARGETOS
+ARG BUILD_TAG
+
+ENV KUBECTL_VERSION="v1.26.4"
+ADD https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/${TARGETOS}/${TARGETARCH}/kubectl /usr/bin/kubectl
+RUN chmod +x /usr/bin/kubectl
+
+ENV SUMMARY="UBI based Kubectl Sumo Logic Tools image" \
+    DESCRIPTION="Sumo Logic Tools image containing kubectl binary"
+
+LABEL name="Sumo Logic Kubernetes tools" \
+    vendor="Sumo Logic" \
+    version="${BUILD_TAG}" \
+    release="1" \
+    summary="$SUMMARY" \
+    description="$DESCRIPTION" \
+    maintainer="opensource-collection-team@sumologic.com"
+
+ADD LICENSE \
+    /licenses/LICENSE
+
+USER 65532:65532

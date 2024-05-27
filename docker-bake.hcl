@@ -54,12 +54,26 @@ target "kubectl" {
     platforms = ["linux/amd64"]
 }
 
+target "kubectl-ubi" {
+    dockerfile = "Dockerfile.kubectl-ubi"
+    tags = ["${IMAGE}-kubectl:${TAG}-ubi"]
+    output = ["type=docker"]
+    platforms = ["linux/amd64"]
+    args = {
+        BUILD_TAG = "${TAG}"
+    }
+}
+
 target "tools-multiplatform" {
     inherits = ["default", "multiplatform"]
 }
 
 target "kubectl-multiplatform" {
     inherits = ["kubectl", "multiplatform"]
+}
+
+target "kubectl-ubi-multiplatform" {
+    inherits = ["kubectl-ubi", "multiplatform"]
 }
 
 target "sumologic-mock" {
