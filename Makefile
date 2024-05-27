@@ -81,8 +81,8 @@ tag-release-image-with-latest-sumologic-mock:
 tag-release-image-with-latest-ecr-tools:
 	make tag-release-image-with-latest-tools REPO_URL=$(ECR_REPO_URL)
 
-tag-release-image-with-latest-ecr-kubectl-ubi:
-	make tag-release-image-with-latest-kubectl-ubi REPO_URL=$(ECR_REPO_URL)
+tag-release-image-with-latest-ecr-kubectl:
+	make tag-release-image-with-latest-kubectl REPO_URL=$(ECR_REPO_URL)
 
 tag-release-image-with-latest-ecr-kubectl-ubi:
 	make tag-release-image-with-latest-kubectl-ubi REPO_URL=$(ECR_REPO_URL)
