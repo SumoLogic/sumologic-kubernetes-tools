@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - "release-v[0-9]+.[0-9]+"
+      - "dev-build/*"
 
 jobs:
   extract-image-tag:
