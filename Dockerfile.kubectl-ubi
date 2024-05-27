@@ -17,6 +17,7 @@ LABEL name="Sumo Logic Kubernetes tools" \
     release="1" \
     summary="$SUMMARY" \
     description="$DESCRIPTION" \
+    io.k8s.description="$DESCRIPTION" \
     maintainer="opensource-collection-team@sumologic.com"
 
 ADD LICENSE \
