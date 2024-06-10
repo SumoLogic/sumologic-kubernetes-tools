@@ -249,7 +249,8 @@ pub async fn handler_receiver(
         }
 
         // Logs & events
-        "application/x-www-form-urlencoded" => {
+        // When content-type is empty, assume these are logs in plaintext.
+        "application/x-www-form-urlencoded" | "" => {
             // parse X-Sumo-Fields for metadata
             let mut metadata = metadata;
             match req.headers().get("x-sumo-fields") {
@@ -921,6 +922,62 @@ mod tests_logs {
             let req = test::TestRequest::get()
                 .uri("/logs/count?namespace=&deployment=collection-kube-state-metrics&from_ts=5&to_ts=10")
                 .to_request();
+            let resp = test::call_service(&mut app, req).await;
+
+            let response_body: LogsCountResponse = test::read_body_json(resp).await;
+
+            assert_eq!(response_body.count, 1);
+        }
+    }
+
+    #[actix_rt::test]
+    async fn test_empty_content_type() {
+        simple_logger::SimpleLogger::new().env().init().unwrap();
+
+        let opts = options::Options {
+            print: options::Print {
+                logs: false,
+                headers: false,
+                metrics: false,
+                spans: false,
+            },
+            delay_time: std::time::Duration::from_secs(0),
+            drop_rate: 0,
+            store_traces: true,
+            store_metrics: true,
+            store_logs: true,
+        };
+        let mut app = test::init_service(
+            App::new()
+                .app_data(web::Data::new(AppState::new()))
+                .app_data(web::Data::new(opts.clone()))
+                .route("/logs/count", web::get().to(handler_logs_count))
+                .default_service(web::get().to(super::handler_receiver)),
+        )
+        .await;
+
+        {
+            let req = test::TestRequest::post()
+                .uri("/")
+                .set_payload(format!("{{\"log\": \"Log message\", \"timestamp\": {}}}", 0))
+                // This test does not set Content-Type
+                // .insert_header(("Content-Type", "application/x-www-form-urlencoded"))
+                .insert_header((
+                    "X-Sumo-Fields",
+                    "namespace=default, deployment=collection-kube-state-metrics, node=sumologic-control-plane",
+                ))
+                .insert_header(("X-Sumo-Host", "localhost"))
+                .insert_header(("X-Sumo-Category", "category"))
+                .insert_header(("X-Sumo-Name", "name"))
+                .to_request();
+            let resp = test::call_service(&mut app, req).await;
+            assert_eq!(resp.status(), 200);
+
+            let body = test::read_body(resp).await;
+            assert_eq!(body, "");
+        }
+        {
+            let req = test::TestRequest::get().uri("/logs/count").to_request();
             let resp = test::call_service(&mut app, req).await;
 
             let response_body: LogsCountResponse = test::read_body_json(resp).await;
