@@ -3,6 +3,6 @@ FROM bash:5.2.26-alpine3.20
 ARG TARGETARCH
 ARG TARGETOS
 
-ENV KUBECTL_VERSION="v1.26.4"
+ENV KUBECTL_VERSION="v1.27.15"
 ADD https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/${TARGETOS}/${TARGETARCH}/kubectl /usr/bin/kubectl
 RUN chmod +x /usr/bin/kubectl
