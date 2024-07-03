@@ -1,4 +1,4 @@
-FROM golang:1.22.4 as go-builder
+FROM golang:1.23rc1 as go-builder
 RUN mkdir /build
 ADD ./src/go /build/
 WORKDIR /build
