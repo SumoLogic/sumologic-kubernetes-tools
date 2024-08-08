@@ -73,7 +73,6 @@ pod "diag" deleted
   -it --rm \
   --restart=Never -n sumologic \
   --image sumologic/kubernetes-tools \
-  --serviceaccount='collection-sumologic' \
   --env JAEGER_AGENT_HOST=collection-sumologic-otelcol.sumologic \
   --env JAEGER_AGENT_PORT=6831 \
   --env TOTAL_SPANS=1000000 \
@@ -98,7 +97,6 @@ Traces can be easily found with the `service=customer-trace-test-service` filter
   -it --rm \
   --restart=Never -n sumologic \
   --image sumologic/kubernetes-tools \
-  --serviceaccount='collection-sumologic' \
   --env COLLECTOR_HOSTNAME=collection-sumologic-otelcol.sumologic \
   --env TOTAL_TRACES=1 \
   --env SPANS_PER_TRACE=10 \
