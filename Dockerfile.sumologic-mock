@@ -11,7 +11,7 @@ WORKDIR /sumologic-mock
 COPY ./src/rust/sumologic-mock .
 RUN cargo build --release
 
-FROM alpine:3.20.1
+FROM alpine:3.21.0
 ARG TARGETARCH
 ARG TARGETOS
 
