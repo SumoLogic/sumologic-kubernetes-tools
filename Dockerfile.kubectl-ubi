@@ -4,7 +4,7 @@ ARG TARGETARCH
 ARG TARGETOS
 ARG BUILD_TAG
 
-ENV KUBECTL_VERSION="v1.32.4"
+ENV KUBECTL_VERSION="v1.26.4"
 ADD https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/${TARGETOS}/${TARGETARCH}/kubectl /usr/bin/kubectl
 RUN chmod +x /usr/bin/kubectl
 

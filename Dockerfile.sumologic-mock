@@ -1,4 +1,4 @@
-FROM rust:slim as rust-builder
+FROM rust:1.86.0-alpine as rust-builder
 RUN apk update \
     && apk upgrade \
     && apk add g++ git \
