@@ -155,7 +155,7 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
         let app_metadata = app_metadata.clone();
         let terraform_state = terraform_state.clone();
         let opts = opts.clone();
-        
+
         move || {
             actix_web::App::new()
                 // Middleware printing headers for all handlers.
