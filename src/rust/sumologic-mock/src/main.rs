@@ -150,8 +150,13 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
         fields: Mutex::new(HashMap::new()),
     });
 
-    let create_server = || {
-        actix_web::HttpServer::new(move || {
+    let create_app = {
+        let app_state = app_state.clone();
+        let app_metadata = app_metadata.clone();
+        let terraform_state = terraform_state.clone();
+        let opts = opts.clone();
+        
+        move || {
             actix_web::App::new()
                 // Middleware printing headers for all handlers.
                 // For a more robust middleware implementation (in its own type)
@@ -265,18 +270,18 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
                 .default_service(web::get().to(router::handler_receiver))
                 // Set metrics payload limit to 100MB
                 .app_data(web::PayloadConfig::default().limit(100 * 2 << 20))
-        })
+        }
     };
 
-    // Try to bind to [::] --loopback to both ipv6 and ipv4 first, fallback to IPv4 only if it fails
-    let result = match create_server().bind(format!("[::]:{}", port)) {
+    // Try to bind to [::] first, fallback to IPv4 if it fails
+    let result = match actix_web::HttpServer::new(create_app.clone()).bind(format!("[::]:{}", port)) {
         Ok(server) => {
             info!("Sumo Logic Mock is listening on [::]:{}!", port);
             server.run().await
         }
         Err(_) => {
             info!("Failed to bind to [::], falling back to 0.0.0.0:{}", port);
-            match create_server().bind(format!("0.0.0.0:{}", port)) {
+            match actix_web::HttpServer::new(create_app).bind(format!("0.0.0.0:{}", port)) {
                 Ok(server) => {
                     info!("Sumo Logic Mock is listening on 0.0.0.0:{}!", port);
                     server.run().await
