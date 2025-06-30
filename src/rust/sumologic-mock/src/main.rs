@@ -150,7 +150,7 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
         fields: Mutex::new(HashMap::new()),
     });
 
-    info!("Sumo Logic Mock is listening on 0.0.0.0:{}!", port);
+    info!("Sumo Logic Mock is listening on [::]:{}!", port);
     let result = actix_web::HttpServer::new(move || {
         actix_web::App::new()
             // Middleware printing headers for all handlers.
@@ -266,7 +266,7 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
             // Set metrics payload limit to 100MB
             .app_data(web::PayloadConfig::default().limit(100 * 2 << 20))
     })
-    .bind(format!("0.0.0.0:{}", port))?
+    .bind(format!("[::]:{}", port))?
     .run()
     .await;
 
