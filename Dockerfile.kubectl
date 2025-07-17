@@ -1,4 +1,4 @@
-FROM bash:5.2.26-alpine3.20
+FROM bash:5.3.0-alpine3.22
 
 ARG TARGETARCH
 ARG TARGETOS
