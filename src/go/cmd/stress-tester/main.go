@@ -180,7 +180,7 @@ func buildTrace(ctx context.Context, tracer trace.Tracer, testCfg stressTestConf
 			val := "true"
 			magicTag = &val
 		}
-		_, childSpan := buildChildSpan(ctx, tracer, i, traceNumber%100, magicTag)
+		ctx, childSpan := buildChildSpan(ctx, tracer, i, traceNumber%100, magicTag)
 		childSpan.SetAttributes(attribute.Bool("late", isLate))
 		currentParent = &childSpan
 	}
