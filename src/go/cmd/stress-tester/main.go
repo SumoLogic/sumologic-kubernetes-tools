@@ -321,6 +321,9 @@ func configureOtlpGrpcExporter(ctx context.Context, collectorHostName string) sd
 	endpoint := fmt.Sprintf("%s:4317", collectorHostName)
 	log.Printf("OTLP gRPC Exporter endpoint: %s\n", endpoint)
 
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
 	traceExporter, err := otlptracegrpc.New(ctx,
 		otlptracegrpc.WithInsecure(),
 		otlptracegrpc.WithEndpoint(endpoint),
