@@ -1,4 +1,4 @@
-FROM golang:1.24.2 as go-builder
+FROM golang:1.25.9 as go-builder
 RUN mkdir /build
 ADD ./src/go /build/
 WORKDIR /build
@@ -35,7 +35,7 @@ WORKDIR /logs-generator
 COPY ./src/rust/logs-generator .
 RUN cargo build --release
 
-FROM alpine:3.21.3
+FROM alpine:3.22
 ARG TARGETARCH
 ARG TARGETOS
 ENV HELM_VERSION="3.7.2"
