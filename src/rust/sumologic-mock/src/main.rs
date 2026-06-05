@@ -150,125 +150,149 @@ async fn run_app(hostname: String, port: u16, opts: Options) -> std::io::Result<
         fields: Mutex::new(HashMap::new()),
     });
 
-    info!("Sumo Logic Mock is listening on 0.0.0.0:{}!", port);
-    let result = actix_web::HttpServer::new(move || {
-        actix_web::App::new()
-            // Middleware printing headers for all handlers.
-            // For a more robust middleware implementation (in its own type)
-            // one can take a look at https://actix.rs/docs/middleware/
-            .wrap_fn(move |req, srv| {
-                if opts.print.headers {
-                    let headers = req.headers();
+    let create_app = {
+        let app_state = app_state.clone();
+        let app_metadata = app_metadata.clone();
+        let terraform_state = terraform_state.clone();
+        let opts = opts.clone();
 
-                    router::print_request_headers(req.method(), req.version(), req.uri(), headers);
+        move || {
+            actix_web::App::new()
+                // Middleware printing headers for all handlers.
+                // For a more robust middleware implementation (in its own type)
+                // one can take a look at https://actix.rs/docs/middleware/
+                .wrap_fn(move |req, srv| {
+                    if opts.print.headers {
+                        let headers = req.headers();
+
+                        router::print_request_headers(req.method(), req.version(), req.uri(), headers);
+                    }
+
+                    thread::sleep(opts.delay_time);
+
+                    actix_web::dev::Service::call(&srv, req)
+                })
+                .app_data(app_state.clone()) // Mutable shared state
+                .app_data(web::Data::new(opts.clone()))
+                .route(
+                    "/spans-list",
+                    web::get().to(router::traces_data::handler_get_spans),
+                )
+                .route(
+                    "/traces-list",
+                    web::get().to(router::traces_data::handler_get_traces),
+                )
+                .route(
+                    "/metrics-reset",
+                    web::post().to(router::metrics_data::handler_metrics_reset),
+                )
+                .route(
+                    "/metrics-list",
+                    web::get().to(router::metrics_data::handler_metrics_list),
+                )
+                .route(
+                    "/metrics-ips",
+                    web::get().to(router::metrics_data::handler_metrics_ips),
+                )
+                .route(
+                    "/metrics-samples",
+                    web::get().to(router::metrics_data::handler_metrics_samples),
+                )
+                .route("/metrics", web::get().to(router::handler_metrics))
+                .route("/logs/count", web::get().to(router::handler_logs_count))
+                .service(
+                    web::scope("/api/v1")
+                        .route(
+                            "/collector/register",
+                            web::post().to(router::api::v1::handler_collector_register),
+                        )
+                        .route(
+                            "/collector/heartbeat",
+                            web::post().to(router::api::v1::handler_collector_heartbeat),
+                        )
+                        .route(
+                            "/otCollectors/metadata",
+                            web::post().to(router::api::v1::handler_collector_metadata),
+                        )
+                        .route(
+                            "/collector/logs",
+                            web::post().to(router::otlp::handler_receiver_otlp_logs),
+                        )
+                        .route(
+                            "/collector/metrics",
+                            web::post().to(router::otlp::handler_receiver_otlp_metrics),
+                        )
+                        .route(
+                            "/collector/traces",
+                            web::post().to(router::otlp::handler_receiver_otlp_traces),
+                        ),
+                )
+                .service(
+                    web::scope("/terraform")
+                        .app_data(app_metadata.clone())
+                        .app_data(terraform_state.clone())
+                        .route(
+                            "/api/v1/fields/quota",
+                            web::get().to(router::terraform::handler_terraform_fields_quota),
+                        )
+                        .route(
+                            "/api/v1/fields/{field}",
+                            web::get().to(router::terraform::handler_terraform_field),
+                        )
+                        .route(
+                            "/api/v1/fields",
+                            web::get().to(router::terraform::handler_terraform_fields),
+                        )
+                        .route(
+                            "/api/v1/fields",
+                            web::post().to(router::terraform::handler_terraform_fields_create),
+                        )
+                        .default_service(web::get().to(router::terraform::handler_terraform)),
+                )
+                .route("/dump", web::post().to(router::handler_dump))
+                // OTLP
+                .service(
+                    web::scope("/receiver/v1")
+                        .route(
+                            "/logs",
+                            web::post().to(router::otlp::handler_receiver_otlp_logs),
+                        )
+                        .route(
+                            "/metrics",
+                            web::post().to(router::otlp::handler_receiver_otlp_metrics),
+                        )
+                        .route(
+                            "/traces",
+                            web::post().to(router::otlp::handler_receiver_otlp_traces),
+                        ),
+                )
+                // Treat every other url as receiver endpoint
+                .default_service(web::get().to(router::handler_receiver))
+                // Set metrics payload limit to 100MB
+                .app_data(web::PayloadConfig::default().limit(100 * 2 << 20))
+        }
+    };
+
+    // Try to bind to [::] first, fallback to IPv4 if it fails
+    let result = match actix_web::HttpServer::new(create_app.clone()).bind(format!("[::]:{}", port)) {
+        Ok(server) => {
+            info!("Sumo Logic Mock is listening on [::]:{}!", port);
+            server.run().await
+        }
+        Err(_) => {
+            info!("Failed to bind to [::], falling back to 0.0.0.0:{}", port);
+            match actix_web::HttpServer::new(create_app).bind(format!("0.0.0.0:{}", port)) {
+                Ok(server) => {
+                    info!("Sumo Logic Mock is listening on 0.0.0.0:{}!", port);
+                    server.run().await
                 }
-
-                thread::sleep(opts.delay_time);
-
-                actix_web::dev::Service::call(&srv, req)
-            })
-            .app_data(app_state.clone()) // Mutable shared state
-            .app_data(web::Data::new(opts.clone()))
-            .route(
-                "/spans-list",
-                web::get().to(router::traces_data::handler_get_spans),
-            )
-            .route(
-                "/traces-list",
-                web::get().to(router::traces_data::handler_get_traces),
-            )
-            .route(
-                "/metrics-reset",
-                web::post().to(router::metrics_data::handler_metrics_reset),
-            )
-            .route(
-                "/metrics-list",
-                web::get().to(router::metrics_data::handler_metrics_list),
-            )
-            .route(
-                "/metrics-ips",
-                web::get().to(router::metrics_data::handler_metrics_ips),
-            )
-            .route(
-                "/metrics-samples",
-                web::get().to(router::metrics_data::handler_metrics_samples),
-            )
-            .route("/metrics", web::get().to(router::handler_metrics))
-            .route("/logs/count", web::get().to(router::handler_logs_count))
-            .service(
-                web::scope("/api/v1")
-                    .route(
-                        "/collector/register",
-                        web::post().to(router::api::v1::handler_collector_register),
-                    )
-                    .route(
-                        "/collector/heartbeat",
-                        web::post().to(router::api::v1::handler_collector_heartbeat),
-                    )
-                    .route(
-                        "/otCollectors/metadata",
-                        web::post().to(router::api::v1::handler_collector_metadata),
-                    )
-                    .route(
-                        "/collector/logs",
-                        web::post().to(router::otlp::handler_receiver_otlp_logs),
-                    )
-                    .route(
-                        "/collector/metrics",
-                        web::post().to(router::otlp::handler_receiver_otlp_metrics),
-                    )
-                    .route(
-                        "/collector/traces",
-                        web::post().to(router::otlp::handler_receiver_otlp_traces),
-                    ),
-            )
-            .service(
-                web::scope("/terraform")
-                    .app_data(app_metadata.clone())
-                    .app_data(terraform_state.clone())
-                    .route(
-                        "/api/v1/fields/quota",
-                        web::get().to(router::terraform::handler_terraform_fields_quota),
-                    )
-                    .route(
-                        "/api/v1/fields/{field}",
-                        web::get().to(router::terraform::handler_terraform_field),
-                    )
-                    .route(
-                        "/api/v1/fields",
-                        web::get().to(router::terraform::handler_terraform_fields),
-                    )
-                    .route(
-                        "/api/v1/fields",
-                        web::post().to(router::terraform::handler_terraform_fields_create),
-                    )
-                    .default_service(web::get().to(router::terraform::handler_terraform)),
-            )
-            .route("/dump", web::post().to(router::handler_dump))
-            // OTLP
-            .service(
-                web::scope("/receiver/v1")
-                    .route(
-                        "/logs",
-                        web::post().to(router::otlp::handler_receiver_otlp_logs),
-                    )
-                    .route(
-                        "/metrics",
-                        web::post().to(router::otlp::handler_receiver_otlp_metrics),
-                    )
-                    .route(
-                        "/traces",
-                        web::post().to(router::otlp::handler_receiver_otlp_traces),
-                    ),
-            )
-            // Treat every other url as receiver endpoint
-            .default_service(web::get().to(router::handler_receiver))
-            // Set metrics payload limit to 100MB
-            .app_data(web::PayloadConfig::default().limit(100 * 2 << 20))
-    })
-    .bind(format!("0.0.0.0:{}", port))?
-    .run()
-    .await;
+                Err(e) => {
+                    error!("Failed to bind to both [::] and 0.0.0.0: {}", e);
+                    return Err(e);
+                }
+            }
+        }
+    };
 
     match result {
         Ok(result) => Ok(result),
