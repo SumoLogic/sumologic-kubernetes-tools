@@ -26,7 +26,6 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/exporters/jaeger"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
@@ -45,14 +44,8 @@ type traceTestConfig struct {
 	spansPerTrace int
 	// How many Traces should be generated
 	totalTraces int
-	// Is sending in OTLP HTTP format enabled
-	otlpHttpEnabled bool
-	// Is sending in OTLP gRPC format enabled
-	otlpGrpcEnabled bool
-	// Is sending in Zipkin format enabled
-	zipkinEnabled bool
-	// Is sending in Jaeger Thrift HTTP format enabled
-	jaegerThriftHttpEnabled bool
+	// OTLP HTTP exporter port number
+	otlpHttpPort int
 }
 
 const (
@@ -62,27 +55,22 @@ const (
 	EnvSpansPerTrace = "SPANS_PER_TRACE"
 	// EnvTotalTraces Number of traces generated per exporter
 	EnvTotalTraces = "TOTAL_TRACES"
-	// EnvOtlpHttp Is sending in OTLP HTTP format enabled
-	EnvOtlpHttp = "OTLP_HTTP"
-	// EnvOtlpGrpc Is sending in OTLP gRPC format enabled
-	EnvOtlpGrpc = "OTLP_GRPC"
-	// EnvZipkin Is sending in Zipkin format enabled
-	EnvZipkin = "ZIPKIN"
-	// EnvJaegerThriftHttp Is sending in Jaeger Thrift HTTP format enabled
-	EnvJaegerThriftHttp = "JAEGER_THRIFT_HTTP"
+	// EnvOTLPHttpPort OTLP HTTP exporter port number
+	EnvOTLPHttpPort = "OTLP_HTTP_PORT"
 )
 
 func (cfg *traceTestConfig) printConfig() {
 	log.Printf("%s = %s\n", EnvCollectorHostName, cfg.collectorHostName)
 	log.Printf("%s = %d\n", EnvTotalTraces, cfg.totalTraces)
 	log.Printf("%s = %d\n", EnvSpansPerTrace, cfg.spansPerTrace)
+	log.Printf("%s = %d\n", EnvOTLPHttpPort, cfg.otlpHttpPort)
 }
 
 func createTraceTestConfig() traceTestConfig {
 
 	collectorHostName := os.Getenv(EnvCollectorHostName)
 	if collectorHostName == "" {
-		collectorHostName = "collection-sumologic-otelcol.sumologic"
+		collectorHostName = "collection-sumologic-otelagent.sumologic"
 	}
 
 	spansPerTrace, err := strconv.Atoi(os.Getenv(EnvSpansPerTrace))
@@ -95,34 +83,16 @@ func createTraceTestConfig() traceTestConfig {
 		totalTraces = 1
 	}
 
-	otlpHttp, err := strconv.ParseBool(os.Getenv(EnvOtlpHttp))
+	otlpHttpPort, err := strconv.Atoi(os.Getenv(EnvOTLPHttpPort))
 	if err != nil {
-		otlpHttp = true
-	}
-
-	otlpGrpc, err := strconv.ParseBool(os.Getenv(EnvOtlpGrpc))
-	if err != nil {
-		otlpGrpc = true
-	}
-
-	zipkin, err := strconv.ParseBool(os.Getenv(EnvZipkin))
-	if err != nil {
-		zipkin = true
-	}
-
-	jaegerThriftHttp, err := strconv.ParseBool(os.Getenv(EnvJaegerThriftHttp))
-	if err != nil {
-		jaegerThriftHttp = true
+		otlpHttpPort = 4318
 	}
 
 	return traceTestConfig{
-		collectorHostName:       collectorHostName,
-		spansPerTrace:           spansPerTrace,
-		totalTraces:             totalTraces,
-		otlpHttpEnabled:         otlpHttp,
-		otlpGrpcEnabled:         otlpGrpc,
-		zipkinEnabled:           zipkin,
-		jaegerThriftHttpEnabled: jaegerThriftHttp,
+		collectorHostName: collectorHostName,
+		spansPerTrace:     spansPerTrace,
+		totalTraces:       totalTraces,
+		otlpHttpPort:      otlpHttpPort,
 	}
 }
 
@@ -142,8 +112,8 @@ func configureOtlpGrpcExporter(ctx context.Context, collectorHostName string) sd
 	return bsp
 }
 
-func configureOtlpHTTPExporter(ctx context.Context, collectorHostName string) sdktrace.SpanProcessor {
-	endpoint := fmt.Sprintf("%s:55681", collectorHostName)
+func configureOtlpHTTPExporter(ctx context.Context, collectorHostName string, otlpHttpPort int) sdktrace.SpanProcessor {
+	endpoint := fmt.Sprintf("%s:%d", collectorHostName, otlpHttpPort)
 	log.Printf("OTLP HTTP Exporter endpoint: %s\n", endpoint)
 
 	opts := []otlptracehttp.Option{
@@ -163,31 +133,13 @@ func configureZipkinExporter(collectorHostName string) sdktrace.SpanProcessor {
 	url := fmt.Sprintf("http://%s:9411/api/v2/spans", collectorHostName)
 	log.Printf("Zipkin Exporter url: %s\n", url)
 
-	traceExporter, err := zipkin.New(
-		url,
-		zipkin.WithSDKOptions(sdktrace.WithSampler(sdktrace.AlwaysSample())),
-	)
+	traceExporter, err := zipkin.New(url)
 	handleErr("Failed to create Zipkin trace exporter", err)
 	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
 
 	return bsp
 }
 
-func configureJaegerThriftHTTPExporter(collectorHostName string) sdktrace.SpanProcessor {
-	url := fmt.Sprintf("http://%s:14268/api/traces", collectorHostName)
-	log.Printf("Jaeger Thrift HTTP Exporter url: %s\n", url)
-
-	traceExporter, err := jaeger.New(
-		jaeger.WithCollectorEndpoint(
-			jaeger.WithEndpoint(url),
-		),
-	)
-	handleErr("Failed to create Zipkin trace exporter", err)
-
-	bsp := sdktrace.NewBatchSpanProcessor(traceExporter)
-
-	return bsp
-}
 
 func initProvider(ctx context.Context, spanProcessor sdktrace.SpanProcessor) func() {
 	res, err := resource.New(ctx,
@@ -277,32 +229,18 @@ func main() {
 		fmt.Println("Customer Trace Tester")
 		fmt.Println("Simple application sending traces using various exporters")
 		fmt.Println("Configuration environment variables:")
-		fmt.Printf("- %s (default=collection-sumologic-otelcol.sumologic) - OT Collector hostname\n", EnvCollectorHostName)
+		fmt.Printf("- %s (default=collection-sumologic-otelagent.sumologic) - OT Collector hostname\n", EnvCollectorHostName)
 		fmt.Printf("- %s (default=1) - Number of traces generated by exporter\n", EnvTotalTraces)
 		fmt.Printf("- %s (default=10) - Number of spans per trace\n", EnvSpansPerTrace)
-		fmt.Printf("- %s (default=true) - Should traces be sent using OTLP HTTP format\n", EnvOtlpHttp)
-		fmt.Printf("- %s (default=true) - Should traces be sent using OTLP gRPC format\n", EnvOtlpGrpc)
-		fmt.Printf("- %s (default=true) - Should traces be sent using Zipkin format\n", EnvZipkin)
-		fmt.Printf("- %s (default=true) - Should traces be sent using Jaeger Thrift HTTP format\n", EnvJaegerThriftHttp)
+		fmt.Printf("- %s (default=4318) - OTLP HTTP exporter port number\n", EnvOTLPHttpPort)
 		os.Exit(0)
 	}
 	testCfg := createTraceTestConfig()
 
-	spanProcessors := map[string]sdktrace.SpanProcessor{}
-	if testCfg.otlpHttpEnabled {
-		spanProcessors["otlpHttp"] = configureOtlpHTTPExporter(context.Background(), testCfg.collectorHostName)
-	}
-
-	if testCfg.otlpGrpcEnabled {
-		spanProcessors["otlpGrpc"] = configureOtlpGrpcExporter(context.Background(), testCfg.collectorHostName)
-	}
-
-	if testCfg.zipkinEnabled {
-		spanProcessors["zipkin"] = configureZipkinExporter(testCfg.collectorHostName)
-	}
-
-	if testCfg.jaegerThriftHttpEnabled {
-		spanProcessors["jaegerThriftHttp"] = configureJaegerThriftHTTPExporter(testCfg.collectorHostName)
+	spanProcessors := map[string]sdktrace.SpanProcessor{
+		"otlpHttp": configureOtlpHTTPExporter(context.Background(), testCfg.collectorHostName, testCfg.otlpHttpPort),
+		"otlpGrpc": configureOtlpGrpcExporter(context.Background(), testCfg.collectorHostName),
+		"zipkin":   configureZipkinExporter(testCfg.collectorHostName),
 	}
 
 	for name, spanProcessor := range spanProcessors {
