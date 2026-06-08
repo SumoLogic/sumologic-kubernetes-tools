@@ -1,0 +1,26 @@
+{
+  $schema: 'https://docs.renovatebot.com/renovate-schema.json',
+  extends: [
+    'config:recommended',
+  ],
+  dependencyDashboardApproval: false,
+  recreateWhen: 'always',
+  prHourlyLimit: 10,
+  labels: [
+    'dependencies',
+  ],
+  commitMessageAction: 'bump',
+  commitMessageExtra: '{{#if isSingleVersion}}from {{{currentValue}}} to {{{newValue}}}{{/if}}',
+  enabledManagers: [
+    'helm-values',
+  ],
+  packageRules: [
+    {
+      description: 'Add chore(deps) prefix to all dependency update commits',
+      commitMessagePrefix: 'chore(deps):',
+      matchPackageNames: [
+        '/.*/',
+      ],
+    },
+  ],
+}
