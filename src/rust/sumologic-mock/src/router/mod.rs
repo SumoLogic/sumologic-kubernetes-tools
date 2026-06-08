@@ -281,7 +281,7 @@ pub async fn handler_receiver(
 
 fn try_dropping_data(opts: &web::Data<options::Options>, content_type: &str) -> Option<HttpResponse> {
     let mut rng = rand::thread_rng();
-    let number: i64 = rng.gen_range(0..100);
+    let number: i64 = rng.random_range(0..100);
     if number < opts.drop_rate {
         let msg = format!("Dropping data for {}", content_type);
         debug!("{}", msg);
