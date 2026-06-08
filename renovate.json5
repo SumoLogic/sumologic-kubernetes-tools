@@ -12,7 +12,35 @@
   commitMessageAction: 'bump',
   commitMessageExtra: '{{#if isSingleVersion}}from {{{currentValue}}} to {{{newValue}}}{{/if}}',
   enabledManagers: [
-    'helm-values',
+    'custom.regex',
+  ],
+  customManagers: [
+    {
+      customType: 'regex',
+      description: 'Update Helm version in Dockerfile',
+      fileMatch: ['^Dockerfile$'],
+      matchStrings: ['ENV HELM_VERSION="(?<currentValue>.*?)"'],
+      depNameTemplate: 'helm/helm',
+      datasourceTemplate: 'github-releases',
+      extractVersionTemplate: '^v(?<version>.*)$',
+    },
+    {
+      customType: 'regex',
+      description: 'Update yq version in Dockerfile',
+      fileMatch: ['^Dockerfile$'],
+      matchStrings: ['ENV YQ_VERSION="(?<currentValue>.*?)"'],
+      depNameTemplate: 'mikefarah/yq',
+      datasourceTemplate: 'github-releases',
+      extractVersionTemplate: '^v(?<version>.*)$',
+    },
+    {
+      customType: 'regex',
+      description: 'Update kubectl version in Dockerfiles',
+      fileMatch: ['^Dockerfile'],
+      matchStrings: ['ENV KUBECTL_VERSION="(?<currentValue>.*?)"'],
+      depNameTemplate: 'kubernetes/kubernetes',
+      datasourceTemplate: 'github-releases',
+    },
   ],
   packageRules: [
     {
