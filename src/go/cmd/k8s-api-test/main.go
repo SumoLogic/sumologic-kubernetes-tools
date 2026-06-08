@@ -13,6 +13,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -52,7 +53,7 @@ func main() {
 	handleErr("Failed when pulling version info", err)
 	log.Printf("Kubernetes version: %s", version.GitVersion)
 
-	pods, err := clientset.CoreV1().Pods("").List(metav1.ListOptions{Limit: 20})
+	pods, err := clientset.CoreV1().Pods("").List(context.Background(), metav1.ListOptions{Limit: 20})
 	handleErr("Failed when fetching list of pods", err)
 
 	log.Printf("Received data for %d pods in the cluster\n", len(pods.Items))
