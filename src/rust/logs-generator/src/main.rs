@@ -2,7 +2,6 @@
 extern crate clap_v3;
 
 use clap_v3::{App, Arg};
-use rand::Rng;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
@@ -313,7 +312,6 @@ fn read_wordlist(filename: &String) -> Vec<String> {
 }
 
 fn build_log(pattern: &String, wordlist: &Vec<String>, counter: &mut u64) -> String {
-    let mut rng = rand::thread_rng();
     let slices = pattern.split_whitespace();
     let mut log = "".to_owned();
 
@@ -325,7 +323,7 @@ fn build_log(pattern: &String, wordlist: &Vec<String>, counter: &mut u64) -> Str
             }
             // replace {d} with random digit
             else if slice.contains("d") {
-                log += &rng.gen_range(0, 0xffffff).to_string();
+                log += &rand::random_range(0..0xffffff).to_string();
             }
             // replace {c} with counter value
             else if slice.contains("c") {
@@ -343,8 +341,7 @@ fn build_log(pattern: &String, wordlist: &Vec<String>, counter: &mut u64) -> Str
 }
 
 fn get_random_word(wordlist: &Vec<String>) -> &String {
-    let mut rng = rand::thread_rng();
-    return wordlist.get(rng.gen_range(0, wordlist.len())).unwrap();
+    return wordlist.get(rand::random_range(0..wordlist.len())).unwrap();
 }
 
 fn generate_pattern(
@@ -355,7 +352,6 @@ fn generate_pattern(
     random_words: u32,
     random_digits: u32,
 ) -> String {
-    let mut rng = rand::thread_rng();
     let mut pattern = "{c} : ".to_string();
     let mut possible_slices = Vec::<String>::new();
 
@@ -371,10 +367,10 @@ fn generate_pattern(
         possible_slices.push("{d}".to_string());
     }
 
-    let pattern_slices = rng.gen_range(min, max + 1);
+    let pattern_slices = rand::random_range(min..max + 1);
 
     for _ in 0..pattern_slices {
-        let position = rng.gen_range(0, possible_slices.len());
+        let position = rand::random_range(0..possible_slices.len());
         let mut current_pattern = possible_slices.remove(position);
         pattern += &current_pattern;
 
