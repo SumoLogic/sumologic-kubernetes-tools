@@ -1,10 +1,10 @@
-FROM bash:5.3.0-alpine3.22
+FROM bash:5.3.8-alpine3.22
 
 ARG TARGETARCH
 ARG TARGETOS
 
 RUN apk upgrade --no-cache
 
-ENV KUBECTL_VERSION="v1.35.3"
+ENV KUBECTL_VERSION="v1.36.1"
 ADD https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/${TARGETOS}/${TARGETARCH}/kubectl /usr/bin/kubectl
 RUN chmod +x /usr/bin/kubectl
