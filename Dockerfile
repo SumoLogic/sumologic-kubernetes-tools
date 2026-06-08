@@ -22,7 +22,7 @@ RUN CGO_ENABLED=0 GOOS=linux \
         -ldflags '-w -extldflags "-static"' \
         -o update-collection-v3 cmd/update-collection-v3/main.go
 
-FROM rust:1.86.0-alpine as rust-builder
+FROM rust:1.96.0-alpine as rust-builder
 RUN apk update \
     && apk upgrade \
     && apk add g++ git \
@@ -35,7 +35,7 @@ WORKDIR /logs-generator
 COPY ./src/rust/logs-generator .
 RUN cargo build --release
 
-FROM alpine:3.22
+FROM alpine:3.23
 ARG TARGETARCH
 ARG TARGETOS
 ENV HELM_VERSION="3.7.2"
