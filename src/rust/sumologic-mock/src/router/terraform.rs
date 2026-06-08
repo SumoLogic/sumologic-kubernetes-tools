@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use actix_web::{http::StatusCode, web, HttpResponse, Responder};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use rand::distr::Alphanumeric;
+use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 
 use super::AppMetadata;
@@ -137,8 +137,8 @@ pub async fn handler_terraform_fields_create(
     terraform_state: web::Data<TerraformState>,
 ) -> impl Responder {
     let mut fields = terraform_state.fields.lock().unwrap();
-    let id: String = thread_rng()
-        .sample_iter(Alphanumeric)
+    let id: String = rng()
+        .sample_iter(&Alphanumeric)
         .take(16)
         .map(char::from)
         .collect();
