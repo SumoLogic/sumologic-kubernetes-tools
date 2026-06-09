@@ -20,7 +20,7 @@ clap = { version = "4.5.9", features = ["derive"]}
 timer = "0.2"
 chrono = { version = "0.4", features = ["serde"] }
 json_str = "*"
-rand = "0.9"
+rand = "0.10"
 prometheus-parse = { git = "https://github.com/ccakes/prometheus-parse-rs", version = "0.2.4" }
 opentelemetry-proto = { version = "0.6.0", features = ["gen-tonic", "logs", "metrics", "trace"] }
 prost = "0.12.6"
