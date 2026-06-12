@@ -6,7 +6,7 @@ ARG BUILD_TAG
 
 RUN microdnf update -y && microdnf clean all
 
-ENV KUBECTL_VERSION="v1.36.1"
+ENV KUBECTL_VERSION="v1.36.2"
 ADD https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/${TARGETOS}/${TARGETARCH}/kubectl /usr/bin/kubectl
 RUN chmod +x /usr/bin/kubectl
 
