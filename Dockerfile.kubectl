@@ -5,6 +5,6 @@ ARG TARGETOS
 
 RUN apk upgrade --no-cache
 
-ENV KUBECTL_VERSION="v1.36.1"
+ENV KUBECTL_VERSION="v1.36.3"
 ADD https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/${TARGETOS}/${TARGETARCH}/kubectl /usr/bin/kubectl
 RUN chmod +x /usr/bin/kubectl
