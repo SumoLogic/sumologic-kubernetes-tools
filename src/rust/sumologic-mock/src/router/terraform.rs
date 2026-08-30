@@ -3,7 +3,7 @@ use std::sync::Mutex;
 
 use actix_web::{http::StatusCode, web, HttpResponse, Responder};
 use rand::distr::Alphanumeric;
-use rand::{rng, Rng};
+use rand::{rng, RngExt};
 use serde::{Deserialize, Serialize};
 
 use super::AppMetadata;
