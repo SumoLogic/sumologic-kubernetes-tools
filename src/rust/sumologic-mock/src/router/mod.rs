@@ -14,7 +14,7 @@ use actix_http::header::HeaderValue;
 use actix_web::{http::StatusCode, web, HttpRequest, HttpResponse, Responder};
 use anyhow::anyhow;
 use log::debug;
-use rand::Rng;
+use rand::{Rng, RngExt};
 use serde::{Deserialize, Serialize};
 
 pub mod api;
