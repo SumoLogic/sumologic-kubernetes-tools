@@ -1,4 +1,4 @@
-FROM golang:1.26.4 as go-builder
+FROM golang:1.27.0 as go-builder
 RUN mkdir /build
 ADD ./src/go /build/
 WORKDIR /build
@@ -22,7 +22,7 @@ RUN CGO_ENABLED=0 GOOS=linux \
         -ldflags '-w -extldflags "-static"' \
         -o update-collection-v3 cmd/update-collection-v3/main.go
 
-FROM rust:1.96.1-alpine as rust-builder
+FROM rust:1.98.0-alpine as rust-builder
 RUN apk update \
     && apk upgrade \
     && apk add g++ git \
