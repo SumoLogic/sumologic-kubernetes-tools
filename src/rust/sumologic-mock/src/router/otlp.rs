@@ -354,6 +354,7 @@ mod sample {
                 .map(|(k, v)| KeyValue {
                     key: k.to_string(),
                     value: Some(v),
+                    key_strindex: 0,
                 })
                 .collect()
         }
@@ -537,6 +538,7 @@ mod test {
             flags: 0b101010,
             trace_id: vec![],
             span_id: vec![],
+            event_name: String::new(),
         }
     }
 
@@ -548,15 +550,18 @@ mod test {
                     value: Some(AnyValue {
                         value: Some(Value::StringValue("blep".to_string())),
                     }),
+                    key_strindex: 0,
                 },
                 KeyValue {
                     key: "another-key".to_string(),
                     value: Some(AnyValue {
                         value: Some(Value::StringValue("qwerty".to_string())),
                     }),
+                    key_strindex: 0,
                 },
             ],
             dropped_attributes_count: 0,
+            entity_refs: vec![],
         }
     }
 
@@ -753,6 +758,7 @@ mod test {
             .map(|(k, v)| KeyValue {
                 key: k.to_string(),
                 value: Some(v),
+                key_strindex: 0,
             })
             .collect()
     }
