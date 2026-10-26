@@ -22,7 +22,7 @@ RUN CGO_ENABLED=0 GOOS=linux \
         -ldflags '-w -extldflags "-static"' \
         -o update-collection-v3 cmd/update-collection-v3/main.go
 
-FROM rust:1.98.0-alpine as rust-builder
+FROM rust:1.99.1-alpine as rust-builder
 RUN apk update \
     && apk upgrade \
     && apk add g++ git \
@@ -39,8 +39,8 @@ FROM alpine:3.24
 ARG TARGETARCH
 ARG TARGETOS
 ENV HELM_VERSION="4.2.4"
-ENV YQ_VERSION="4.53.6"
-ENV KUBECTL_VERSION="v1.37.0"
+ENV YQ_VERSION="4.54.1"
+ENV KUBECTL_VERSION="v1.37.1"
 ENV UPGRADE_2_0_SCRIPT_URL="https://raw.githubusercontent.com/SumoLogic/sumologic-kubernetes-collection/release-v2.0/deploy/helm/sumologic/upgrade-2.0.0.sh"
 RUN set -ex \
     && apk update \
